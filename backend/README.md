@@ -34,4 +34,7 @@ Mở `http://127.0.0.1:8000/` hoặc `http://127.0.0.1:8000/docs`.
 ## Biến môi trường
 
 - `APP_ENV`: `development`, `staging` hoặc `production`.
-- `DATABASE_URL`: PostgreSQL URL. Không commit secret thật.
+- `DATABASE_URL`: PostgreSQL URL đầy đủ (ưu tiên nếu được đặt). Không commit secret thật.
+- Hoặc đặt riêng `DB_HOST`, `DB_PORT` (mặc định `5432`), `DB_NAME`, `DB_USER`, `DB_PASSWORD` — app tự
+  URL-encode `DB_PASSWORD` trước khi ghép connection string, tránh lỗi khi password chứa ký tự đặc
+  biệt như `@` hoặc `%`.

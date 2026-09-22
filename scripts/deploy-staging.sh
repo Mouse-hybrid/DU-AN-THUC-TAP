@@ -15,9 +15,10 @@ docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" config --quiet
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --build
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ps
 
-echo "Waiting for staging health endpoint..."
+echo "Waiting for staging readiness endpoint..."
 for attempt in {1..30}; do
-  if curl --fail --silent http://127.0.0.1/health >/dev/null; then
+  response=$(curl --fail --silent http://127.0.0.1/ready) || response=""
+  if [[ -n ${response} ]] && grep -q '"database":"connected"' <<<"${response}"; then
     echo "Staging is healthy: http://127.0.0.1/"
     exit 0
   fi

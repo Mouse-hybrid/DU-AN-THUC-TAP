@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -10,7 +11,28 @@ from sqlalchemy.exc import SQLAlchemyError
 
 APP_DIR = Path(__file__).resolve().parent
 APP_ENV = os.getenv("APP_ENV", "development")
-DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+def _build_database_url() -> str | None:
+    explicit_url = os.getenv("DATABASE_URL")
+    if explicit_url:
+        return explicit_url
+
+    db_host = os.getenv("DB_HOST")
+    db_name = os.getenv("DB_NAME")
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+    if not (db_host and db_name and db_user and db_password):
+        return None
+
+    db_port = os.getenv("DB_PORT", "5432")
+    # Encode the password so reserved URL characters (e.g. "@", "%") in a
+    # valid PostgreSQL password can't be misparsed as part of the DSN.
+    encoded_password = quote_plus(db_password)
+    return f"postgresql+psycopg://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
+
+
+DATABASE_URL = _build_database_url()
 database_engine = (
     create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300) if DATABASE_URL else None
 )

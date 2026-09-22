@@ -5,7 +5,11 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: staging
-      DATABASE_URL: postgresql+psycopg://pos_app:${POSTGRES_PASSWORD}@db:5432/pos_staging
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: pos_staging
+      DB_USER: pos_app
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
