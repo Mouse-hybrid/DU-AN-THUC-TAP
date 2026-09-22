@@ -71,9 +71,13 @@ PAGES = {
 
 
 def render_page(request: Request, page: str) -> HTMLResponse:
+    template_name = {
+        "landing": "landing.html",
+        "admin": "admin.html",
+    }.get(page, "shell.html")
     return templates.TemplateResponse(
         request=request,
-        name="shell.html",
+        name=template_name,
         context={"page": page, "content": PAGES[page], "environment": APP_ENV},
     )
 

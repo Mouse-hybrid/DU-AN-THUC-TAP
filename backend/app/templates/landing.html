@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ content.title }} · POS staging</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  </head>
+  <body class="landing-v1">
+    <header class="site-header">
+      <a class="product-brand" href="/">
+        <span class="brand-mark">P</span>
+        <span><strong>PointFlow</strong><small>Restaurant OS</small></span>
+      </a>
+      <nav aria-label="Điều hướng chính">
+        <a href="#modules">Giải pháp</a>
+        <a href="#workflow">Quy trình</a>
+        <a href="/docs">API</a>
+      </nav>
+      <a class="header-cta" href="/admin">Mở dashboard</a>
+    </header>
+
+    <main class="landing-main">
+      <section class="landing-hero">
+        <div class="hero-copy">
+          <span class="release-label"><i></i> Mock interface · {{ environment }}</span>
+          <h1>Vận hành nhà hàng<br><em>gọn hơn mỗi ca.</em></h1>
+          <p>Một không gian thống nhất cho thu ngân, bếp, phục vụ và quản lý — đang được xây dựng trên FastAPI và PostgreSQL.</p>
+          <div class="hero-actions">
+            <a class="cta cta-primary" href="/pos">Trải nghiệm POS</a>
+            <a class="cta cta-quiet" href="/customer">Xem menu khách hàng <span>→</span></a>
+          </div>
+          <div class="trust-row">
+            <span><b>5</b> màn hình mẫu</span>
+            <span><b>24/7</b> staging online</span>
+            <span><b>0</b> dữ liệu thật</span>
+          </div>
+        </div>
+
+        <div class="product-preview" aria-label="Bản xem trước POS">
+          <div class="preview-bar"><span></span><span></span><span></span><small>Ca sáng · Bàn 08</small></div>
+          <div class="preview-body">
+            <div class="preview-sidebar">
+              <b>PF</b><i class="active"></i><i></i><i></i><i></i>
+            </div>
+            <div class="preview-content">
+              <div class="preview-title"><div><small>Đơn hàng</small><strong>Bàn 08</strong></div><span>Đang phục vụ</span></div>
+              <div class="order-line"><span class="food-dot amber"></span><div><b>Cơm gà nướng</b><small>Ít cay · x2</small></div><strong>138.000đ</strong></div>
+              <div class="order-line"><span class="food-dot green"></span><div><b>Salad mùa</b><small>Không hành · x1</small></div><strong>59.000đ</strong></div>
+              <div class="order-line"><span class="food-dot red"></span><div><b>Trà đào cam sả</b><small>30% đường · x2</small></div><strong>78.000đ</strong></div>
+              <div class="order-total"><span>Tạm tính</span><b>275.000đ</b></div>
+              <button type="button">Gửi bếp · Mock</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="module-section" id="modules">
+        <div class="section-intro"><span>01 · Nền tảng</span><h2>Một hệ thống,<br>mọi điểm chạm.</h2><p>Thiết kế theo từng vai trò nhưng chia sẻ chung một luồng dữ liệu.</p></div>
+        <div class="module-grid">
+          <a href="/pos" class="module-card coral"><span>Thu ngân</span><h3>POS</h3><p>Tạo đơn, quản lý bàn và thanh toán.</p><b>01</b></a>
+          <a href="/kitchen" class="module-card gold"><span>Vận hành</span><h3>Kitchen</h3><p>Theo dõi hàng đợi và trạng thái món.</p><b>02</b></a>
+          <a href="/customer" class="module-card mint"><span>Khách hàng</span><h3>Menu QR</h3><p>Menu responsive và giỏ hàng mẫu.</p><b>03</b></a>
+          <a href="/admin" class="module-card violet"><span>Quản lý</span><h3>Admin</h3><p>Tổng quan doanh thu và hoạt động.</p><b>04</b></a>
+        </div>
+      </section>
+
+      <section class="workflow-strip" id="workflow">
+        <div><span>Order</span><b>01</b><p>Nhận đơn tại quầy hoặc QR</p></div><i>→</i>
+        <div><span>Prepare</span><b>02</b><p>Chuyển món tới màn hình bếp</p></div><i>→</i>
+        <div><span>Serve</span><b>03</b><p>Cập nhật trạng thái phục vụ</p></div><i>→</i>
+        <div><span>Report</span><b>04</b><p>Tổng hợp vào dashboard</p></div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><strong>PointFlow</strong><span>Staging preview · {{ environment }} · Không sử dụng dữ liệu production</span></footer>
+  </body>
+</html>

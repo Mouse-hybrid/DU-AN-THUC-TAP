@@ -45,3 +45,13 @@ def test_static_styles_are_available():
     response = client.get("/static/styles.css")
     assert response.status_code == 200
     assert "--ink" in response.text
+
+
+def test_landing_and_admin_use_distinct_mock_experiences():
+    landing = client.get("/")
+    admin = client.get("/admin")
+
+    assert "PointFlow" in landing.text
+    assert "Một hệ thống" in landing.text
+    assert "Tổng quan vận hành" in admin.text
+    assert "Doanh thu hôm nay" in admin.text
