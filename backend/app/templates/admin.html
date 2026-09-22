@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ content.title }} · PointFlow</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  </head>
+  <body class="admin-v1">
+    <aside class="admin-sidebar">
+      <a class="admin-brand" href="/"><span>PF</span><strong>PointFlow</strong></a>
+      <p>Workspace</p>
+      <nav aria-label="Điều hướng quản trị">
+        <a class="selected" href="/admin"><i>◫</i>Tổng quan</a>
+        <a href="#orders"><i>◇</i>Đơn hàng <b>12</b></a>
+        <a href="#products"><i>□</i>Sản phẩm</a>
+        <a href="#tables"><i>⌗</i>Bàn & khu vực</a>
+        <a href="#staff"><i>○</i>Nhân viên</a>
+      </nav>
+      <p>Hệ thống</p>
+      <nav><a href="/docs"><i>↗</i>API Docs</a><a href="/ready"><i>✓</i>Readiness</a></nav>
+      <div class="sidebar-user"><span>HL</span><div><strong>Quản trị viên</strong><small>Staging account</small></div></div>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-topbar">
+        <div><p>Thứ Ba, 22 tháng 9</p><h1>Tổng quan vận hành</h1></div>
+        <div class="admin-actions"><span class="live-pill"><i></i>{{ environment }}</span><button type="button">＋ Tạo đơn mẫu</button></div>
+      </header>
+
+      <section class="kpi-grid">
+        <article><div><span>Doanh thu hôm nay</span><b class="trend up">↗ 12,4%</b></div><strong>24.680.000đ</strong><small>so với hôm qua</small></article>
+        <article><div><span>Đơn hàng</span><b class="trend up">↗ 8,2%</b></div><strong>186</strong><small>172 đã hoàn thành</small></article>
+        <article><div><span>Giá trị trung bình</span><b class="trend neutral">— 0,6%</b></div><strong>132.700đ</strong><small>trên mỗi đơn</small></article>
+        <article><div><span>Bàn đang phục vụ</span><b class="trend warning">7 trống</b></div><strong>11 / 18</strong><small>61% công suất</small></article>
+      </section>
+
+      <section class="admin-grid">
+        <article class="panel revenue-panel">
+          <div class="panel-heading"><div><span>Doanh thu theo giờ</span><h2>Hiệu suất hôm nay</h2></div><select aria-label="Khoảng thời gian"><option>Hôm nay</option></select></div>
+          <div class="chart-wrap">
+            <div class="chart-scale"><span>8M</span><span>6M</span><span>4M</span><span>2M</span><span>0</span></div>
+            <div class="bar-chart">
+              <div style="--h:24%"><i></i><span>08:00</span></div><div style="--h:42%"><i></i><span>10:00</span></div>
+              <div style="--h:78%"><i></i><span>12:00</span></div><div style="--h:51%"><i></i><span>14:00</span></div>
+              <div style="--h:64%"><i></i><span>16:00</span></div><div class="current" style="--h:92%"><i></i><span>18:00</span></div>
+              <div style="--h:72%"><i></i><span>20:00</span></div><div style="--h:36%"><i></i><span>22:00</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel status-panel">
+          <div class="panel-heading"><div><span>Trạng thái đơn</span><h2>186 đơn hôm nay</h2></div></div>
+          <div class="donut" aria-label="Biểu đồ trạng thái"><div><strong>92%</strong><span>Hoàn tất</span></div></div>
+          <ul class="legend"><li><i class="done"></i>Hoàn thành <b>172</b></li><li><i class="cooking"></i>Đang chế biến <b>9</b></li><li><i class="waiting"></i>Chờ xác nhận <b>5</b></li></ul>
+        </article>
+
+        <article class="panel orders-panel" id="orders">
+          <div class="panel-heading"><div><span>Hoạt động gần đây</span><h2>Đơn hàng mới nhất</h2></div><a href="/api/v1/mock/summary">Xem API →</a></div>
+          <div class="admin-table">
+            <div class="admin-row header"><span>Mã đơn</span><span>Khu vực</span><span>Thời gian</span><span>Tổng tiền</span><span>Trạng thái</span></div>
+            <div class="admin-row"><strong>#PF-0186</strong><span>Bàn A08</span><span>18:42</span><b>275.000đ</b><em class="tag cooking">Đang chế biến</em></div>
+            <div class="admin-row"><strong>#PF-0185</strong><span>Mang đi</span><span>18:36</span><b>128.000đ</b><em class="tag done">Hoàn thành</em></div>
+            <div class="admin-row"><strong>#PF-0184</strong><span>Bàn B03</span><span>18:31</span><b>460.000đ</b><em class="tag waiting">Chờ xác nhận</em></div>
+            <div class="admin-row"><strong>#PF-0183</strong><span>Bàn A02</span><span>18:22</span><b>196.000đ</b><em class="tag done">Hoàn thành</em></div>
+          </div>
+        </article>
+      </section>
+      <p class="mock-notice">Mock interface · Dữ liệu minh họa, không phải dữ liệu production</p>
+    </main>
+  </body>
+</html>
