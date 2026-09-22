@@ -1,15 +1,8 @@
-# Backend (thử nghiệm)
+# Backend FastAPI
 
-Khung backend tối giản dùng FastAPI để thử nghiệm nền tảng POS. Đây là bản thử,
-chưa được duyệt làm stack chính thức. Chưa có PostgreSQL, chưa có UI, chưa có
-nghiệp vụ nào ngoài endpoint kiểm tra sức khỏe.
+Backend nền của dự án POS sử dụng Python 3.11, FastAPI và PostgreSQL. Bản hiện tại phục vụ giao diện staging mock; chưa chứa nghiệp vụ POS thật.
 
-## Yêu cầu
-
-- Python 3.11 (đã kiểm tra thực tế: 3.11.9 trên Windows).
-- Windows + PowerShell
-
-## Cài đặt (PowerShell)
+## Cài đặt trên Windows
 
 Chạy tất cả các lệnh dưới đây từ thư mục `backend`. Không cần `Activate.ps1` —
 gọi thẳng `python.exe` bên trong venv.
@@ -17,7 +10,7 @@ gọi thẳng `python.exe` bên trong venv.
 ```powershell
 cd backend
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 ```
 
 ## Chạy server
@@ -26,16 +19,19 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-Kiểm tra: mở `http://127.0.0.1:8000/health`, kỳ vọng phản hồi `{"status":"ok"}`.
+Mở `http://127.0.0.1:8000/` hoặc `http://127.0.0.1:8000/docs`.
 
-## Chạy test
+## Kiểm tra
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-## Lint
-
 ```powershell
 .\.venv\Scripts\python.exe -m ruff check .
 ```
+
+## Biến môi trường
+
+- `APP_ENV`: `development`, `staging` hoặc `production`.
+- `DATABASE_URL`: PostgreSQL URL. Không commit secret thật.

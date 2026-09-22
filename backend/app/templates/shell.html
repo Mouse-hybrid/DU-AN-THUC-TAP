@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ content.title }} · POS staging</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  </head>
+  <body class="page-{{ page }}">
+    <header class="topbar">
+      <a class="brand" href="/">POS<span>staging</span></a>
+      <nav aria-label="Điều hướng chính">
+        <a href="/pos">POS</a><a href="/kitchen">Kitchen</a><a href="/customer">Customer</a>
+        <a href="/admin">Admin</a><a href="/docs">API</a>
+      </nav>
+      <span class="environment">{{ environment }}</span>
+    </header>
+    <main>
+      <section class="hero">
+        <div>
+          <span class="badge">Mock interface</span>
+          <p class="eyebrow">{{ content.eyebrow }}</p>
+          <h1>{{ content.title }}</h1>
+          <p class="lede">{{ content.description }}</p>
+          <div class="actions">
+            <a class="button primary" href="{{ content.primary_href }}">{{ content.primary_label }}</a>
+            <a class="button secondary" href="/docs">OpenAPI docs</a>
+          </div>
+        </div>
+        <aside class="status-card">
+          <span class="status-dot"></span><strong>Staging foundation online</strong>
+          <p>Python · FastAPI · PostgreSQL target</p><small>Không sử dụng dữ liệu production</small>
+        </aside>
+      </section>
+      <section class="metric-grid" aria-label="Số liệu mock">
+        {% for value, label in content.metrics %}
+        <article class="metric-card"><strong>{{ value }}</strong><span>{{ label }}</span></article>
+        {% endfor %}
+      </section>
+      <section class="workspace">
+        <div class="section-heading">
+          <div><p class="eyebrow">Foundation preview</p><h2>Luồng giao diện sẽ được nối sau khi UX được duyệt</h2></div>
+          <span class="pill">Mock data</span>
+        </div>
+        <div class="mock-table" role="table" aria-label="Các hạng mục mẫu">
+          <div class="mock-row mock-header" role="row"><span>Hạng mục</span><span>Trạng thái</span><span>Ghi chú</span></div>
+          <div class="mock-row" role="row"><span>Navigation shell</span><span class="success">Ready</span><span>Responsive</span></div>
+          <div class="mock-row" role="row"><span>Business workflow</span><span class="pending">Pending</span><span>Chờ BRD và UX</span></div>
+          <div class="mock-row" role="row"><span>Production integration</span><span>Not started</span><span>Ngoài phạm vi tuần đầu</span></div>
+        </div>
+      </section>
+    </main>
+    <footer>POS project · staging preview · {{ environment }}</footer>
+  </body>
+</html>
