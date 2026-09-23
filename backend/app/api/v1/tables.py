@@ -6,6 +6,7 @@ POST /api/v1/tables/{table_id}/open-session
   - Bắt buộc header Idempotency-Key (NFR) — bấm "Mở bàn" 2 lần do mạng chậm
     không được tạo 2 table_session.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -34,7 +35,9 @@ _OPENABLE_STATUSES = ("AVAILABLE", "RESERVED")
 _OPEN_SESSION_ROLES = ("WAITER", "SUPERVISOR")
 
 
-@router.post("/{table_id}/open-session", response_model=TableSessionOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{table_id}/open-session", response_model=TableSessionOut, status_code=status.HTTP_201_CREATED
+)
 def open_table_session(
     table_id: uuid.UUID,
     payload: OpenSessionRequest,
@@ -45,7 +48,9 @@ def open_table_session(
     endpoint = f"POST /api/v1/tables/{table_id}/open-session"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_201_CREATED:
             raise HTTPException(existing.response_status, detail=existing.response_body)

@@ -1,6 +1,7 @@
 """FastAPI dependencies dùng chung: DB session, current staff (JWT), RBAC,
 và Idempotency-Key cho các API tạo mới (order, payment...) theo BRD NFR.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -41,12 +42,16 @@ def get_current_staff(
     try:
         payload = decode_access_token(credentials.credentials)
     except TokenError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Token không hợp lệ hoặc đã hết hạn")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, detail="Token không hợp lệ hoặc đã hết hạn"
+        )
 
     staff_id = uuid.UUID(payload["sub"])
     staff = session.get(Staff, staff_id)
     if staff is None or not staff.is_active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Tài khoản không tồn tại hoặc đã bị khóa")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, detail="Tài khoản không tồn tại hoặc đã bị khóa"
+        )
 
     return CurrentStaff(id=staff.id, outlet_id=staff.outlet_id, role=staff.role)
 

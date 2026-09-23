@@ -2,6 +2,7 @@
 đọc được đúng metadata, và chung app/core/config.py để lấy DATABASE_URL — không
 khai báo sqlalchemy.url riêng trong alembic.ini để tránh 2 nguồn cấu hình lệch nhau.
 """
+
 from __future__ import annotations
 
 import os
@@ -15,8 +16,8 @@ from sqlalchemy import engine_from_config, pool
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import DATABASE_URL  # noqa: E402
-from app.db.base import Base  # noqa: E402
 from app.db import models  # noqa: E402,F401  (import để đăng ký hết model vào Base.metadata)
+from app.db.base import Base  # noqa: E402
 
 config = context.config
 

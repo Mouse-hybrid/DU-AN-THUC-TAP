@@ -1,4 +1,5 @@
 """Pydantic schemas cho auth (POST /api/v1/auth/login)."""
+
 from __future__ import annotations
 
 import uuid

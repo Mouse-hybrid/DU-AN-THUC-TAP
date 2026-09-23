@@ -1,4 +1,5 @@
 """Pydantic schemas cho vertical slice bước 1: Mở bàn."""
+
 from __future__ import annotations
 
 import uuid

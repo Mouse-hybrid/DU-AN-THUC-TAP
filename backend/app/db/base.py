@@ -3,6 +3,7 @@
 TECH-04/05 (ADR 0002): PostgreSQL 16 + Alembic. Engine ở đây tách khỏi app/main.py
 để migrations/env.py import được mà không phải khởi tạo cả FastAPI app.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -51,11 +52,15 @@ class Base(DeclarativeBase):
 import os  # noqa: E402
 
 engine = (
-    create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300, echo=bool(os.getenv("SQL_ECHO")))
+    create_engine(
+        DATABASE_URL, pool_pre_ping=True, pool_recycle=300, echo=bool(os.getenv("SQL_ECHO"))
+    )
     if DATABASE_URL
     else None
 )
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False) if engine else None
+SessionLocal = (
+    sessionmaker(bind=engine, autoflush=False, expire_on_commit=False) if engine else None
+)
 
 
 def get_session():

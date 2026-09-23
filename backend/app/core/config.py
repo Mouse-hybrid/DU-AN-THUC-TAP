@@ -3,6 +3,7 @@
 Tách ra khỏi app/main.py để cả FastAPI app lẫn migrations/env.py (Alembic) đều import
 được cùng một logic build DATABASE_URL, không lặp code. Theo ADR 0002 (TECH-04/05).
 """
+
 import os
 from urllib.parse import quote_plus
 
@@ -39,7 +40,9 @@ DATABASE_URL = build_database_url()
 # (secret ngẫu nhiên đủ dài, vd `python -c "import secrets; print(secrets.token_urlsafe(48))"`).
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-only-insecure-secret-change-me")
 JWT_ALGORITHM = "HS256"
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "480"))  # 8 giờ ~ 1 ca làm
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "480")
+)  # 8 giờ ~ 1 ca làm
 
 if APP_ENV != "development" and JWT_SECRET_KEY == "dev-only-insecure-secret-change-me":
     raise RuntimeError(

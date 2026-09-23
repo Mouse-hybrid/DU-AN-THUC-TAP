@@ -61,8 +61,7 @@ PAGES = {
         "title": "Admin dashboard",
         "eyebrow": "Back office mock",
         "description": (
-            "Dashboard quản trị nền, định hướng bố cục AdminLTE "
-            "nhưng chưa dùng dữ liệu thật."
+            "Dashboard quản trị nền, định hướng bố cục AdminLTE nhưng chưa dùng dữ liệu thật."
         ),
         "primary_label": "Check readiness",
         "primary_href": "/ready",

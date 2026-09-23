@@ -25,6 +25,7 @@ yêu cầu (không tự bịa thêm giá trị). Nếu BRD có state không kh�
 danh sách dưới, phải đối chiếu lại BRD gốc trước khi chạy migration lên môi
 trường có dữ liệu thật.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -157,10 +158,14 @@ class TableSession(Base):
     __table_args__ = (_check(TABLE_SESSION_STATUS, "status", "ck_table_session_status"),)
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
-    table_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("restaurant_table.id"), nullable=False)
+    table_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("restaurant_table.id"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="OPEN")
     guest_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    opened_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("staff.id"), nullable=True)
+    opened_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # session token tạm cho khách quét QR gọi món — không cần login (theo BRD auth)
@@ -199,7 +204,9 @@ class MenuItem(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
     outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
-    station_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("kitchen_station.id"), nullable=True)
+    station_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("kitchen_station.id"), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     price: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -223,10 +230,14 @@ class Order(Base):
     __table_args__ = (_check(ORDER_STATUS, "status", "ck_order_status"),)
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
-    table_session_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("table_session.id"), nullable=False)
+    table_session_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("table_session.id"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="NEW")
     current_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("staff.id"), nullable=True)
+    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -249,10 +260,14 @@ class OrderItem(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
     order_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order.id"), nullable=False)
-    menu_item_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("menu_item.id"), nullable=False)
+    menu_item_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("menu_item.id"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="CREATED")
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    unit_price: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)  # snapshot giá lúc order
+    unit_price: Mapped[Numeric] = mapped_column(
+        Numeric(12, 2), nullable=False
+    )  # snapshot giá lúc order
     note: Mapped[str | None] = mapped_column(Text, nullable=True)  # ghi chú món, vd "không hành"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -273,13 +288,19 @@ class OrderItem(Base):
 
 class OrderVersion(Base):
     __tablename__ = "order_version"
-    __table_args__ = (UniqueConstraint("order_id", "version_number", name="uq_order_version_order_number"),)
+    __table_args__ = (
+        UniqueConstraint("order_id", "version_number", name="uq_order_version_order_number"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
     order_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order.id"), nullable=False)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    snapshot: Mapped[str] = mapped_column(Text, nullable=False)  # JSON serialize toàn bộ order+items tại thời điểm này
-    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("staff.id"), nullable=True)
+    snapshot: Mapped[str] = mapped_column(
+        Text, nullable=False
+    )  # JSON serialize toàn bộ order+items tại thời điểm này
+    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     order: Mapped["Order"] = relationship(back_populates="versions")
@@ -297,8 +318,12 @@ class KitchenQueue(Base):
     __table_args__ = (_check(KITCHEN_QUEUE_STATUS, "status", "ck_kitchen_queue_status"),)
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
-    order_item_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order_item.id"), nullable=False)
-    station_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("kitchen_station.id"), nullable=False)
+    order_item_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("order_item.id"), nullable=False
+    )
+    station_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("kitchen_station.id"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="QUEUED")
     queued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -352,7 +377,9 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(100), nullable=False)  # vd "ORDER_ITEM_VOIDED"
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # vd "order_item"
     entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
-    payload: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: before/after hoặc chi tiết thao tác
+    payload: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON: before/after hoặc chi tiết thao tác
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -370,7 +397,9 @@ class IdempotencyKey(Base):
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
     key: Mapped[str] = mapped_column(String(255), nullable=False)
     endpoint: Mapped[str] = mapped_column(String(255), nullable=False)  # vd "POST /api/v1/orders"
-    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA-256 của request body
+    request_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False
+    )  # SHA-256 của request body
     response_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

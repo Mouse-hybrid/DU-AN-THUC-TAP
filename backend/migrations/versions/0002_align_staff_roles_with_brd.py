@@ -12,6 +12,7 @@ Kitchen Staff, Supervisor (Customer là người dùng QR bên ngoài, không ph
 staff). Migration này sửa lại CHECK constraint cho khớp, kèm data-fix cho
 các staff đã tạo với role cũ không còn hợp lệ.
 """
+
 from __future__ import annotations
 
 from typing import Sequence, Union

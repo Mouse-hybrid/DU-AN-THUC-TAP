@@ -8,6 +8,7 @@ bếp + phục vụ. Xem chi tiết bảng đầy đủ trong app/api/v1/orders.
 Bao gồm cả các nhánh lỗi quan trọng (thiếu Idempotency-Key, sai role, gửi
 bếp khi chưa có món, tính idempotent của API mở bàn) — không chỉ happy path.
 """
+
 from __future__ import annotations
 
 from app.db.models import RestaurantTable
@@ -15,12 +16,16 @@ from tests.conftest import login
 
 
 def test_login_wrong_password_returns_401(client, seed):
-    resp = client.post("/api/v1/auth/login", json={"username": "cashier_test", "password": "sai-mat-khau"})
+    resp = client.post(
+        "/api/v1/auth/login", json={"username": "cashier_test", "password": "sai-mat-khau"}
+    )
     assert resp.status_code == 401
 
 
 def test_login_success_returns_token_and_staff_info(client, seed):
-    resp = client.post("/api/v1/auth/login", json={"username": "waiter_test", "password": "password123"})
+    resp = client.post(
+        "/api/v1/auth/login", json={"username": "waiter_test", "password": "password123"}
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["access_token"]
@@ -31,7 +36,9 @@ def test_login_success_returns_token_and_staff_info(client, seed):
 def test_open_session_requires_idempotency_key_header(client, seed):
     headers = login(client, "waiter_test")
     table_id = seed["table_id"]
-    resp = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers)
+    resp = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers
+    )
     assert resp.status_code == 400
 
 
@@ -39,7 +46,9 @@ def test_open_session_forbidden_for_kitchen_role(client, seed):
     headers = login(client, "kitchen_test")
     headers["Idempotency-Key"] = "open-forbidden"
     table_id = seed["table_id"]
-    resp = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers)
+    resp = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers
+    )
     assert resp.status_code == 403
 
 
@@ -49,7 +58,9 @@ def test_open_session_forbidden_for_cashier_role(client, seed):
     headers = login(client, "cashier_test")
     headers["Idempotency-Key"] = "open-forbidden-cashier"
     table_id = seed["table_id"]
-    resp = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers)
+    resp = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers
+    )
     assert resp.status_code == 403
 
 
@@ -97,12 +108,18 @@ def test_open_session_is_idempotent_same_key_same_body(client, seed):
     headers["Idempotency-Key"] = "open-idem-1"
     table_id = seed["table_id"]
 
-    first = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers)
-    second = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers)
+    first = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers
+    )
+    second = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers
+    )
 
     assert first.status_code == 201
     assert second.status_code == 201
-    assert first.json()["id"] == second.json()["id"], "Cùng Idempotency-Key phải trả về đúng 1 table_session, không tạo mới lần 2"
+    assert first.json()["id"] == second.json()["id"], (
+        "Cùng Idempotency-Key phải trả về đúng 1 table_session, không tạo mới lần 2"
+    )
 
 
 def test_idempotency_key_reused_with_different_body_is_conflict(client, seed):
@@ -110,10 +127,14 @@ def test_idempotency_key_reused_with_different_body_is_conflict(client, seed):
     headers["Idempotency-Key"] = "open-conflict"
     table_id = seed["table_id"]
 
-    first = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers)
+    first = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 2}, headers=headers
+    )
     assert first.status_code == 201
 
-    second = client.post(f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 5}, headers=headers)
+    second = client.post(
+        f"/api/v1/tables/{table_id}/open-session", json={"guest_count": 5}, headers=headers
+    )
     assert second.status_code == 409
 
 

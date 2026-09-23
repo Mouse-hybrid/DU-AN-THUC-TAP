@@ -12,6 +12,7 @@ cột-theo-cột, với app/db/models.py. TRƯỚC KHI CHẠY LÊN MÔI TRƯỜN
 THẬT: chạy `alembic upgrade head` trên DB rỗng ở máy local/staging trước,
 kiểm tra bằng `alembic check` hoặc so sánh `\d` từng bảng với models.py.
 """
+
 from __future__ import annotations
 
 from typing import Sequence, Union
@@ -36,8 +37,12 @@ def upgrade() -> None:
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("address", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     # -- kitchen_station -----------------------------------------------------
@@ -59,8 +64,12 @@ def upgrade() -> None:
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("price", sa.Numeric(12, 2), nullable=False),
         sa.Column("is_available", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     # -- staff -----------------------------------------------------------------
@@ -73,8 +82,12 @@ def upgrade() -> None:
         sa.Column("full_name", sa.String(255), nullable=False),
         sa.Column("role", sa.String(20), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("username", name="uq_staff_username"),
         sa.CheckConstraint(
             "role IN ('ADMIN', 'MANAGER', 'CASHIER', 'WAITER', 'KITCHEN', 'HOST')",
@@ -90,12 +103,19 @@ def upgrade() -> None:
         sa.Column("code", sa.String(50), nullable=False),
         sa.Column("seats", sa.Integer(), nullable=False, server_default="4"),
         sa.Column("status", sa.String(20), nullable=False, server_default="AVAILABLE"),
-        sa.Column("merged_into_table_id", GUID_TYPE, sa.ForeignKey("restaurant_table.id"), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "merged_into_table_id", GUID_TYPE, sa.ForeignKey("restaurant_table.id"), nullable=True
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("outlet_id", "code", name="uq_restaurant_table_outlet_code"),
         sa.CheckConstraint(
-            "status IN ('AVAILABLE', 'OCCUPIED', 'BILLING', 'PAID', 'CLEANING', 'RESERVED', 'DELAYED', 'MERGED')",
+            "status IN ('AVAILABLE', 'OCCUPIED', 'BILLING', 'PAID', 'CLEANING', "
+            "'RESERVED', 'DELAYED', 'MERGED')",
             name="ck_restaurant_table_status",
         ),
     )
@@ -108,7 +128,9 @@ def upgrade() -> None:
         sa.Column("status", sa.String(20), nullable=False, server_default="OPEN"),
         sa.Column("guest_count", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("opened_by_staff_id", GUID_TYPE, sa.ForeignKey("staff.id"), nullable=True),
-        sa.Column("opened_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "opened_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("qr_session_token", sa.String(255), nullable=True),
         sa.UniqueConstraint("qr_session_token", name="uq_table_session_qr_token"),
@@ -123,8 +145,12 @@ def upgrade() -> None:
         sa.Column("status", sa.String(20), nullable=False, server_default="NEW"),
         sa.Column("current_version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("created_by_staff_id", GUID_TYPE, sa.ForeignKey("staff.id"), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.CheckConstraint(
             "status IN ('NEW', 'SENT', 'SERVED', 'BILLING', 'PAID', 'CLOSED')",
             name="ck_order_status",
@@ -141,8 +167,12 @@ def upgrade() -> None:
         sa.Column("quantity", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("unit_price", sa.Numeric(12, 2), nullable=False),
         sa.Column("note", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.CheckConstraint(
             "status IN ('CREATED', 'SENT', 'ACCEPTED', 'PREPARING', 'READY', "
             "'PICKED_UP', 'SERVED', 'RECALLED', 'VOIDED', 'REFIRED')",
@@ -158,7 +188,9 @@ def upgrade() -> None:
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("snapshot", sa.Text(), nullable=False),
         sa.Column("created_by_staff_id", GUID_TYPE, sa.ForeignKey("staff.id"), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("order_id", "version_number", name="uq_order_version_order_number"),
     )
 
@@ -169,7 +201,9 @@ def upgrade() -> None:
         sa.Column("order_item_id", GUID_TYPE, sa.ForeignKey("order_item.id"), nullable=False),
         sa.Column("station_id", GUID_TYPE, sa.ForeignKey("kitchen_station.id"), nullable=False),
         sa.Column("status", sa.String(20), nullable=False, server_default="QUEUED"),
-        sa.Column("queued_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "queued_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("done_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
@@ -188,7 +222,9 @@ def upgrade() -> None:
         sa.Column("entity_type", sa.String(50), nullable=False),
         sa.Column("entity_id", sa.String(36), nullable=False),
         sa.Column("payload", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_audit_log_entity", "audit_log", ["entity_type", "entity_id"])
     op.create_index("ix_audit_log_created_at", "audit_log", ["created_at"])
@@ -202,7 +238,9 @@ def upgrade() -> None:
         sa.Column("request_hash", sa.String(64), nullable=False),
         sa.Column("response_status", sa.Integer(), nullable=True),
         sa.Column("response_body", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("key", name="uq_idempotency_key_key"),
     )
 

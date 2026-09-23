@@ -2,16 +2,22 @@
 void/refire món.
 
 POST /api/v1/orders                             — tạo order mới cho 1 table_session đang OPEN.
-POST /api/v1/orders/{order_id}/items             — thêm món vào order (snapshot giá tại thời điểm thêm).
-POST /api/v1/orders/{order_id}/send-to-kitchen   — gửi các món đang CREATED xuống đúng kitchen_station.
-POST /api/v1/orders/{order_id}/request-billing   — SENT/SERVED -> BILLING (khách yêu cầu thanh toán).
-POST /api/v1/orders/{order_id}/pay               — BILLING -> PAID, đóng table_session, bàn -> CLEANING.
-POST /api/v1/orders/{order_id}/close             — PAID -> CLOSED (chốt sổ, kết thúc vòng đời order).
+POST /api/v1/orders/{order_id}/items             — thêm món vào order (snapshot giá tại thời
+                                                     điểm thêm).
+POST /api/v1/orders/{order_id}/send-to-kitchen   — gửi các món đang CREATED xuống đúng
+                                                     kitchen_station.
+POST /api/v1/orders/{order_id}/request-billing   — SENT/SERVED -> BILLING (khách yêu cầu
+                                                     thanh toán).
+POST /api/v1/orders/{order_id}/pay               — BILLING -> PAID, đóng table_session, bàn
+                                                     -> CLEANING.
+POST /api/v1/orders/{order_id}/close             — PAID -> CLOSED (chốt sổ, kết thúc vòng
+                                                     đời order).
 POST /api/v1/orders/{order_id}/items/{item_id}/void   — hủy 1 món chưa phục vụ xong.
 POST /api/v1/orders/{order_id}/items/{item_id}/refire — làm lại 1 món (gửi lại bếp).
 
 Toàn bộ API tạo mới/side-effect quan trọng đều bắt buộc Idempotency-Key (NFR).
 """
+
 from __future__ import annotations
 
 import json
@@ -76,9 +82,14 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 _ORDER_WRITE_ROLES = ("CASHIER", "SUPERVISOR")  # = "Create Order (POS)"
 _SEND_TO_KITCHEN_ROLES = ("WAITER", "SUPERVISOR")  # suy từ Key Responsibilities của Waiter
 _REQUEST_BILLING_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")  # = "Request Bill"
-_PAY_ROLES = ("CASHIER", "SUPERVISOR")  # = "Process Payment" — Waiter KHÔNG được (BRD: "Cannot process payment")
+_PAY_ROLES = (
+    "CASHIER",
+    "SUPERVISOR",
+)  # = "Process Payment" — Waiter KHÔNG được (BRD: "Cannot process payment")
 _VOID_ROLES = ("SUPERVISOR",)  # = "Override Actions"
-_REFIRE_ROLES = ("SUPERVISOR",)  # = "Override Actions" (Kitchen "Cannot modify orders" nên cũng không refire được)
+_REFIRE_ROLES = (
+    "SUPERVISOR",
+)  # = "Override Actions" (Kitchen "Cannot modify orders" nên cũng không refire được)
 _CLOSED_ORDER_STATUSES = ("BILLING", "PAID", "CLOSED")
 _VOIDABLE_ITEM_STATUSES = ("CREATED", "SENT", "ACCEPTED", "PREPARING")
 _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
@@ -95,11 +106,15 @@ def _load_order_or_404(session: Session, order_id: uuid.UUID, outlet_id: uuid.UU
     return order
 
 
-def _load_order_item_or_404(session: Session, order_id: uuid.UUID, item_id: uuid.UUID, outlet_id: uuid.UUID) -> tuple[Order, OrderItem]:
+def _load_order_item_or_404(
+    session: Session, order_id: uuid.UUID, item_id: uuid.UUID, outlet_id: uuid.UUID
+) -> tuple[Order, OrderItem]:
     order = _load_order_or_404(session, order_id, outlet_id)
     item = next((i for i in order.items if i.id == item_id), None)
     if item is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy order_item trong order này")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Không tìm thấy order_item trong order này"
+        )
     return order, item
 
 
@@ -133,7 +148,9 @@ def create_order(
     endpoint = "POST /api/v1/orders"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_201_CREATED:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -145,10 +162,17 @@ def create_order(
     if table_session.status != "OPEN":
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"table_session đang ở trạng thái '{table_session.status}', không thể tạo order mới",
+            detail=(
+                f"table_session đang ở trạng thái '{table_session.status}', không thể tạo order mới"
+            ),
         )
 
-    order = Order(table_session_id=table_session.id, status="NEW", current_version=1, created_by_staff_id=current.id)
+    order = Order(
+        table_session_id=table_session.id,
+        status="NEW",
+        current_version=1,
+        created_by_staff_id=current.id,
+    )
     session.add(order)
     session.flush()
 
@@ -188,7 +212,9 @@ def add_order_items(
     endpoint = f"POST /api/v1/orders/{order_id}/items"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_201_CREATED:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -213,9 +239,13 @@ def add_order_items(
     for line in payload.items:
         menu_item = session.get(MenuItem, line.menu_item_id)
         if menu_item is None or menu_item.outlet_id != current.outlet_id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy menu_item {line.menu_item_id}")
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy menu_item {line.menu_item_id}"
+            )
         if not menu_item.is_available:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Món '{menu_item.name}' hiện không khả dụng")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, detail=f"Món '{menu_item.name}' hiện không khả dụng"
+            )
 
         session.add(
             OrderItem(
@@ -223,7 +253,8 @@ def add_order_items(
                 menu_item_id=menu_item.id,
                 status="CREATED",
                 quantity=line.quantity,
-                unit_price=menu_item.price,  # snapshot giá tại thời điểm order — đổi giá menu sau không ảnh hưởng order cũ
+                # snapshot giá tại thời điểm order — đổi giá menu sau không ảnh hưởng order cũ
+                unit_price=menu_item.price,
                 note=line.note,
             )
         )
@@ -268,7 +299,9 @@ def send_order_to_kitchen(
     # Endpoint này không có body — hash trên chính order_id để vẫn đối chiếu được nội dung.
     request_hash = hash_request_body({"order_id": str(order_id)})
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_200_OK:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -283,7 +316,9 @@ def send_order_to_kitchen(
 
     pending_items = [item for item in order.items if item.status == "CREATED"]
     if not pending_items:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="Không có món nào ở trạng thái CREATED để gửi bếp")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Không có món nào ở trạng thái CREATED để gửi bếp"
+        )
 
     created_count = 0
     for item in pending_items:
@@ -293,7 +328,9 @@ def send_order_to_kitchen(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Món '{menu_item.name}' chưa được gán kitchen_station — không thể gửi bếp",
             )
-        session.add(KitchenQueue(order_item_id=item.id, station_id=menu_item.station_id, status="QUEUED"))
+        session.add(
+            KitchenQueue(order_item_id=item.id, station_id=menu_item.station_id, status="QUEUED")
+        )
         item.status = "SENT"
         created_count += 1
 
@@ -321,7 +358,9 @@ def send_order_to_kitchen(
         payload={"items_sent": created_count},
     )
 
-    result = SendToKitchenResponse(order=OrderOut.model_validate(order), kitchen_queue_entries_created=created_count)
+    result = SendToKitchenResponse(
+        order=OrderOut.model_validate(order), kitchen_queue_entries_created=created_count
+    )
 
     session.add(
         IdempotencyKey(
@@ -348,7 +387,9 @@ def request_billing(
     endpoint = f"POST /api/v1/orders/{order_id}/request-billing"
     request_hash = hash_request_body({"order_id": str(order_id)})
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_200_OK:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -406,7 +447,9 @@ def pay_order(
     endpoint = f"POST /api/v1/orders/{order_id}/pay"
     request_hash = hash_request_body({"order_id": str(order_id)})
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_200_OK:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -468,7 +511,9 @@ def close_order(
     endpoint = f"POST /api/v1/orders/{order_id}/close"
     request_hash = hash_request_body({"order_id": str(order_id)})
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_200_OK:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -522,7 +567,9 @@ def void_order_item(
     endpoint = f"POST /api/v1/orders/{order_id}/items/{item_id}/void"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_200_OK:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -530,7 +577,10 @@ def void_order_item(
 
     order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
     if order.status in _CLOSED_ORDER_STATUSES:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Order đang ở trạng thái '{order.status}', không thể hủy món")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', không thể hủy món",
+        )
     if item.status not in _VOIDABLE_ITEM_STATUSES:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -589,7 +639,9 @@ def refire_order_item(
     endpoint = f"POST /api/v1/orders/{order_id}/items/{item_id}/refire"
     request_hash = hash_request_body({"item_id": str(item_id)})
 
-    existing = get_idempotent_response(session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash)
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
     if existing is not None:
         if existing.response_status != status.HTTP_200_OK:
             raise HTTPException(existing.response_status, detail=existing.response_body)
@@ -597,11 +649,16 @@ def refire_order_item(
 
     order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
     if order.status in _CLOSED_ORDER_STATUSES:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Order đang ở trạng thái '{order.status}', không thể refire món")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', không thể refire món",
+        )
     if item.status not in _REFIRABLE_ITEM_STATUSES:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"Món đang ở trạng thái '{item.status}', chỉ refire được món đã SERVED/PICKED_UP",
+            detail=(
+                f"Món đang ở trạng thái '{item.status}', chỉ refire được món đã SERVED/PICKED_UP"
+            ),
         )
 
     menu_item = session.get(MenuItem, item.menu_item_id)
@@ -612,7 +669,9 @@ def refire_order_item(
         )
 
     item.status = "REFIRED"
-    session.add(KitchenQueue(order_item_id=item.id, station_id=menu_item.station_id, status="QUEUED"))
+    session.add(
+        KitchenQueue(order_item_id=item.id, station_id=menu_item.station_id, status="QUEUED")
+    )
     order.current_version += 1
     session.flush()
     session.refresh(order)

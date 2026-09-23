@@ -5,6 +5,7 @@ Role dùng đúng theo Permission Matrix thật trong BRD: Cashier tạo order/t
 món, Waiter mở bàn/gửi bếp, Supervisor duy nhất được void/refire (Override
 Actions) và cùng Cashier xử lý Process Payment.
 """
+
 from __future__ import annotations
 
 from app.db.models import RestaurantTable, TableSession
@@ -79,7 +80,9 @@ def test_waiter_can_request_billing_but_not_pay(client, seed):
     Cashier+Supervisor — Waiter bị BRD cấm rõ ràng ("Cannot process payment")."""
     table_id = seed["table_id"]
     menu_item_id = seed["menu_item_id"]
-    _, order_id, _ = _open_order_and_send_to_kitchen(client, table_id, menu_item_id, "waiter-billing")
+    _, order_id, _ = _open_order_and_send_to_kitchen(
+        client, table_id, menu_item_id, "waiter-billing"
+    )
 
     waiter_headers = login(client, "waiter_test")
     billing_resp = client.post(
@@ -98,7 +101,9 @@ def test_waiter_can_request_billing_but_not_pay(client, seed):
 def test_pay_closes_table_session_and_sets_table_cleaning(client, seed, db_session_factory):
     table_id = seed["table_id"]
     menu_item_id = seed["menu_item_id"]
-    table_session_id, order_id, _ = _open_order_and_send_to_kitchen(client, table_id, menu_item_id, "pay-side-effect")
+    table_session_id, order_id, _ = _open_order_and_send_to_kitchen(
+        client, table_id, menu_item_id, "pay-side-effect"
+    )
 
     cashier_headers = login(client, "cashier_test")
     client.post(
@@ -192,7 +197,10 @@ def test_void_forbidden_for_waiter_and_cashier(client, seed):
     )
     item_id = items_resp.json()["items"][0]["id"]
 
-    for role_headers, key in ((waiter_headers, "void-forbidden-waiter"), (cashier_headers, "void-forbidden-cashier")):
+    for role_headers, key in (
+        (waiter_headers, "void-forbidden-waiter"),
+        (cashier_headers, "void-forbidden-cashier"),
+    ):
         resp = client.post(
             f"/api/v1/orders/{order_id}/items/{item_id}/void",
             json={},
@@ -201,10 +209,14 @@ def test_void_forbidden_for_waiter_and_cashier(client, seed):
         assert resp.status_code == 403
 
 
-def test_refire_served_item_requires_supervisor_and_creates_new_kitchen_queue_entry(client, seed, db_session_factory):
+def test_refire_served_item_requires_supervisor_and_creates_new_kitchen_queue_entry(
+    client, seed, db_session_factory
+):
     table_id = seed["table_id"]
     menu_item_id = seed["menu_item_id"]
-    _, order_id, item_id = _open_order_and_send_to_kitchen(client, table_id, menu_item_id, "refire-flow")
+    _, order_id, item_id = _open_order_and_send_to_kitchen(
+        client, table_id, menu_item_id, "refire-flow"
+    )
 
     # Danh dau mon la da SERVED truc tiep qua DB (chua co API rieng cho buoc nay).
     from app.db.models import OrderItem

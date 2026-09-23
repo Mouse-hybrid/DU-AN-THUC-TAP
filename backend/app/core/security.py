@@ -6,6 +6,7 @@ cryptography backend nặng như python-jose.
 
 Thêm 2 dependency mới vào requirements.txt: `passlib[bcrypt]`, `pyjwt`.
 """
+
 from __future__ import annotations
 
 import uuid

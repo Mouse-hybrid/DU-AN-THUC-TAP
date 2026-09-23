@@ -2,6 +2,7 @@
 thao tác nghiệp vụ (chưa commit) để audit log và data chính luôn nhất quán:
 nếu transaction rollback thì log cũng rollback theo, không có log "ma".
 """
+
 from __future__ import annotations
 
 import json

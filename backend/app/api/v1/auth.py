@@ -3,6 +3,7 @@
 Khách quét QR KHÔNG dùng endpoint này (theo BRD: không cần login) — session
 token cho QR được cấp riêng khi mở table_session, xem app/api/v1/tables.py.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,11 +21,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, session: Session = Depends(get_session)) -> TokenResponse:
-    staff = session.execute(select(Staff).where(Staff.username == payload.username)).scalar_one_or_none()
+    staff = session.execute(
+        select(Staff).where(Staff.username == payload.username)
+    ).scalar_one_or_none()
 
     # Cố tình không phân biệt "sai username" vs "sai password" trong message,
     # tránh lộ thông tin username nào tồn tại (user enumeration).
-    invalid_credentials = HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Sai tên đăng nhập hoặc mật khẩu")
+    invalid_credentials = HTTPException(
+        status.HTTP_401_UNAUTHORIZED, detail="Sai tên đăng nhập hoặc mật khẩu"
+    )
 
     if staff is None or not staff.is_active:
         raise invalid_credentials

@@ -3,6 +3,7 @@ mỗi test (cô lập hoàn toàn, không đụng tới DB thật/staging), over
 `get_session` của app để trỏ vào DB test này, và seed sẵn 1 bộ dữ liệu tối
 thiểu (outlet, 3 staff theo role khác nhau, 1 bàn, 1 kitchen_station, 1 menu_item).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -88,7 +89,9 @@ def seed(db_session_factory):
     session.add(station)
     session.flush()
 
-    menu_item = MenuItem(outlet_id=outlet.id, station_id=station.id, name="Mon Test", price=Decimal("50000.00"))
+    menu_item = MenuItem(
+        outlet_id=outlet.id, station_id=station.id, name="Mon Test", price=Decimal("50000.00")
+    )
     session.add(menu_item)
     session.flush()
 
