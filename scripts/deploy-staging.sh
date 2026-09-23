@@ -11,9 +11,19 @@ if [[ ! -f ${ENV_FILE} ]]; then
 fi
 
 cd "${REPO_DIR}"
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" config --quiet
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --build
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ps
+COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}")
+
+"${COMPOSE[@]}" config --quiet
+"${COMPOSE[@]}" build
+
+echo "Starting db and waiting for its healthcheck before running migrations..."
+"${COMPOSE[@]}" up -d --wait db
+
+echo "Running alembic upgrade head against staging DB..."
+"${COMPOSE[@]}" run --rm api alembic upgrade head
+
+"${COMPOSE[@]}" up -d
+"${COMPOSE[@]}" ps
 
 echo "Waiting for staging readiness endpoint..."
 for attempt in {1..30}; do

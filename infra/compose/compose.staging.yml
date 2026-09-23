@@ -10,6 +10,7 @@ services:
       DB_NAME: pos_staging
       DB_USER: pos_app
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy
