@@ -1,41 +1,19 @@
-import os
 from pathlib import Path
-from urllib.parse import quote_plus
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+# DATABASE_URL/APP_ENV va engine dung chung voi Alembic (migrations/env.py) qua
+# app/core/config.py va app/db/base.py - khong duplicate logic o day nua.
+from app.api.v1 import api_v1_router
+from app.core.config import APP_ENV
+from app.db.base import engine as database_engine
+
 APP_DIR = Path(__file__).resolve().parent
-APP_ENV = os.getenv("APP_ENV", "development")
-
-
-def _build_database_url() -> str | None:
-    explicit_url = os.getenv("DATABASE_URL")
-    if explicit_url:
-        return explicit_url
-
-    db_host = os.getenv("DB_HOST")
-    db_name = os.getenv("DB_NAME")
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    if not (db_host and db_name and db_user and db_password):
-        return None
-
-    db_port = os.getenv("DB_PORT", "5432")
-    # Encode the password so reserved URL characters (e.g. "@", "%") in a
-    # valid PostgreSQL password can't be misparsed as part of the DSN.
-    encoded_password = quote_plus(db_password)
-    return f"postgresql+psycopg://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
-
-
-DATABASE_URL = _build_database_url()
-database_engine = (
-    create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300) if DATABASE_URL else None
-)
 
 app = FastAPI(
     title="POS Staging API",
@@ -44,6 +22,7 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
+app.include_router(api_v1_router)
 
 PAGES = {
     "landing": {
@@ -82,8 +61,7 @@ PAGES = {
         "title": "Admin dashboard",
         "eyebrow": "Back office mock",
         "description": (
-            "Dashboard quản trị nền, định hướng bố cục AdminLTE "
-            "nhưng chưa dùng dữ liệu thật."
+            "Dashboard quản trị nền, định hướng bố cục AdminLTE nhưng chưa dùng dữ liệu thật."
         ),
         "primary_label": "Check readiness",
         "primary_href": "/ready",

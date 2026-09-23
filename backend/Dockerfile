@@ -7,6 +7,8 @@ WORKDIR /app
 RUN addgroup --system app && adduser --system --ingroup app app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --requirement requirements.txt
+COPY alembic.ini ./
+COPY migrations ./migrations
 COPY app ./app
 USER app
 EXPOSE 8000
