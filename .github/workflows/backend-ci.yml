@@ -70,3 +70,14 @@ jobs:
           docker logs smoke
           docker stop smoke
           exit 1
+
+  deploy-staging:
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: [self-hosted, staging]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Khoi phuc .env.staging (khong nam trong git, luu ben ngoai checkout)
+        run: cp ~/secrets/pos-staging/.env.staging .env.staging
+      - name: Deploy len staging (build, migrate, healthcheck)
+        run: bash scripts/deploy-staging.sh
