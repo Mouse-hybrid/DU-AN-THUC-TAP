@@ -14,6 +14,10 @@ POST /api/v1/orders/{order_id}/close             — PAID -> CLOSED (chốt sổ
                                                      đời order).
 POST /api/v1/orders/{order_id}/items/{item_id}/void   — hủy 1 món chưa phục vụ xong.
 POST /api/v1/orders/{order_id}/items/{item_id}/refire — làm lại 1 món (gửi lại bếp).
+POST /api/v1/orders/{order_id}/items/{item_id}/start-cooking — bếp bắt đầu nấu (BE-S1-06).
+POST /api/v1/orders/{order_id}/items/{item_id}/mark-ready    — bếp làm xong, chờ lấy (BE-S1-06).
+POST /api/v1/orders/{order_id}/items/{item_id}/pickup        — phục vụ lấy món từ bếp (BE-S1-06).
+POST /api/v1/orders/{order_id}/items/{item_id}/served        — phục vụ đã mang ra bàn (BE-S1-06).
 
 Toàn bộ API tạo mới/side-effect quan trọng đều bắt buộc Idempotency-Key (NFR).
 """
@@ -90,6 +94,12 @@ _VOID_ROLES = ("SUPERVISOR",)  # = "Override Actions"
 _REFIRE_ROLES = (
     "SUPERVISOR",
 )  # = "Override Actions" (Kitchen "Cannot modify orders" nên cũng không refire được)
+_KITCHEN_ACTION_ROLES = ("KITCHEN", "SUPERVISOR")  # = "Start Cooking" / "Mark Ready"
+# BRD không liệt kê "Pickup" trong 11 action gốc — coi là 1 bước nằm trong
+# trách nhiệm "Serve Food" của Waiter (Waiter lấy món từ bếp rồi mang ra bàn),
+# nên dùng chung role với bước "served". Cần BA/PM xác nhận nếu thực tế tách
+# vai trò khác (vd Kitchen tự để món ra quầy, Waiter chỉ mang ra bàn).
+_PICKUP_SERVE_ROLES = ("WAITER", "SUPERVISOR")  # = "Serve Food"
 _CLOSED_ORDER_STATUSES = ("BILLING", "PAID", "CLOSED")
 _VOIDABLE_ITEM_STATUSES = ("CREATED", "SENT", "ACCEPTED", "PREPARING")
 _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
@@ -690,6 +700,273 @@ def refire_order_item(
         outlet_id=current.outlet_id,
         staff_id=current.id,
         action="ORDER_ITEM_REFIRED",
+        entity_type="order_item",
+        entity_id=item.id,
+    )
+
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
+def _load_active_kitchen_queue_entry(
+    session: Session, order_item_id: uuid.UUID
+) -> KitchenQueue | None:
+    """Entry KitchenQueue mới nhất, còn đang hoạt động (chưa DONE/CANCELLED)
+    cho 1 order_item — refire tạo entry mới nên luôn lấy entry gần nhất."""
+    return (
+        session.execute(
+            select(KitchenQueue)
+            .where(KitchenQueue.order_item_id == order_item_id)
+            .where(KitchenQueue.status.in_(("QUEUED", "IN_PROGRESS")))
+            .order_by(KitchenQueue.queued_at.desc())
+        )
+        .scalars()
+        .first()
+    )
+
+
+def _maybe_mark_order_served(session: Session, order: Order) -> None:
+    """SENT -> SERVED khi mọi món (trừ món đã VOIDED) đều đã SERVED. Không tự
+    lùi lại nếu order đã ở BILLING/PAID/CLOSED (khách có thể yêu cầu thanh
+    toán trước khi món cuối cùng được phục vụ xong)."""
+    if order.status != "SENT":
+        return
+    remaining = [item for item in order.items if item.status != "VOIDED"]
+    if remaining and all(item.status == "SERVED" for item in remaining):
+        order.status = "SERVED"
+
+
+@router.post("/{order_id}/items/{item_id}/start-cooking", response_model=OrderOut)
+def start_cooking_order_item(
+    order_id: uuid.UUID,
+    item_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_KITCHEN_ACTION_ROLES)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """SENT -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
+    (ACCEPTED) vào action này — BRD chỉ định nghĩa 1 action "Start Cooking",
+    không tách riêng bước "accept". Nếu sau này cần tách, thêm action mới và
+    dùng ACCEPTED làm bước trung gian (schema đã có sẵn giá trị này)."""
+    endpoint = f"POST /api/v1/orders/{order_id}/items/{item_id}/start-cooking"
+    request_hash = hash_request_body({"item_id": str(item_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
+    if item.status != "SENT":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Món đang ở trạng thái '{item.status}', phải ở SENT mới start-cooking được",
+        )
+
+    queue_entry = _load_active_kitchen_queue_entry(session, item.id)
+    if queue_entry is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Không tìm thấy kitchen_queue entry đang hoạt động cho món này",
+        )
+
+    item.status = "PREPARING"
+    queue_entry.status = "IN_PROGRESS"
+    queue_entry.started_at = datetime.now(timezone.utc)
+    session.flush()
+    session.refresh(order)
+
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_ITEM_START_COOKING",
+        entity_type="order_item",
+        entity_id=item.id,
+    )
+
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
+@router.post("/{order_id}/items/{item_id}/mark-ready", response_model=OrderOut)
+def mark_ready_order_item(
+    order_id: uuid.UUID,
+    item_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_KITCHEN_ACTION_ROLES)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """PREPARING -> READY (bếp làm xong, chờ phục vụ tới lấy)."""
+    endpoint = f"POST /api/v1/orders/{order_id}/items/{item_id}/mark-ready"
+    request_hash = hash_request_body({"item_id": str(item_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
+    if item.status != "PREPARING":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Món đang ở trạng thái '{item.status}', phải ở PREPARING mới mark-ready được",
+        )
+
+    queue_entry = _load_active_kitchen_queue_entry(session, item.id)
+    if queue_entry is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Không tìm thấy kitchen_queue entry đang hoạt động cho món này",
+        )
+
+    item.status = "READY"
+    queue_entry.status = "DONE"
+    queue_entry.done_at = datetime.now(timezone.utc)
+    session.flush()
+    session.refresh(order)
+
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_ITEM_MARKED_READY",
+        entity_type="order_item",
+        entity_id=item.id,
+    )
+
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
+@router.post("/{order_id}/items/{item_id}/pickup", response_model=OrderOut)
+def pickup_order_item(
+    order_id: uuid.UUID,
+    item_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_PICKUP_SERVE_ROLES)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """READY -> PICKED_UP (phục vụ đã lấy món từ bếp, chuẩn bị mang ra bàn)."""
+    endpoint = f"POST /api/v1/orders/{order_id}/items/{item_id}/pickup"
+    request_hash = hash_request_body({"item_id": str(item_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
+    if item.status != "READY":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Món đang ở trạng thái '{item.status}', phải ở READY mới pickup được",
+        )
+
+    item.status = "PICKED_UP"
+    session.flush()
+    session.refresh(order)
+
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_ITEM_PICKED_UP",
+        entity_type="order_item",
+        entity_id=item.id,
+    )
+
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
+@router.post("/{order_id}/items/{item_id}/served", response_model=OrderOut)
+def serve_order_item(
+    order_id: uuid.UUID,
+    item_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_PICKUP_SERVE_ROLES)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """PICKED_UP -> SERVED. Khi TOÀN BỘ món (trừ món VOIDED) trong order đã
+    SERVED, tự động chuyển order.status SENT -> SERVED (BRD state machine)."""
+    endpoint = f"POST /api/v1/orders/{order_id}/items/{item_id}/served"
+    request_hash = hash_request_body({"item_id": str(item_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
+    if item.status != "PICKED_UP":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Món đang ở trạng thái '{item.status}', phải ở PICKED_UP mới served được",
+        )
+
+    item.status = "SERVED"
+    _maybe_mark_order_served(session, order)
+    session.flush()
+    session.refresh(order)
+
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_ITEM_SERVED",
         entity_type="order_item",
         entity_id=item.id,
     )
