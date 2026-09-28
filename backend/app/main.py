@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 # app/core/config.py va app/db/base.py - khong duplicate logic o day nua.
 from app.api.v1 import api_v1_router
 from app.core.config import APP_ENV
+from app.core.error_handlers import register_exception_handlers
 from app.db.base import engine as database_engine
 
 APP_DIR = Path(__file__).resolve().parent
@@ -23,6 +24,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
 app.include_router(api_v1_router)
+register_exception_handlers(app)
 
 PAGES = {
     "landing": {
