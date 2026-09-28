@@ -100,8 +100,9 @@ def test_start_cooking_is_idempotent_same_key(client, seed):
     order_id, item_id, _waiter_headers, kitchen_headers = _send_one_item_to_kitchen(client, seed)
     headers = {**kitchen_headers, "Idempotency-Key": "kl-start-idem"}
 
-    first = client.post(f"/api/v1/orders/{order_id}/items/{item_id}/start-cooking", headers=headers)
-    second = client.post(f"/api/v1/orders/{order_id}/items/{item_id}/start-cooking", headers=headers)
+    url = f"/api/v1/orders/{order_id}/items/{item_id}/start-cooking"
+    first = client.post(url, headers=headers)
+    second = client.post(url, headers=headers)
 
     assert first.status_code == 200
     assert second.status_code == 200
