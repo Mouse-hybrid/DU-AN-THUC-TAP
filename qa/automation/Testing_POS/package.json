@@ -19,5 +19,8 @@
     "@types/node": "^26.6.1",
     "cypress": "^16.1.0",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.4"
   }
 }

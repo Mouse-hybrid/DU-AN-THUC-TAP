@@ -1,0 +1,60 @@
+name: Playwright API Testing
+
+on:
+  push:
+    branches:
+      - ONLY_TESTING
+
+  pull_request:
+    branches:
+      - ONLY_TESTING
+
+  workflow_dispatch:
+
+jobs:
+  api-test:
+    name: API Smoke Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run API Smoke Tests
+        run: npx playwright test api-smoke.spec.ts --project=chromium
+        env:
+          BASE_URL: http://160.191.47.17
+
+      - name: Upload API Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-evidence
+          path: qa/automation/Testing_POS/test-results/
+          retention-days: 14
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-api-report
+          path: qa/automation/Testing_POS/playwright-report/
+          retention-days: 14
