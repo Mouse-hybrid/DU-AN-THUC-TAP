@@ -1,4 +1,4 @@
-"""Pydantic schemas cho vertical slice bước 1: Mở bàn."""
+"""Pydantic schemas cho bàn: mở bàn (vertical slice bước 1), dashboard bàn, dọn bàn."""
 
 from __future__ import annotations
 
@@ -20,3 +20,24 @@ class TableSessionOut(BaseModel):
     opened_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TableOut(BaseModel):
+    id: uuid.UUID
+    code: str
+    seats: int
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class TableDashboardItem(BaseModel):
+    """1 dòng của dashboard bàn: trạng thái bàn + phiên đang mở (nếu có)."""
+
+    id: uuid.UUID
+    code: str
+    seats: int
+    status: str
+    current_session_id: uuid.UUID | None = None
+    guest_count: int | None = None
+    opened_at: datetime | None = None

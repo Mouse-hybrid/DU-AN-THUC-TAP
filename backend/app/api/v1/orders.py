@@ -40,6 +40,7 @@ from app.core.deps import (
     require_idempotency_key,
     require_role,
 )
+from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
     IdempotencyKey,
@@ -382,6 +383,12 @@ def send_order_to_kitchen(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "KITCHEN_QUEUE_UPDATED",
+        {"order_id": str(order.id), "items_sent": result.kitchen_queue_entries_created},
+    )
     return result
 
 
@@ -505,6 +512,12 @@ def pay_order(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "tables",
+        "TABLE_STATUS_CHANGED",
+        {"table_id": str(table.id), "status": table.status},
+    )
     return result
 
 
@@ -632,6 +645,12 @@ def void_order_item(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "ORDER_ITEM_VOIDED",
+        {"order_id": str(order.id), "item_id": str(item.id), "status": item.status},
+    )
     return result
 
 
@@ -715,6 +734,12 @@ def refire_order_item(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "ORDER_ITEM_REFIRED",
+        {"order_id": str(order.id), "item_id": str(item.id), "status": item.status},
+    )
     return result
 
 
@@ -809,6 +834,12 @@ def start_cooking_order_item(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "ORDER_ITEM_STATUS_CHANGED",
+        {"order_id": str(order.id), "item_id": str(item.id), "status": item.status},
+    )
     return result
 
 
@@ -872,6 +903,12 @@ def mark_ready_order_item(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "ORDER_ITEM_STATUS_CHANGED",
+        {"order_id": str(order.id), "item_id": str(item.id), "status": item.status},
+    )
     return result
 
 
@@ -926,6 +963,12 @@ def pickup_order_item(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "ORDER_ITEM_STATUS_CHANGED",
+        {"order_id": str(order.id), "item_id": str(item.id), "status": item.status},
+    )
     return result
 
 
@@ -982,4 +1025,10 @@ def serve_order_item(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "ORDER_ITEM_STATUS_CHANGED",
+        {"order_id": str(order.id), "item_id": str(item.id), "status": item.status},
+    )
     return result

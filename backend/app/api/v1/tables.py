@@ -1,4 +1,9 @@
-"""Vertical slice bước 1: Mở bàn.
+"""Quản lý bàn: mở bàn (vertical slice bước 1), dashboard bàn, xác nhận dọn bàn.
+
+GET  /api/v1/tables                              — dashboard: mọi bàn của outlet + phiên đang mở.
+POST /api/v1/tables/{table_id}/mark-clean        — CLEANING -> AVAILABLE (xác nhận đã dọn xong).
+                                                    (Bàn vào CLEANING khi order được pay, xem
+                                                    orders.py — pay đóng luôn table_session.)
 
 POST /api/v1/tables/{table_id}/open-session
   - Chỉ mở được khi bàn đang AVAILABLE hoặc RESERVED (BRD state machine).
@@ -12,19 +17,27 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit_log
 from app.core.deps import (
     CurrentStaff,
+    get_current_staff,
     get_idempotent_response,
     hash_request_body,
     require_idempotency_key,
     require_role,
 )
+from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import IdempotencyKey, RestaurantTable, TableSession
-from app.schemas.tables import OpenSessionRequest, TableSessionOut
+from app.schemas.tables import (
+    OpenSessionRequest,
+    TableDashboardItem,
+    TableOut,
+    TableSessionOut,
+)
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 
@@ -33,6 +46,10 @@ _OPENABLE_STATUSES = ("AVAILABLE", "RESERVED")
 # nhưng gần nhất với "Merge/Split/Transfer Table" (Waiter + Supervisor) và khớp
 # với "table lifecycle" trong Key Responsibilities của Waiter.
 _OPEN_SESSION_ROLES = ("WAITER", "SUPERVISOR")
+# "Xác nhận dọn bàn" cũng không có trong 11 action của Permission Matrix; BRD chỉ
+# nói bàn "remains CLEANING until confirmed". Gán cùng role với mở bàn (Waiter +
+# Supervisor) — cần BA/PM xác nhận lại.
+_MARK_CLEAN_ROLES = ("WAITER", "SUPERVISOR")
 
 
 @router.post(
@@ -99,4 +116,122 @@ def open_table_session(
     )
 
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "tables",
+        "TABLE_SESSION_OPENED",
+        {
+            "table_id": str(table.id),
+            "status": table.status,
+            "table_session_id": str(table_session.id),
+        },
+    )
+    return result
+
+
+@router.get("", response_model=list[TableDashboardItem])
+def table_dashboard(
+    current: CurrentStaff = Depends(get_current_staff),
+    session: Session = Depends(get_session),
+) -> list[TableDashboardItem]:
+    """Dashboard bàn: mọi bàn của outlet, kèm phiên OPEN hiện tại (nếu có).
+    Mọi role đã đăng nhập đều xem được (xem trạng thái bàn không bị hạn chế
+    trong Permission Matrix)."""
+    tables = (
+        session.execute(
+            select(RestaurantTable)
+            .where(RestaurantTable.outlet_id == current.outlet_id)
+            .order_by(RestaurantTable.code)
+        )
+        .scalars()
+        .all()
+    )
+    open_sessions: dict[uuid.UUID, TableSession] = {}
+    if tables:
+        rows = (
+            session.execute(
+                select(TableSession)
+                .where(TableSession.status == "OPEN")
+                .where(TableSession.table_id.in_([t.id for t in tables]))
+                .order_by(TableSession.opened_at)
+            )
+            .scalars()
+            .all()
+        )
+        open_sessions = {row.table_id: row for row in rows}
+
+    items: list[TableDashboardItem] = []
+    for table in tables:
+        current_session = open_sessions.get(table.id)
+        items.append(
+            TableDashboardItem(
+                id=table.id,
+                code=table.code,
+                seats=table.seats,
+                status=table.status,
+                current_session_id=current_session.id if current_session else None,
+                guest_count=current_session.guest_count if current_session else None,
+                opened_at=current_session.opened_at if current_session else None,
+            )
+        )
+    return items
+
+
+@router.post("/{table_id}/mark-clean", response_model=TableOut)
+def mark_table_clean(
+    table_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_MARK_CLEAN_ROLES)),
+    session: Session = Depends(get_session),
+) -> TableOut:
+    """CLEANING -> AVAILABLE. Chỉ bàn đang CLEANING mới xác nhận dọn xong được."""
+    endpoint = f"POST /api/v1/tables/{table_id}/mark-clean"
+    request_hash = hash_request_body({"table_id": str(table_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return TableOut.model_validate_json(existing.response_body)
+
+    table = session.get(RestaurantTable, table_id)
+    if table is None or table.outlet_id != current.outlet_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy bàn")
+    if table.status != "CLEANING":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Bàn đang ở trạng thái '{table.status}', phải ở CLEANING mới xác nhận dọn xong",
+        )
+
+    table.status = "AVAILABLE"
+    session.flush()
+
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="TABLE_CLEANED",
+        entity_type="restaurant_table",
+        entity_id=table.id,
+    )
+
+    result = TableOut.model_validate(table)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    manager.publish(
+        current.outlet_id,
+        "tables",
+        "TABLE_STATUS_CHANGED",
+        {"table_id": str(table.id), "status": "AVAILABLE"},
+    )
     return result
