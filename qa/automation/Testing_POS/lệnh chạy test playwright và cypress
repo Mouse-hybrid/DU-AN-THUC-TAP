@@ -1,3 +1,9 @@
 npm run test:cy
+npm run test:pw
+
+Only run the tests in the "ONLY_TESTING" branch in folder qa/automation/Testing_POS
 npx playwright test pos-smoke.spec.ts --project=chromium
 npx playwright test api-smoke.spec.ts --project=chromium
+npx playwright test menu-integration-smoke.spec.ts --project=chromium
+# lệnh kiểm tra id của git push 
+# git log -1 --oneline
