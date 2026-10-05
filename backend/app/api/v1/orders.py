@@ -4,7 +4,9 @@ void/refire món.
 POST /api/v1/orders                             — tạo order mới cho 1 table_session đang OPEN.
 POST /api/v1/orders/{order_id}/items             — thêm món vào order (snapshot giá tại thời
                                                      điểm thêm).
-POST /api/v1/orders/{order_id}/send-to-kitchen   — gửi các món đang CREATED xuống đúng
+PATCH  /api/v1/orders/{order_id}/items/{item_id} — sửa số lượng/ghi chú món CHƯA gửi bếp.
+DELETE /api/v1/orders/{order_id}/items/{item_id} — bỏ món CHƯA gửi bếp (-> VOIDED, giữ lịch sử).
+POST /api/v1/orders/{order_id}/send-to-kitchen  — gửi các món đang CREATED xuống đúng
                                                      kitchen_station.
 POST /api/v1/orders/{order_id}/request-billing   — SENT/SERVED -> BILLING (khách yêu cầu
                                                      thanh toán).
@@ -57,6 +59,7 @@ from app.schemas.orders import (
     CreateOrderRequest,
     OrderOut,
     SendToKitchenResponse,
+    UpdateOrderItemRequest,
     VoidItemRequest,
 )
 
@@ -292,6 +295,163 @@ def add_order_items(
             endpoint=endpoint,
             request_hash=request_hash,
             response_status=status.HTTP_201_CREATED,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
+def _ensure_item_editable_before_send(order: Order, item: OrderItem, current: CurrentStaff) -> None:
+    """BRD In Scope: "Order modification (before kitchen send)". Chỉ món còn CREATED
+    (bếp chưa nhận) mới sửa/bỏ tự do; món đã gửi bếp phải đi qua void/refire
+    (Supervisor). Cùng quy tắc quyền với thêm món: order đã rời NEW thì chỉ
+    Supervisor được đụng vào."""
+    if order.status in _CLOSED_ORDER_STATUSES:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', không thể sửa món",
+        )
+    if item.status != "CREATED":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=(
+                f"Món đang ở trạng thái '{item.status}' (đã gửi bếp) — "
+                "dùng void/refire thay vì sửa trực tiếp"
+            ),
+        )
+    if order.status != "NEW" and current.role != "SUPERVISOR":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Order đã gửi bếp — chỉ Supervisor mới được sửa món (override)",
+        )
+
+
+def _record_item_change(
+    session: Session,
+    order: Order,
+    item: OrderItem,
+    current: CurrentStaff,
+    action: str,
+    payload: dict,
+) -> None:
+    order.current_version += 1
+    session.flush()
+    session.refresh(order)
+    session.add(
+        OrderVersion(
+            order_id=order.id,
+            version_number=order.current_version,
+            snapshot=_snapshot_order(order),
+            created_by_staff_id=current.id,
+        )
+    )
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action=action,
+        entity_type="order_item",
+        entity_id=item.id,
+        payload=payload,
+    )
+
+
+@router.patch("/{order_id}/items/{item_id}", response_model=OrderOut)
+def update_order_item(
+    order_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: UpdateOrderItemRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_ORDER_WRITE_ROLES)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """Sửa số lượng/ghi chú của món CHƯA gửi bếp (CREATED)."""
+    endpoint = f"PATCH /api/v1/orders/{order_id}/items/{item_id}"
+    changes = payload.model_dump(mode="json", exclude_unset=True)
+    request_hash = hash_request_body(changes)
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
+    _ensure_item_editable_before_send(order, item, current)
+
+    before = {"quantity": item.quantity, "note": item.note}
+    if "quantity" in changes:
+        item.quantity = payload.quantity
+    if "note" in changes:
+        item.note = payload.note
+
+    _record_item_change(
+        session,
+        order,
+        item,
+        current,
+        action="ORDER_ITEM_UPDATED",
+        payload={"before": before, "after": {"quantity": item.quantity, "note": item.note}},
+    )
+
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
+@router.delete("/{order_id}/items/{item_id}", response_model=OrderOut)
+def remove_order_item(
+    order_id: uuid.UUID,
+    item_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_role(*_ORDER_WRITE_ROLES)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """Bỏ món CHƯA gửi bếp (CREATED). Không xóa dòng khỏi DB — chuyển sang VOIDED
+    để giữ lịch sử trong order_version/audit_log (BRD: không sửa lịch sử)."""
+    endpoint = f"DELETE /api/v1/orders/{order_id}/items/{item_id}"
+    request_hash = hash_request_body({"order_id": str(order_id), "item_id": str(item_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
+    _ensure_item_editable_before_send(order, item, current)
+
+    item.status = "VOIDED"
+    _record_item_change(
+        session,
+        order,
+        item,
+        current,
+        action="ORDER_ITEM_REMOVED_BEFORE_SEND",
+        payload={"quantity": item.quantity, "note": item.note},
+    )
+
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
             response_body=result.model_dump_json(),
         )
     )
