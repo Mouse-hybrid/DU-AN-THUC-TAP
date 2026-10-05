@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CreateOrderRequest(BaseModel):
@@ -21,6 +21,21 @@ class OrderItemCreate(BaseModel):
 
 class AddItemsRequest(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1)
+
+
+class UpdateOrderItemRequest(BaseModel):
+    """Sửa món chưa gửi bếp. Chỉ gửi field cần đổi; gửi `note: null` để xóa ghi chú."""
+
+    quantity: int | None = Field(default=None, ge=1, le=50)
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def _at_least_one_field(self) -> UpdateOrderItemRequest:
+        if not self.model_fields_set:
+            raise ValueError("Cần ít nhất 1 trong 2 field: quantity, note")
+        if "quantity" in self.model_fields_set and self.quantity is None:
+            raise ValueError("quantity không được null")
+        return self
 
 
 class OrderItemOut(BaseModel):
