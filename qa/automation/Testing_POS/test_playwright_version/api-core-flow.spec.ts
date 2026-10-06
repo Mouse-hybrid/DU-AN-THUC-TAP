@@ -1,12 +1,14 @@
+import 'dotenv/config';
+import { env } from 'node:process';
 import { test, expect } from '@playwright/test';
 import { screenshotSuccess } from '../utils/screenshot_success';
 
 test.describe('POS System - API Core Flow', () => {
 
   test('API-CORE-001 - Login → Menu → Open Session → Create Order → Add Item → Kitchen Lifecycle', async ({ request, page }, testInfo) => {
-    const username = process.env.POS_TEST_USERNAME;
-    const password = process.env.POS_TEST_PASSWORD;
-    const tableId = process.env.POS_TEST_TABLE_ID;
+    const username = env.POS_TEST_USERNAME;
+    const password = env.POS_TEST_PASSWORD;
+    const tableId = env.POS_TEST_TABLE_ID;
 
     test.skip(
       !username || !password || !tableId,
@@ -22,6 +24,9 @@ test.describe('POS System - API Core Flow', () => {
         },
       });
     });
+
+    console.log('Login status:', loginResponse.status());
+    console.log('Login body:', await loginResponse.text());
 
     expect(loginResponse.ok()).toBeTruthy();
 

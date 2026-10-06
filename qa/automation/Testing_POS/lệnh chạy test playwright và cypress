@@ -7,3 +7,19 @@ npx playwright test api-smoke.spec.ts --project=chromium
 npx playwright test menu-integration-smoke.spec.ts --project=chromium
 # lệnh kiểm tra id của git push 
 # git log -1 --oneline
+
+#git pull --rebase origin ONLY_TESTING
+ git pull --rebase origin ONLY_TESTING   
+
+ #.env.example identify
+ $env:POS_TEST_USERNAME="customer"
+$env:POS_TEST_PASSWORD="123456"
+$env:POS_TEST_TABLE_ID="01"
+
+# TESTING .env has been updated with the correct values for POS_TEST_USERNAME, POS_TEST_PASSWORD, and POS_TEST_TABLE_ID. Please ensure that these values are set correctly in your environment before running the tests.
+node -e "require('dotenv').config();__ (viet tắt) __console.log(process.env.POS_TEST_USERNAME);
+__console.log(process.env.POS_TEST_USERNAME); 
+console.log(process.env.POS_TEST_TABLE_ID); 
+console.log(process.env.POS_TEST_PASSWORD)"
+
+
