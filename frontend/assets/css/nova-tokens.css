@@ -1,0 +1,37 @@
+:root {
+  --nova-color-primary: #147d6f;
+  --nova-color-primary-deep: #0c5b52;
+  --nova-color-accent: #f4a340;
+  --nova-color-ink: #16302b;
+  --nova-color-canvas: #f4f6f5;
+  --nova-color-danger: #d85b59;
+  --nova-color-white: #ffffff;
+  --nova-color-muted: #6c7c78;
+  --nova-color-border: #d7e0dd;
+  --nova-color-soft: #e9f3f1;
+  --nova-color-warning-soft: #fff2dd;
+  --nova-color-danger-soft: #fdeceb;
+  --nova-color-info-soft: #e8f0fb;
+
+  --nova-space-1: 4px;
+  --nova-space-2: 8px;
+  --nova-space-3: 12px;
+  --nova-space-4: 16px;
+  --nova-space-5: 24px;
+  --nova-space-6: 32px;
+
+  --nova-radius: 12px;
+  --nova-radius-small: 8px;
+  --nova-radius-pill: 999px;
+
+  --nova-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --nova-font-size-xs: 0.75rem;
+  --nova-font-size-sm: 0.875rem;
+  --nova-font-size-md: 1rem;
+  --nova-font-size-lg: 1.25rem;
+  --nova-font-size-xl: 1.75rem;
+  --nova-font-size-2xl: clamp(2rem, 4vw, 3.5rem);
+
+  --nova-shadow-card: 0 12px 34px rgb(22 48 43 / 8%);
+  --nova-transition: 160ms ease;
+}

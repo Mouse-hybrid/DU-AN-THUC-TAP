@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Màn bếp · NOVA POS</title>
+    <link rel="stylesheet" href="assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/nova-tokens.css">
+    <link rel="stylesheet" href="assets/css/nova-base.css">
+    <link rel="stylesheet" href="assets/css/nova-components.css">
+  </head>
+  <body class="nova-body">
+    <div id="nova-offline-banner" class="nova-offline-banner" role="status" hidden>
+      <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#wifi-off"></use></svg>
+      Đang ngoại tuyến
+    </div>
+
+    <div class="nova-app-shell">
+      <aside class="nova-sidebar" aria-label="Điều hướng chính">
+        <a class="nova-brand-lockup nova-brand-lockup--compact" href="kitchen.html" aria-label="NOVA POS">
+          <span class="nova-brand-mark" aria-hidden="true">N</span>
+          <span>NOVA POS</span>
+        </a>
+        <nav class="nova-nav">
+          <a class="nova-nav-item nova-nav-item--active" href="kitchen.html" aria-current="page">
+            <span aria-hidden="true">K</span>
+            <span>Bếp</span>
+          </a>
+        </nav>
+      </aside>
+
+      <div class="nova-app-main">
+        <header class="nova-topbar">
+          <div>
+            <p class="nova-topbar-label">NOVA Kitchen</p>
+            <strong>Màn bếp</strong>
+          </div>
+          <div class="nova-user-actions">
+            <span id="nova-staff-name" class="nova-user-chip"></span>
+            <button id="nova-logout" class="nova-icon-button" type="button" aria-label="Đăng xuất">
+              <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#log-out"></use></svg>
+            </button>
+          </div>
+        </header>
+
+        <main class="nova-content nova-content--centered">
+          <section class="nova-placeholder-card">
+            <span class="nova-placeholder-icon" aria-hidden="true">K</span>
+            <h1>Màn bếp sắp có</h1>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="assets/js/pages/kitchen.js"></script>
+  </body>
+</html>

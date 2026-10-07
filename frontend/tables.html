@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sơ đồ bàn · NOVA POS</title>
+    <link rel="stylesheet" href="assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/nova-tokens.css">
+    <link rel="stylesheet" href="assets/css/nova-base.css">
+    <link rel="stylesheet" href="assets/css/nova-components.css">
+  </head>
+  <body class="nova-body">
+    <div id="nova-offline-banner" class="nova-offline-banner" role="status" hidden>
+      <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#wifi-off"></use></svg>
+      Đang ngoại tuyến
+    </div>
+
+    <div class="nova-app-shell">
+      <aside class="nova-sidebar" aria-label="Điều hướng chính">
+        <a class="nova-brand-lockup nova-brand-lockup--compact" href="tables.html" aria-label="NOVA POS">
+          <span class="nova-brand-mark" aria-hidden="true">N</span>
+          <span>NOVA POS</span>
+        </a>
+        <nav class="nova-nav">
+          <a class="nova-nav-item nova-nav-item--active" href="tables.html" aria-current="page">
+            <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#grid-2x2"></use></svg>
+            <span>Bàn</span>
+          </a>
+        </nav>
+      </aside>
+
+      <div class="nova-app-main">
+        <header class="nova-topbar">
+          <div>
+            <p class="nova-topbar-label">Chi nhánh hiện tại</p>
+            <strong>Chi nhánh Quận 1</strong>
+          </div>
+          <div class="nova-user-actions">
+            <span id="nova-staff-name" class="nova-user-chip"></span>
+            <button id="nova-logout" class="nova-icon-button" type="button" aria-label="Đăng xuất">
+              <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#log-out"></use></svg>
+            </button>
+          </div>
+        </header>
+
+        <main class="nova-content">
+          <section id="nova-kitchen-placeholder" class="nova-placeholder-card" hidden>
+            <span class="nova-placeholder-icon" aria-hidden="true">K</span>
+            <h1>Màn bếp sắp có</h1>
+            <p>Batch hiện tại chỉ triển khai đăng nhập và quản lý bàn.</p>
+          </section>
+
+          <section id="nova-tables-view">
+            <div class="nova-page-toolbar">
+              <div class="nova-page-heading">
+                <p class="nova-eyebrow">POS · Quản lý bàn</p>
+                <h1>Sơ đồ bàn</h1>
+                <p>Chọn bàn trống để mở phiên phục vụ mới.</p>
+              </div>
+              <div class="nova-toolbar-actions">
+                <div class="nova-field nova-field--compact">
+                  <label for="nova-status-filter">Trạng thái</label>
+                  <select id="nova-status-filter">
+                    <option value="ALL">Tất cả trạng thái</option>
+                    <option value="AVAILABLE">Trống</option>
+                    <option value="OCCUPIED">Đang phục vụ</option>
+                    <option value="BILLING">Chờ thanh toán</option>
+                    <option value="PAID">Đã thanh toán</option>
+                    <option value="CLEANING">Đang dọn</option>
+                    <option value="RESERVED">Đã đặt</option>
+                    <option value="DELAYED">Chậm phục vụ</option>
+                    <option value="MERGED">Đã gộp</option>
+                  </select>
+                </div>
+                <button id="nova-refresh" class="nova-button nova-button--secondary" type="button">
+                  <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#refresh-cw"></use></svg>
+                  <span class="nova-button-label">Làm mới</span>
+                  <span class="nova-spinner" aria-hidden="true" hidden></span>
+                </button>
+              </div>
+            </div>
+
+            <div id="nova-tables-state" class="nova-state-card" aria-live="polite">
+              <span class="nova-spinner nova-spinner--large" aria-hidden="true"></span>
+              <h2>Đang tải sơ đồ bàn</h2>
+              <p>Vui lòng chờ trong giây lát.</p>
+            </div>
+
+            <div id="nova-tables-grid" class="nova-table-grid" aria-live="polite" hidden></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <template id="nova-table-card-template">
+      <button class="nova-table-card" type="button">
+        <span class="nova-table-card-topline">
+          <strong class="nova-table-code"></strong>
+          <span class="nova-status-badge"></span>
+        </span>
+        <span class="nova-table-meta"></span>
+        <span class="nova-table-session"></span>
+      </button>
+    </template>
+
+    <div id="nova-toast-region" class="nova-toast-region" aria-live="polite"></div>
+    <script type="module" src="assets/js/pages/tables.js"></script>
+  </body>
+</html>

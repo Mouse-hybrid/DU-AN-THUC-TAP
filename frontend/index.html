@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NOVA POS</title>
+    <link rel="stylesheet" href="assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/nova-tokens.css">
+    <link rel="stylesheet" href="assets/css/nova-base.css">
+  </head>
+  <body class="nova-body nova-redirect-page">
+    <main class="nova-redirect-card" aria-live="polite">
+      <span class="nova-brand-mark" aria-hidden="true">N</span>
+      <p>Đang mở NOVA POS…</p>
+    </main>
+    <noscript>Bạn cần bật JavaScript để sử dụng NOVA POS.</noscript>
+    <script type="module">
+      import { getAuth, getPostLoginUrl } from "./assets/js/auth.js";
+
+      const auth = getAuth();
+      window.location.replace(auth ? getPostLoginUrl(auth.staff?.role) : "login.html");
+    </script>
+  </body>
+</html>

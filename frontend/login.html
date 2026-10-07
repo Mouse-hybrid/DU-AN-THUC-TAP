@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Đăng nhập · NOVA POS</title>
+    <link rel="stylesheet" href="assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/nova-tokens.css">
+    <link rel="stylesheet" href="assets/css/nova-base.css">
+    <link rel="stylesheet" href="assets/css/nova-components.css">
+  </head>
+  <body class="nova-body nova-login-page">
+    <div id="nova-offline-banner" class="nova-offline-banner" role="status" hidden>
+      <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#wifi-off"></use></svg>
+      Đang ngoại tuyến
+    </div>
+
+    <main class="nova-login-shell">
+      <section class="nova-login-brand" aria-label="NOVA POS">
+        <div class="nova-brand-lockup">
+          <span class="nova-brand-mark nova-brand-mark--large" aria-hidden="true">N</span>
+          <span>NOVA POS</span>
+        </div>
+        <div>
+          <p class="nova-eyebrow">Hệ thống bán hàng</p>
+          <h1>Vận hành nhà hàng<br>nhẹ nhàng hơn.</h1>
+          <p class="nova-login-copy">Đăng nhập để quản lý bàn và phục vụ khách hàng.</p>
+        </div>
+        <p class="nova-login-meta">Đồng bộ bảo mật · Phiên bản thử nghiệm</p>
+      </section>
+
+      <section class="nova-login-panel">
+        <form id="nova-login-form" class="nova-login-form" novalidate>
+          <header class="nova-page-heading">
+            <p class="nova-eyebrow">Đăng nhập bằng mã nhân viên</p>
+            <h2>Chào mừng trở lại</h2>
+            <p>Nhập thông tin được cấp để bắt đầu ca làm việc.</p>
+          </header>
+
+          <div id="nova-login-alert" class="nova-alert" role="alert" hidden></div>
+
+          <div class="nova-field">
+            <label for="nova-username">Mã nhân viên</label>
+            <input id="nova-username" name="username" type="text" autocomplete="username" placeholder="Ví dụ: NV-2048" required>
+            <p id="nova-username-error" class="nova-field-error" hidden>Vui lòng nhập mã nhân viên.</p>
+          </div>
+
+          <div class="nova-field">
+            <label for="nova-password">Mã PIN</label>
+            <div class="nova-password-wrap">
+              <input id="nova-password" name="password" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Nhập mã PIN" required>
+              <button id="nova-toggle-password" class="nova-icon-button" type="button" aria-label="Hiện mã PIN" aria-pressed="false">
+                <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#eye"></use></svg>
+              </button>
+            </div>
+            <p id="nova-password-error" class="nova-field-error" hidden>Vui lòng nhập mã PIN.</p>
+          </div>
+
+          <button id="nova-login-submit" class="nova-button nova-button--primary nova-button--full" type="submit">
+            <span class="nova-button-label">Đăng nhập</span>
+            <span class="nova-spinner" aria-hidden="true" hidden></span>
+          </button>
+        </form>
+      </section>
+    </main>
+
+    <div id="nova-toast-region" class="nova-toast-region" aria-live="polite"></div>
+    <script type="module" src="assets/js/pages/login.js"></script>
+  </body>
+</html>

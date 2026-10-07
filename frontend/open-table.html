@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mở bàn · NOVA POS</title>
+    <link rel="stylesheet" href="assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/nova-tokens.css">
+    <link rel="stylesheet" href="assets/css/nova-base.css">
+    <link rel="stylesheet" href="assets/css/nova-components.css">
+  </head>
+  <body class="nova-body">
+    <div id="nova-offline-banner" class="nova-offline-banner" role="status" hidden>
+      <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#wifi-off"></use></svg>
+      Đang ngoại tuyến
+    </div>
+
+    <div class="nova-app-shell">
+      <aside class="nova-sidebar" aria-label="Điều hướng chính">
+        <a class="nova-brand-lockup nova-brand-lockup--compact" href="tables.html" aria-label="NOVA POS">
+          <span class="nova-brand-mark" aria-hidden="true">N</span>
+          <span>NOVA POS</span>
+        </a>
+        <nav class="nova-nav">
+          <a class="nova-nav-item nova-nav-item--active" href="tables.html">
+            <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#grid-2x2"></use></svg>
+            <span>Bàn</span>
+          </a>
+        </nav>
+      </aside>
+
+      <div class="nova-app-main">
+        <header class="nova-topbar">
+          <a class="nova-back-link" href="tables.html">
+            <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#chevron-left"></use></svg>
+            Quay lại sơ đồ bàn
+          </a>
+          <div class="nova-user-actions">
+            <span id="nova-staff-name" class="nova-user-chip"></span>
+            <button id="nova-logout" class="nova-icon-button" type="button" aria-label="Đăng xuất">
+              <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#log-out"></use></svg>
+            </button>
+          </div>
+        </header>
+
+        <main class="nova-content nova-content--centered">
+          <section class="nova-open-card">
+            <div id="nova-open-loading" class="nova-state-card" aria-live="polite">
+              <span class="nova-spinner nova-spinner--large" aria-hidden="true"></span>
+              <h1>Đang tải thông tin bàn</h1>
+              <p>Vui lòng chờ trong giây lát.</p>
+            </div>
+
+            <div id="nova-open-error" class="nova-state-card nova-state-card--error" role="alert" hidden>
+              <svg class="nova-state-icon nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#alert-circle"></use></svg>
+              <h1>Không thể tải bàn</h1>
+              <p id="nova-open-error-message"></p>
+              <button id="nova-open-retry" class="nova-button nova-button--secondary" type="button">Thử lại</button>
+            </div>
+
+            <form id="nova-open-form" class="nova-open-form" novalidate hidden>
+              <header class="nova-page-heading nova-page-heading--centered">
+                <span class="nova-placeholder-icon" aria-hidden="true">
+                  <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#door-open"></use></svg>
+                </span>
+                <p class="nova-eyebrow">Mở phiên phục vụ</p>
+                <h1>Thông tin phiên</h1>
+              </header>
+
+              <div id="nova-open-alert" class="nova-alert" role="alert" hidden></div>
+
+              <div class="nova-field nova-field--centered">
+                <label for="nova-table-code">Bàn</label>
+                <input id="nova-table-code" type="text" readonly aria-readonly="true">
+                <p id="nova-table-description"></p>
+              </div>
+
+              <div class="nova-field nova-field--centered">
+                <label for="nova-guest-count">Số khách</label>
+                <div class="nova-stepper">
+                  <button id="nova-guest-minus" class="nova-icon-button nova-icon-button--outlined" type="button" aria-label="Giảm số khách">
+                    <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#minus"></use></svg>
+                  </button>
+                  <input id="nova-guest-count" name="guest_count" type="number" inputmode="numeric" min="1" max="100" step="1" value="1" required>
+                  <button id="nova-guest-plus" class="nova-icon-button nova-icon-button--outlined" type="button" aria-label="Tăng số khách">
+                    <svg class="nova-icon" aria-hidden="true"><use href="assets/icons/lucide-sprite.svg#plus"></use></svg>
+                  </button>
+                </div>
+                <p id="nova-guest-error" class="nova-field-error" hidden>Số khách phải là số nguyên từ 1 đến 100.</p>
+              </div>
+
+              <button id="nova-open-submit" class="nova-button nova-button--primary nova-button--full" type="submit">
+                <span class="nova-button-label">Mở bàn</span>
+                <span class="nova-spinner" aria-hidden="true" hidden></span>
+              </button>
+            </form>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="nova-toast-region" class="nova-toast-region" aria-live="polite"></div>
+    <script type="module" src="assets/js/pages/open-table.js"></script>
+  </body>
+</html>
