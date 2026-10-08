@@ -1,0 +1,11 @@
+name: POS_STAGING
+values:
+  - key: base_url
+    value: ''
+  - key: username
+    value: ''
+  - key: password
+    value: ''
+  - key: token
+    value: ''
+color: 240

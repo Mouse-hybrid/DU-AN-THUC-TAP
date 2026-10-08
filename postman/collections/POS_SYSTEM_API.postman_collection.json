@@ -1,0 +1,241 @@
+{
+  "info": {
+    "_postman_id": "6adc4a4a-894a-4ece-9e13-fcefb683aab1",
+    "name": "POS_SYSTEM API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "49563196",
+    "_collection_link": "https://go.postman.co/collection/49563196-6adc4a4a-894a-4ece-9e13-fcefb683aab1?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "ONLY_ORDER",
+      "item": [
+        {
+          "name": "GET order",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Post order",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Put order_denied",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Post more order_item",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ONLY_STAFF_change_post-put-patch",
+      "item": [
+        {
+          "name": "Get Staff",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "update_1_staff_work",
+          "request": {
+            "method": "PATCH",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Update_staff_infor",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ONLY_FOOD",
+      "item": [
+        {
+          "name": "Fix food storage",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Post food (1 ingredient)",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get food storage",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ONLY_TABLE_CIRCLE_ORDER",
+      "item": [
+        {
+          "name": "Get table all",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": ""
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT_table over customer gone",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Post table session",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ONLY_CUSTOMER",
+      "item": [
+        {
+          "name": "Get customer",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Update_customer_infor",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ONLY_RECIPES",
+      "item": [
+        {
+          "name": "Get menu",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get BOM(fomular)",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Post new Fomular",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Update_BOM",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ONLY_OUTCOME_RECEIPT",
+      "item": [
+        {
+          "name": "Get_TAX",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get coupons",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "POST_COUPONS",
+          "request": {
+            "method": "POST",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get_receipt or billiing",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "PUT_Coupons",
+          "request": {
+            "method": "PUT",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

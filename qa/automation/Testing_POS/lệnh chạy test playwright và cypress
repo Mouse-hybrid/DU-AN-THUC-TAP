@@ -11,8 +11,7 @@ npx playwright test api-new-endpoints-smoke.spec.ts --project=chromium
 # lệnh kiểm tra id của git push 
 # git log -1 --oneline
 
-#git pull --rebase origin ONLY_TESTING
- git pull --rebase origin ONLY_TESTING   
+# git pull --rebase origin ONLY_TESTING 
 
  #.env.example identify
  $env:POS_TEST_USERNAME="customer"
