@@ -29,6 +29,14 @@ echo "Seeding sample data (menu, tables, test accounts)..."
   || echo "WARNING: seed_dev_data.py failed — deploy continues, check output above."
 
 "${COMPOSE[@]}" up -d
+
+# infra/nginx/staging.conf được bind-mount 1 file: git checkout ghi file mới
+# (inode mới) nên container đang chạy vẫn thấy bản cũ và `up -d` không tạo lại
+# nginx khi compose không đổi. Restart để nginx mount lại + đọc cấu hình mới;
+# kiểm tra cú pháp trước, sai thì dừng deploy thay vì để nginx chết.
+echo "Validating and reloading nginx config..."
+"${COMPOSE[@]}" run --rm --no-deps -T nginx nginx -t
+"${COMPOSE[@]}" restart nginx
 "${COMPOSE[@]}" ps
 
 echo "Waiting for staging readiness endpoint..."
