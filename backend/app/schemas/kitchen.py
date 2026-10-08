@@ -30,3 +30,7 @@ class KitchenQueueEntryOut(BaseModel):
     status: str
     queued_at: datetime
     started_at: datetime | None
+    # SLA (BRD BR-KDS-SLA-001..003): tính bằng giờ server, chỉ chạy khi món đang
+    # nấu (IN_PROGRESS); món chưa bắt đầu nấu -> elapsed_minutes=null, NORMAL.
+    elapsed_minutes: float | None = None
+    sla_status: str = "NORMAL"  # NORMAL | WARNING | DELAYED | CRITICAL

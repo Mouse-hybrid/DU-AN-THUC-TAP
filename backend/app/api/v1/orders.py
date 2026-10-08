@@ -1,6 +1,7 @@
 """Vertical slice bước 2+3: Tạo order → Gửi bếp, + vòng đời thanh toán và
 void/refire món.
 
+GET  /api/v1/orders/{order_id}                  — chi tiết order (tên món, thành tiền, bàn).
 POST /api/v1/orders                             — tạo order mới cho 1 table_session đang OPEN.
 POST /api/v1/orders/{order_id}/items             — thêm món vào order (snapshot giá tại thời
                                                      điểm thêm).
@@ -29,6 +30,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -37,6 +39,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.audit import write_audit_log
 from app.core.deps import (
     CurrentStaff,
+    get_current_staff,
     get_idempotent_response,
     hash_request_body,
     require_idempotency_key,
@@ -57,6 +60,8 @@ from app.db.models import (
 from app.schemas.orders import (
     AddItemsRequest,
     CreateOrderRequest,
+    OrderDetailOut,
+    OrderItemDetailOut,
     OrderOut,
     SendToKitchenResponse,
     UpdateOrderItemRequest,
@@ -150,6 +155,57 @@ def _snapshot_order(order: Order) -> str:
             ],
         }
     )
+
+
+def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
+    """Dùng chung cho GET /orders/{id} và GET /tables/{id} (tables.py)."""
+    menu_ids = {item.menu_item_id for item in order.items}
+    names = (
+        dict(
+            session.execute(select(MenuItem.id, MenuItem.name).where(MenuItem.id.in_(menu_ids)))
+            .tuples()
+            .all()
+        )
+        if menu_ids
+        else {}
+    )
+    items = [
+        OrderItemDetailOut(
+            id=item.id,
+            menu_item_id=item.menu_item_id,
+            menu_item_name=names.get(item.menu_item_id, ""),
+            status=item.status,
+            quantity=item.quantity,
+            unit_price=item.unit_price,
+            note=item.note,
+            line_total=item.unit_price * item.quantity,
+        )
+        for item in sorted(order.items, key=lambda i: i.created_at)
+    ]
+    table = order.table_session.table
+    return OrderDetailOut(
+        id=order.id,
+        table_session_id=order.table_session_id,
+        table_id=table.id,
+        table_code=table.code,
+        status=order.status,
+        current_version=order.current_version,
+        created_at=order.created_at,
+        items=items,
+        subtotal=sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0")),
+    )
+
+
+@router.get("/{order_id}", response_model=OrderDetailOut)
+def get_order(
+    order_id: uuid.UUID,
+    current: CurrentStaff = Depends(get_current_staff),
+    session: Session = Depends(get_session),
+) -> OrderDetailOut:
+    """Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE
+    tải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem
+    order không bị hạn chế trong Permission Matrix — mọi role đã login."""
+    return build_order_detail(session, _load_order_or_404(session, order_id, current.outlet_id))
 
 
 @router.post("", response_model=OrderOut, status_code=status.HTTP_201_CREATED)

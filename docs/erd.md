@@ -9,8 +9,10 @@ erDiagram
     "restaurant_table" ||--o{ "table_session" : "table_id"
     "staff" ||--o{ "table_session" : "opened_by_staff_id"
     "outlet" ||--o{ "kitchen_station" : "outlet_id"
+    "outlet" ||--o{ "menu_category" : "outlet_id"
     "outlet" ||--o{ "menu_item" : "outlet_id"
     "kitchen_station" ||--o{ "menu_item" : "station_id"
+    "menu_category" ||--o{ "menu_item" : "category_id"
     "table_session" ||--o{ "order" : "table_session_id"
     "staff" ||--o{ "order" : "created_by_staff_id"
     "order" ||--o{ "order_item" : "order_id"
@@ -54,10 +56,18 @@ erDiagram
         str name
         bool is_active
     }
+    "menu_category" {
+        uuid id PK
+        uuid outlet_id FK
+        str name
+        int sort_order
+        bool is_active
+    }
     "menu_item" {
         uuid id PK
         uuid outlet_id FK
         uuid station_id FK
+        uuid category_id FK
         str name
         numeric price
         bool is_available

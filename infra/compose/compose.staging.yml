@@ -11,6 +11,7 @@ services:
       DB_USER: pos_app
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
     depends_on:
       db:
         condition: service_healthy

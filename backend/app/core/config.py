@@ -44,6 +44,37 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "480")
 )  # 8 giờ ~ 1 ca làm
 
+
+# --- CORS: domain FE được phép gọi API từ trình duyệt ------------------------
+# Danh sách origin cách nhau bởi dấu phẩy, vd
+# "http://localhost:5173,https://pos-staging.example.com". Không dùng "*" vì API
+# có đăng nhập. Development mặc định mở cho các cổng dev server phổ biến (Vite
+# 5173, CRA/Next 3000); môi trường khác mặc định KHÔNG mở origin nào — phải set
+# CORS_ALLOW_ORIGINS tường minh.
+_DEV_CORS_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+)
+
+
+def parse_cors_origins(raw: str | None) -> list[str]:
+    origins = [origin.strip().rstrip("/") for origin in (raw or "").split(",")]
+    origins = [origin for origin in origins if origin]
+    if "*" in origins:
+        raise RuntimeError("CORS_ALLOW_ORIGINS không được chứa '*' — liệt kê từng domain FE")
+    return origins
+
+
+CORS_ALLOW_ORIGINS = parse_cors_origins(
+    os.getenv("CORS_ALLOW_ORIGINS", _DEV_CORS_ORIGINS if APP_ENV == "development" else "")
+)
+
+# --- SLA bếp (BRD BR-KDS-SLA-001..003: timer chạy từ PREPARING tới READY) -----
+# Ngưỡng phút theo bộ test BVA của QA (DSG-QA-06: 8/12/15 phút, xanh -> cam ->
+# đỏ); BRD chưa ghi số cụ thể — cần PO xác nhận, nên để cấu hình qua env.
+KDS_SLA_WARNING_MINUTES = int(os.getenv("KDS_SLA_WARNING_MINUTES", "8"))
+KDS_SLA_DELAYED_MINUTES = int(os.getenv("KDS_SLA_DELAYED_MINUTES", "12"))
+KDS_SLA_CRITICAL_MINUTES = int(os.getenv("KDS_SLA_CRITICAL_MINUTES", "15"))
+
 if APP_ENV != "development" and JWT_SECRET_KEY == "dev-only-insecure-secret-change-me":
     raise RuntimeError(
         "JWT_SECRET_KEY chưa được set cho môi trường "
