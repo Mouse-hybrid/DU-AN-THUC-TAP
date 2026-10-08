@@ -12,6 +12,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
