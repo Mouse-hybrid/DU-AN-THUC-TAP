@@ -1,6 +1,7 @@
 """Quản lý bàn: mở bàn (vertical slice bước 1), dashboard bàn, xác nhận dọn bàn.
 
 GET  /api/v1/tables                              — dashboard: mọi bàn của outlet + phiên đang mở.
+GET  /api/v1/tables/{table_id}                   — chi tiết bàn: phiên đang mở + các order kèm món.
 POST /api/v1/tables/{table_id}/mark-clean        — CLEANING -> AVAILABLE (xác nhận đã dọn xong).
                                                     (Bàn vào CLEANING khi order được pay, xem
                                                     orders.py — pay đóng luôn table_session.)
@@ -20,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.v1.orders import build_order_detail
 from app.core.audit import write_audit_log
 from app.core.deps import (
     CurrentStaff,
@@ -31,10 +33,11 @@ from app.core.deps import (
 )
 from app.core.realtime import manager
 from app.db.base import get_session
-from app.db.models import IdempotencyKey, RestaurantTable, TableSession
+from app.db.models import IdempotencyKey, Order, RestaurantTable, TableSession
 from app.schemas.tables import (
     OpenSessionRequest,
     TableDashboardItem,
+    TableDetailOut,
     TableOut,
     TableSessionOut,
 )
@@ -175,6 +178,49 @@ def table_dashboard(
             )
         )
     return items
+
+
+@router.get("/{table_id}", response_model=TableDetailOut)
+def table_detail(
+    table_id: uuid.UUID,
+    current: CurrentStaff = Depends(get_current_staff),
+    session: Session = Depends(get_session),
+) -> TableDetailOut:
+    """Chi tiết bàn: phiên OPEN hiện tại (nếu có) + toàn bộ order của phiên đó,
+    kèm tên món/thành tiền. Bàn không có phiên mở -> current_session=null, orders=[]."""
+    table = session.get(RestaurantTable, table_id)
+    if table is None or table.outlet_id != current.outlet_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy bàn")
+
+    open_session = (
+        session.execute(
+            select(TableSession)
+            .where(TableSession.table_id == table.id, TableSession.status == "OPEN")
+            .order_by(TableSession.opened_at.desc())
+        )
+        .scalars()
+        .first()
+    )
+    orders: list[Order] = []
+    if open_session is not None:
+        orders = (
+            session.execute(
+                select(Order)
+                .where(Order.table_session_id == open_session.id)
+                .order_by(Order.created_at)
+            )
+            .scalars()
+            .all()
+        )
+
+    return TableDetailOut(
+        id=table.id,
+        code=table.code,
+        seats=table.seats,
+        status=table.status,
+        current_session=TableSessionOut.model_validate(open_session) if open_session else None,
+        orders=[build_order_detail(session, order) for order in orders],
+    )
 
 
 @router.post("/{table_id}/mark-clean", response_model=TableOut)

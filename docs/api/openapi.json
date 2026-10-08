@@ -152,6 +152,55 @@
         ]
       }
     },
+    "/api/v1/tables/{table_id}": {
+      "get": {
+        "tags": [
+          "tables"
+        ],
+        "summary": "Table Detail",
+        "description": "Chi tiết bàn: phiên OPEN hiện tại (nếu có) + toàn bộ order của phiên đó,\nkèm tên món/thành tiền. Bàn không có phiên mở -> current_session=null, orders=[].",
+        "operationId": "table_detail_api_v1_tables__table_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tables/{table_id}/mark-clean": {
       "post": {
         "tags": [
@@ -217,6 +266,181 @@
         }
       }
     },
+    "/api/v1/menu/categories": {
+      "get": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "List Menu Categories",
+        "operationId": "list_menu_categories_api_v1_menu_categories_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Chỉ trả nhóm đang is_active=True",
+              "default": false,
+              "title": "Active Only"
+            },
+            "description": "Chỉ trả nhóm đang is_active=True"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MenuCategoryOut"
+                  },
+                  "title": "Response List Menu Categories Api V1 Menu Categories Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "Create Menu Category",
+        "operationId": "create_menu_category_api_v1_menu_categories_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuCategoryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuCategoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/menu/categories/{category_id}": {
+      "patch": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "Update Menu Category",
+        "description": "Ẩn nhóm = `is_active: false` (không xóa, để món cũ vẫn giữ liên kết).",
+        "operationId": "update_menu_category_api_v1_menu_categories__category_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuCategoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuCategoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/menu": {
       "get": {
         "tags": [
@@ -241,6 +465,44 @@
               "title": "Available Only"
             },
             "description": "Chỉ trả món đang is_available=True"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tìm món có tên chứa chuỗi này (không phân biệt hoa thường)",
+              "title": "Q"
+            },
+            "description": "Tìm món có tên chứa chuỗi này (không phân biệt hoa thường)"
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Chỉ lấy món thuộc nhóm này",
+              "title": "Category Id"
+            },
+            "description": "Chỉ lấy món thuộc nhóm này"
           }
         ],
         "responses": {
@@ -375,6 +637,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MenuItemOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Get Order",
+        "description": "Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE\ntải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem\norder không bị hạn chế trong Permission Matrix — mọi role đã login.",
+        "operationId": "get_order_api_v1_orders__order_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailOut"
                 }
               }
             }
@@ -1456,6 +1767,18 @@
               "title": "Status"
             },
             "description": "QUEUED | IN_PROGRESS | DONE | CANCELLED. Mặc định: QUEUED + IN_PROGRESS"
+          },
+          {
+            "name": "delayed_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Chỉ trả món đang nấu quá ngưỡng (DELAYED/CRITICAL)",
+              "default": false,
+              "title": "Delayed Only"
+            },
+            "description": "Chỉ trả món đang nấu quá ngưỡng (DELAYED/CRITICAL)"
           }
         ],
         "responses": {
@@ -1686,6 +2009,22 @@
               }
             ],
             "title": "Started At"
+          },
+          "elapsed_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Minutes"
+          },
+          "sla_status": {
+            "type": "string",
+            "title": "Sla Status",
+            "default": "NORMAL"
           }
         },
         "type": "object",
@@ -1747,6 +2086,105 @@
         ],
         "title": "LoginRequest"
       },
+      "MenuCategoryCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "MenuCategoryCreate"
+      },
+      "MenuCategoryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sort_order",
+          "is_active"
+        ],
+        "title": "MenuCategoryOut"
+      },
+      "MenuCategoryUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "MenuCategoryUpdate"
+      },
       "MenuItemCreate": {
         "properties": {
           "name": {
@@ -1779,6 +2217,18 @@
               }
             ],
             "title": "Station Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
           },
           "is_available": {
             "type": "boolean",
@@ -1824,6 +2274,18 @@
               }
             ],
             "title": "Station Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
           }
         },
         "type": "object",
@@ -1832,7 +2294,8 @@
           "name",
           "price",
           "is_available",
-          "station_id"
+          "station_id",
+          "category_id"
         ],
         "title": "MenuItemOut"
       },
@@ -1879,6 +2342,18 @@
             ],
             "title": "Station Id"
           },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
           "is_available": {
             "anyOf": [
               {
@@ -1893,7 +2368,7 @@
         },
         "type": "object",
         "title": "MenuItemUpdate",
-        "description": "PATCH: chỉ field nào gửi lên mới được đổi. `station_id: null` = bỏ gán\ntrạm; không gửi `station_id` = giữ nguyên."
+        "description": "PATCH: chỉ field nào gửi lên mới được đổi. `station_id: null` /\n`category_id: null` = bỏ gán; không gửi field = giữ nguyên."
       },
       "OpenSessionRequest": {
         "properties": {
@@ -1907,6 +2382,68 @@
         },
         "type": "object",
         "title": "OpenSessionRequest"
+      },
+      "OrderDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "table_session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Session Id"
+          },
+          "table_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Id"
+          },
+          "table_code": {
+            "type": "string",
+            "title": "Table Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_version": {
+            "type": "integer",
+            "title": "Current Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemDetailOut"
+            },
+            "type": "array",
+            "title": "Items",
+            "default": []
+          },
+          "subtotal": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "table_session_id",
+          "table_id",
+          "table_code",
+          "status",
+          "current_version",
+          "created_at",
+          "subtotal"
+        ],
+        "title": "OrderDetailOut",
+        "description": "Chi tiết 1 order cho màn POS ordering / order summary / table detail.\n`subtotal` = tổng các món chưa bị VOIDED (chưa có thuế/giảm giá — Pha 2)."
       },
       "OrderItemCreate": {
         "properties": {
@@ -1939,6 +2476,66 @@
           "menu_item_id"
         ],
         "title": "OrderItemCreate"
+      },
+      "OrderItemDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "menu_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Menu Item Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "menu_item_name": {
+            "type": "string",
+            "title": "Menu Item Name"
+          },
+          "line_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "menu_item_id",
+          "status",
+          "quantity",
+          "unit_price",
+          "note",
+          "menu_item_name",
+          "line_total"
+        ],
+        "title": "OrderItemDetailOut",
+        "description": "Dòng món kèm tên món và thành tiền — đủ để FE vẽ màn order mà không phải\ngọi thêm GET /menu."
       },
       "OrderItemOut": {
         "properties": {
@@ -2148,6 +2745,54 @@
         ],
         "title": "TableDashboardItem",
         "description": "1 dòng của dashboard bàn: trạng thái bàn + phiên đang mở (nếu có)."
+      },
+      "TableDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "seats": {
+            "type": "integer",
+            "title": "Seats"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableSessionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/OrderDetailOut"
+            },
+            "type": "array",
+            "title": "Orders",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "seats",
+          "status"
+        ],
+        "title": "TableDetailOut",
+        "description": "Chi tiết 1 bàn (Figma screen-05): phiên đang mở + mọi order của phiên đó."
       },
       "TableOut": {
         "properties": {
