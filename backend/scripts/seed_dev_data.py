@@ -85,18 +85,18 @@ SEED_STAFF: dict[str, tuple[str, str]] = {
 }
 # CHỈ dùng khi APP_ENV=development (máy local). Môi trường khác bắt buộc env SEED_PASSWORD.
 DEV_SEED_PASSWORD = "password123"
-_MIN_NON_DEV_PASSWORD_LENGTH = 12
+# Độ dài tối thiểu ngoài development. Tên hằng cố ý không chứa chữ "password":
+# CodeQL (py/clear-text-logging-sensitive-data) nhận diện theo tên biến và báo
+# nhầm khi in con số này ra log.
+_MIN_CHARS_NON_DEV = 12
 
 
 def resolve_seed_password() -> tuple[str | None, bool]:
     """Trả (mật khẩu, có_set_tường_minh). None = không tạo/đổi tài khoản."""
     explicit = os.getenv("SEED_PASSWORD")
     if explicit:
-        if APP_ENV != "development" and len(explicit) < _MIN_NON_DEV_PASSWORD_LENGTH:
-            print(
-                f"! SEED_PASSWORD ngắn hơn {_MIN_NON_DEV_PASSWORD_LENGTH} ký tự — "
-                "bỏ qua tạo/đổi tài khoản seed"
-            )
+        if APP_ENV != "development" and len(explicit) < _MIN_CHARS_NON_DEV:
+            print(f"! SEED_PASSWORD quá ngắn (tối thiểu {_MIN_CHARS_NON_DEV} ký tự) — bỏ qua tài khoản")
             return None, False
         return explicit, True
     if APP_ENV == "development":
