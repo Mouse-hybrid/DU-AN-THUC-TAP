@@ -96,7 +96,7 @@ def resolve_seed_password() -> tuple[str | None, bool]:
     explicit = os.getenv("SEED_PASSWORD")
     if explicit:
         if APP_ENV != "development" and len(explicit) < _MIN_CHARS_NON_DEV:
-            print(f"! SEED_PASSWORD quá ngắn (tối thiểu {_MIN_CHARS_NON_DEV} ký tự) — bỏ qua tài khoản")
+            print(f"! SEED_PASSWORD quá ngắn (< {_MIN_CHARS_NON_DEV} ký tự), bỏ qua tài khoản")
             return None, False
         return explicit, True
     if APP_ENV == "development":
