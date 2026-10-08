@@ -22,6 +22,12 @@ echo "Starting db and waiting for its healthcheck before running migrations..."
 echo "Running alembic upgrade head against staging DB..."
 "${COMPOSE[@]}" run --rm api alembic upgrade head
 
+# Dữ liệu mẫu cho QA/FE (menu, bàn, 4 tài khoản test). Script idempotent nên
+# chạy mỗi lần deploy được. Không chặn deploy nếu seed lỗi — chỉ cảnh báo.
+echo "Seeding sample data (menu, tables, test accounts)..."
+"${COMPOSE[@]}" run --rm api python scripts/seed_dev_data.py \
+  || echo "WARNING: seed_dev_data.py failed — deploy continues, check output above."
+
 "${COMPOSE[@]}" up -d
 "${COMPOSE[@]}" ps
 

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "NOVA POS API — QA",
-    "description": "Chạy theo thứ tự (Run collection). Trước khi chạy: đặt biến baseUrl (staging) và password (xem SEED_PASSWORD trong backend/scripts/seed_dev_data.py, hoặc hỏi BE nếu staging đã đổi). Dữ liệu mẫu: chạy backend/scripts/seed_dev_data.py. Chi tiết payload: docs/api/qa-test-data.md.",
+    "description": "Chạy theo thứ tự (Run collection). Trước khi chạy: đặt biến baseUrl (staging) và password (staging: BE nhắn riêng; local: DEV_SEED_PASSWORD trong backend/scripts/seed_dev_data.py). Staging tự seed dữ liệu mẫu sau mỗi lần deploy. Chi tiết payload: docs/api/qa-test-data.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [

@@ -7,11 +7,11 @@ Dành cho QA. Mọi payload dưới đây đã được chạy thử trên DB v�
 
 ## 1. Chuẩn bị
 
-**Dữ liệu seed** (`backend/scripts/seed_dev_data.py`, chạy lại nhiều lần không tạo trùng):
+**Dữ liệu seed** (`backend/scripts/seed_dev_data.py`): staging **tự seed sau mỗi lần deploy** (CI/CD), chạy lại nhiều lần không tạo trùng. Dữ liệu QA tự tạo thêm không bị xóa.
 
 | Loại | Dữ liệu |
 |---|---|
-| Tài khoản | `admin` (SUPERVISOR), `cashier` (CASHIER), `waiter` (WAITER), `kitchen` (KITCHEN). Mật khẩu chung: xem hằng `SEED_PASSWORD` trong file seed, hoặc hỏi BE nếu staging đã đổi |
+| Tài khoản | `admin` (SUPERVISOR), `cashier` (CASHIER), `waiter` (WAITER), `kitchen` (KITCHEN). Mật khẩu chung: **staging** — BE nhắn riêng (biến `SEED_PASSWORD` trên server, không nằm trong repo); **máy local** — hằng `DEV_SEED_PASSWORD` trong file seed |
 | Trạm bếp | Bếp chính, Quầy bar |
 | Nhóm món | Món khai vị (1), Món chính (2), Đồ uống (3) |
 | Món | Gỏi cuốn 35.000, Chả giò 40.000, Phở bò 45.000, Bún chả 50.000, Cơm tấm sườn 55.000 (Bếp chính); Trà đá 5.000, Cà phê sữa đá 25.000, Nước cam 30.000 (Quầy bar) |
