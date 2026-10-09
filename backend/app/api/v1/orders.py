@@ -92,8 +92,13 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 # trên — suy ra từ mô tả Key Responsibilities/Restrictions của từng role
 # (vd Kitchen "Cannot modify orders" + Override Actions chỉ Supervisor ->
 # void/refire coi là override action, Supervisor-only).
-_ORDER_WRITE_ROLES = ("CASHIER", "SUPERVISOR")  # = "Create Order (POS)"
-_SEND_TO_KITCHEN_ROLES = ("WAITER", "SUPERVISOR")  # suy từ Key Responsibilities của Waiter
+#
+# PO chốt 09/10/2026 (thay "Create Order (POS)" chỉ Cashier trong BRD): luồng
+# phục vụ tại bàn — mở bàn, tạo order, thêm/sửa/bỏ món trước khi gửi bếp, gửi bếp —
+# cho cả Cashier, Waiter, Supervisor để 1 nhân viên đi hết được luồng. Sau khi gửi
+# bếp vẫn chỉ Supervisor được thêm/sửa (override), thanh toán giữ Cashier/Supervisor.
+_ORDER_WRITE_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
+_SEND_TO_KITCHEN_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
 _REQUEST_BILLING_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")  # = "Request Bill"
 _PAY_ROLES = (
     "CASHIER",
@@ -296,9 +301,9 @@ def add_order_items(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', không thể thêm món",
         )
-    # BRD: Cashier là role duy nhất tạo order (Create Order (POS)); không role
-    # nào trong Permission Matrix được liệt kê quyền "sửa order sau khi gửi bếp"
-    # — chỉ Supervisor mới có "Override Actions". Sau khi order rời khỏi NEW
+    # Không role nào trong Permission Matrix được liệt kê quyền "sửa order sau khi
+    # gửi bếp" (Waiter: "Cannot modify orders after sent to kitchen") — chỉ
+    # Supervisor mới có "Override Actions". Sau khi order rời khỏi NEW
     # (tức đã gửi bếp ít nhất 1 lần), chỉ Supervisor được thêm món tiếp.
     if order.status != "NEW" and current.role != "SUPERVISOR":
         raise HTTPException(

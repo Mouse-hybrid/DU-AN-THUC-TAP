@@ -71,13 +71,13 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 
 | Bước | Request | Role | Body mẫu | Kết quả |
 |---|---|---|---|---|
-| Mở bàn | `POST /api/v1/tables/{table_id}/open-session` | WAITER, SUPERVISOR | `{"guest_count": 2}` | `201`, bàn → OCCUPIED |
-| Tạo order | `POST /api/v1/orders` | CASHIER, SUPERVISOR | `{"table_session_id": "<id>"}` | `201`, order NEW |
-| Thêm món | `POST /api/v1/orders/{order_id}/items` | CASHIER, SUPERVISOR | `{"items": [{"menu_item_id": "<id>", "quantity": 2, "note": "ít đường"}, {"menu_item_id": "<id>", "quantity": 1}]}` | `201`, món CREATED |
-| **Sửa món** (chưa gửi bếp) | `PATCH /api/v1/orders/{order_id}/items/{item_id}` | CASHIER, SUPERVISOR | `{"quantity": 3, "note": "không đá"}` · chỉ ghi chú: `{"note": "thêm chanh"}` · xóa ghi chú: `{"note": null}` | `200` |
-| **Bỏ món** (chưa gửi bếp) | `DELETE /api/v1/orders/{order_id}/items/{item_id}` | CASHIER, SUPERVISOR | — | `200`, món → VOIDED (vẫn hiện trong order, không tính tiền) |
+| Mở bàn | `POST /api/v1/tables/{table_id}/open-session` | CASHIER, WAITER, SUPERVISOR | `{"guest_count": 2}` | `201`, bàn → OCCUPIED |
+| Tạo order | `POST /api/v1/orders` | CASHIER, WAITER, SUPERVISOR | `{"table_session_id": "<id>"}` | `201`, order NEW |
+| Thêm món | `POST /api/v1/orders/{order_id}/items` | CASHIER, WAITER, SUPERVISOR | `{"items": [{"menu_item_id": "<id>", "quantity": 2, "note": "ít đường"}, {"menu_item_id": "<id>", "quantity": 1}]}` | `201`, món CREATED |
+| **Sửa món** (chưa gửi bếp) | `PATCH /api/v1/orders/{order_id}/items/{item_id}` | CASHIER, WAITER, SUPERVISOR | `{"quantity": 3, "note": "không đá"}` · chỉ ghi chú: `{"note": "thêm chanh"}` · xóa ghi chú: `{"note": null}` | `200` |
+| **Bỏ món** (chưa gửi bếp) | `DELETE /api/v1/orders/{order_id}/items/{item_id}` | CASHIER, WAITER, SUPERVISOR | — | `200`, món → VOIDED (vẫn hiện trong order, không tính tiền) |
 | Xem order | `GET /api/v1/orders/{order_id}` | mọi role | — | `200`, có `menu_item_name`, `line_total`, `subtotal` |
-| Gửi bếp | `POST /api/v1/orders/{order_id}/send-to-kitchen` | WAITER, SUPERVISOR | — | `200`, món CREATED → SENT |
+| Gửi bếp | `POST /api/v1/orders/{order_id}/send-to-kitchen` | CASHIER, WAITER, SUPERVISOR | — | `200`, món CREATED → SENT |
 | Hủy món đã gửi bếp | `POST /api/v1/orders/{order_id}/items/{item_id}/void` | SUPERVISOR | `{"reason": "khách đổi ý"}` | `200`, món → VOIDED |
 | Làm lại món đã phục vụ | `POST /api/v1/orders/{order_id}/items/{item_id}/refire` | SUPERVISOR | — | `200` |
 
@@ -90,8 +90,8 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 | Thêm món đang hết | món `is_available=false` | `409` |
 | Sửa món body rỗng / `quantity: null` | `{}` | `422` |
 | Sửa/bỏ món **đã gửi bếp** | món SENT trở đi | `409` (phải dùng void) |
-| Sửa/bỏ món khi order đã gửi bếp, role CASHIER | món mới thêm sau khi gửi | `403` (chỉ SUPERVISOR) |
-| WAITER sửa/bỏ món | bất kỳ | `403` |
+| Thêm/sửa/bỏ món khi order đã gửi bếp, role CASHIER hoặc WAITER | món mới thêm sau khi gửi | `403` (chỉ SUPERVISOR) |
+| KITCHEN mở bàn / tạo order / thêm-sửa-bỏ món / gửi bếp | bất kỳ | `403` |
 | Thêm/sửa món khi order BILLING/PAID/CLOSED | — | `409` |
 | Thiếu `Idempotency-Key` | — | `400` |
 
