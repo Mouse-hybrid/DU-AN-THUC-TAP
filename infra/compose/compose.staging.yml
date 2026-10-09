@@ -46,6 +46,8 @@ services:
       - "80:80"
     volumes:
       - ../nginx/staging.conf:/etc/nginx/conf.d/default.conf:ro
+      # Bản build FE do scripts/deploy-staging.sh chép vào (rỗng = chưa có FE).
+      - ${HOME}/pos-staging-frontend:/usr/share/nginx/html:ro
     depends_on:
       api:
         condition: service_healthy

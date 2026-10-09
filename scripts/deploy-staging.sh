@@ -28,6 +28,32 @@ echo "Seeding sample data (menu, tables, test accounts)..."
 "${COMPOSE[@]}" run --rm api python scripts/seed_dev_data.py \
   || echo "WARNING: seed_dev_data.py failed — deploy continues, check output above."
 
+# Frontend (React + Vite trong frontend/): build bằng container Node rồi chép
+# bản build vào thư mục cố định ngoài checkout, nginx mount thư mục này ở "/".
+# Chưa có frontend/package.json thì bỏ qua — nginx tự rơi về backend như cũ.
+FE_DIST_DIR="${HOME}/pos-staging-frontend"
+mkdir -p "${FE_DIST_DIR}"
+if [[ -f "${REPO_DIR}/frontend/package.json" ]]; then
+  node_major=24
+  if [[ -f "${REPO_DIR}/frontend/.nvmrc" ]]; then
+    nvmrc=$(tr -d 'v[:space:]' < "${REPO_DIR}/frontend/.nvmrc")
+    [[ ${nvmrc%%.*} =~ ^[0-9]+$ ]] && node_major=${nvmrc%%.*}
+  fi
+  echo "Building frontend with node:${node_major}-alpine..."
+  # Chạy bằng uid/gid của runner để node_modules/dist không bị root sở hữu
+  # (actions/checkout lần sau phải xóa được).
+  docker run --rm --user "$(id -u):$(id -g)" \
+    -e HOME=/tmp -e npm_config_cache=/tmp/.npm -e VITE_API_BASE_URL=/api/v1 \
+    -v "${REPO_DIR}/frontend:/app" -w /app "node:${node_major}-alpine" \
+    sh -c "npm ci && npm run build"
+  # Thay nội dung nhưng giữ nguyên thư mục để bind mount của nginx vẫn trỏ đúng.
+  find "${FE_DIST_DIR}" -mindepth 1 -delete
+  cp -a "${REPO_DIR}/frontend/dist/." "${FE_DIST_DIR}/"
+  echo "Frontend deployed to ${FE_DIST_DIR}"
+else
+  echo "No frontend/package.json yet — skipping frontend build."
+fi
+
 "${COMPOSE[@]}" up -d
 
 # infra/nginx/staging.conf được bind-mount 1 file: git checkout ghi file mới
