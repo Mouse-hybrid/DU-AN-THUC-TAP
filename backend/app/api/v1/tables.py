@@ -45,13 +45,12 @@ from app.schemas.tables import (
 router = APIRouter(prefix="/tables", tags=["tables"])
 
 _OPENABLE_STATUSES = ("AVAILABLE", "RESERVED")
-# "Mở bàn" không phải action liệt kê trực tiếp trong Permission Matrix của BRD,
-# nhưng gần nhất với "Merge/Split/Transfer Table" (Waiter + Supervisor) và khớp
-# với "table lifecycle" trong Key Responsibilities của Waiter.
-_OPEN_SESSION_ROLES = ("WAITER", "SUPERVISOR")
+# "Mở bàn" không có trong Permission Matrix của BRD. HLR UC-TABLE-002 ghi actor
+# "Waiter / Cashier"; PO chốt 09/10/2026: Cashier, Waiter, Supervisor.
+_OPEN_SESSION_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
 # "Xác nhận dọn bàn" cũng không có trong 11 action của Permission Matrix; BRD chỉ
-# nói bàn "remains CLEANING until confirmed". Gán cùng role với mở bàn (Waiter +
-# Supervisor) — cần BA/PM xác nhận lại.
+# nói bàn "remains CLEANING until confirmed". Gán Waiter + Supervisor (nhóm
+# quản lý bàn) — cần BA/PM xác nhận lại.
 _MARK_CLEAN_ROLES = ("WAITER", "SUPERVISOR")
 
 
