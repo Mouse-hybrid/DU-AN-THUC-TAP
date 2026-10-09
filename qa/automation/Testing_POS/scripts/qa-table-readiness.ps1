@@ -25,7 +25,7 @@ $base = $BaseUrl.TrimEnd('/')
 $headers = @{ Authorization = "Bearer $token" }
 
 try {
-    $tables = @(Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20)
+    $tables = Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20
 } catch {
     throw "Cannot read staging tables. Check base URL, token role and connectivity. $($_.Exception.Message)"
 }
@@ -64,8 +64,9 @@ if ($PSCmdlet.ShouldProcess("$TableCode ($($table.id))", 'Mark QA table CLEANING
     }
     try {
         $null = Invoke-RestMethod -Method Post -Uri $target -Headers $requestHeaders -TimeoutSec 20
-        $after = @(Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20) |
-            Where-Object { $_.code -eq $TableCode }
+        $afterResponse = Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20
+        $after = @($afterResponse |
+            Where-Object { $_.code -eq $TableCode })
         if ($after.Count -ne 1 -or $after[0].status -ne 'AVAILABLE') {
             throw 'POST succeeded but subsequent GET did not confirm AVAILABLE. Inspect backend response.'
         }
