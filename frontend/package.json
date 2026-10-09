@@ -1,0 +1,11 @@
+{
+  "name": "fe-pipeline-probe",
+  "private": true,
+  "version": "0.0.0",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "lint": "node -e \"console.log('lint ok')\"",
+    "typecheck": "node -e \"console.log('typecheck ok')\"",
+    "build": "node -e \"const f=require('fs');f.mkdirSync('dist/assets',{recursive:true});f.writeFileSync('dist/index.html','<!doctype html><title>PROBE '+process.env.VITE_API_BASE_URL+'</title>')\""
+  }
+}
