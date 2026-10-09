@@ -43,9 +43,13 @@ if ([string]::IsNullOrWhiteSpace([string]$table.current_session_id)) {
     throw 'No current session ID; nothing changed.'
 }
 $order = Get-Order
-if ([string]$order.session_id -ne [string]$table.current_session_id) {
+if ($null -eq $order.PSObject.Properties['table_session_id'] -or [string]::IsNullOrWhiteSpace([string]$order.table_session_id)) {
+    throw 'Order response has no table_session_id; no changes made.'
+}
+if ([string]$order.table_session_id -ne [string]$table.current_session_id) {
     throw 'Order does not belong to active table session. No changes made.'
 }
+if ($null -eq $order.PSObject.Properties['status']) { throw 'Order response has no status; no changes made.' }
 if ($order.status -notin @('SENT','SERVED','BILLING','PAID','CLOSED')) {
     throw "Unsupported order status $($order.status). Inspect manually; nothing changed."
 }
