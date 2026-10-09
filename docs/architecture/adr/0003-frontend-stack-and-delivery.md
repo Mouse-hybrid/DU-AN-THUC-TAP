@@ -1,6 +1,6 @@
 # ADR 0003: Nền tảng frontend và cách đưa FE lên staging
 
-- Trạng thái: Proposed — BE và FE đã thống nhất 09/10/2026, chờ mentor/Tech Lead xác nhận
+- Trạng thái: Accepted — BE và FE thống nhất 09/10/2026; pipeline FE (PR #17) và ruleset `main` đã áp dụng cùng ngày
 - Ngày: 2026-10-09
 - Người đề xuất: Backend Developer (Linh) cùng Frontend Developer (Thế Anh), soạn cùng Claude
 - Tương ứng: ARC-01 (stack FE), CICD-01/03 (CI cho PR, tự deploy khi merge) trong `Checklist_Quan_Ly_Du_An_POS_28-9`
@@ -52,10 +52,18 @@ FE và API cùng một địa chỉ trên staging nên trình duyệt không c�
 FE chạy trên máy (`localhost:5173`) gọi API staging.
 
 ### Quy trình merge
-FE làm trên nhánh riêng, mở PR vào `main`. Đề xuất bật **branch protection** cho `main` (bắt
-buộc qua PR, bắt buộc các check `test`, `docker-build`, `frontend` xanh) và **Allow auto-merge**:
-tác giả bấm "Enable auto-merge" một lần, CI xanh (và được duyệt, nếu bật) thì GitHub tự merge
-rồi tự deploy. Hai cài đặt này cần quyền admin repo.
+Đã bật từ 09/10/2026 (cài trong Settings → Rules, cần quyền admin repo để sửa):
+
+- **Ruleset `main`** áp cho nhánh mặc định, không có ai được bypass:
+  - Không push thẳng vào `main`, mọi thay đổi phải qua PR. Cấm xóa nhánh và force push.
+  - Bắt buộc 3 check `test`, `docker-build`, `frontend` xanh, và nhánh phải cập nhật theo `main`
+    mới nhất (PR báo cũ thì bấm "Update branch").
+  - Không bắt buộc người duyệt (0 approval): CI xanh là merge được.
+- **Allow auto-merge**: tác giả bấm "Enable auto-merge" một lần, CI xanh thì GitHub tự merge rồi
+  `deploy-staging` tự deploy. Nhánh tự xóa sau khi merge.
+
+Quy trình cho mỗi thay đổi (BE hay FE): tạo nhánh từ `main` → push → mở PR → "Enable auto-merge"
+→ CI xanh → tự merge và tự lên staging. CI đỏ thì PR bị chặn, sửa và push lại để CI chạy lại.
 
 ## Hệ quả
 
@@ -65,7 +73,9 @@ rồi tự deploy. Hai cài đặt này cần quyền admin repo.
 - Lỗi lint/kiểu/build của FE bị chặn ở PR, không lên được staging.
 
 ### Hạn chế / rủi ro cần theo dõi
-- CI xanh chỉ đảm bảo build được, không đảm bảo giao diện đúng Figma — vẫn cần review và QA.
+- CI xanh chỉ đảm bảo build được, không đảm bảo giao diện đúng Figma — vẫn cần QA. Vì không
+  bắt buộc người duyệt, code lỗi logic (gọi sai API, lộ token) có thể lên staging; nếu cần thì
+  nâng ruleset lên 1 approval.
 - Khi đang chép bản build mới (vài giây) `/` có thể rơi về trang backend; chấp nhận được trên staging.
 - Các trang mock cũ (`/pos`, `/kitchen`, …) bị giao diện FE che khi FE đã deploy.
 - Chưa có HTTPS/domain thật (Pha 4).
