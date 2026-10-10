@@ -124,24 +124,56 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
         });
     }));
   });
-  it('TC_EXT_004 | inactive category still retains its menu-item relationship', function () {
-    auth().then(h => req('GET','/menu/categories',h).then(categoriesResponse => {
-      expect(categoriesResponse.status).eq(200);
-      const inactive = jsonItems(categoriesResponse.body).filter(x => x.is_active === false);
-      if (!inactive.length) return skipCase(this,'No inactive category fixture available');
-      // Read-only verification: no mutation of shared staging catalog.
-      req('GET','/menu',h).then(itemsResponse => {
-        expect(itemsResponse.status, 'menu items endpoint').eq(200);
-        const allItems = jsonItems(itemsResponse.body);
-        const fixture = inactive.find(category =>
-          allItems.some(item => String(item.category_id) === String(category.id)));
-        if (!fixture) return skipCase(this,'No menu item linked to an inactive category; needs isolated QA fixture');
-        const matches = allItems.filter(item => String(item.category_id) === String(fixture.id));
-        expect(matches.length,'linked menu items retained').to.be.greaterThan(0);
-        matches.forEach(item => expect(String(item.category_id)).eq(String(fixture.id)));
-        req('GET','/menu/categories?active_only=true',h).then(filtered => {
-          expect(filtered.status).eq(200);
-          expect(jsonItems(filtered.body).map(x => String(x.id))).not.to.include(String(fixture.id));
+  it('TC_EXT_004 | inactive category retains its menu-item relationship', function () {
+    auth().then(h => req('GET','/menu/categories',h).then(categoryResponse => {
+      expect(categoryResponse.status).eq(200);
+      const categories=jsonItems(categoryResponse.body);
+      req('GET','/menu',h).then(menuResponse => {
+        expect(menuResponse.status).eq(200);
+        const items=jsonItems(menuResponse.body);
+        const inactive=categories.filter(c=>c.is_active===false);
+        const fixture=inactive.find(cat=>items.some(item=>String(item.category_id)===String(cat.id)));
+        const verify=(categoryId, itemId) => {
+          req('GET','/menu',h).then(after => {
+            expect(after.status).eq(200);
+            const linked=jsonItems(after.body).find(item=>String(item.id)===String(itemId));
+            expect(linked,'menu item remains in full list').to.exist;
+            expect(String(linked.category_id)).eq(String(categoryId));
+          });
+          req('GET','/menu/categories?active_only=true',h).then(filtered => {
+            expect(filtered.status).eq(200);
+            expect(jsonItems(filtered.body).map(x=>String(x.id))).not.to.include(String(categoryId));
+          });
+        };
+        if (fixture) {
+          const linked=items.find(item=>String(item.category_id)===String(fixture.id));
+          verify(fixture.id, linked.id);
+          return;
+        }
+        if (!mutable()) return skipCase(this,'Need QA category/menu item fixture; set EXT_RUN_MUTATIONS=true for isolated persistent QA setup');
+        const donor=items.find(item=>item.station_id);
+        if (!donor) return skipCase(this,'No station_id available from existing menu items; cannot safely create QA item');
+        const name='QA EXT004 '+unique();
+        req('POST','/menu/categories',{...h,'Idempotency-Key':unique()}, {name,sort_order:900}).then(created => {
+          expect(created.status,'create QA category').eq(201);
+          const category=created.body.category||created.body;
+          expect(category.id,'category ID').to.exist;
+          const body={name:name+' item',price:19000,category_id:category.id,station_id:donor.station_id,is_available:true};
+          req('POST','/menu',{...h,'Idempotency-Key':unique()},body).then(added => {
+            expect(added.status,'create QA menu item').eq(201);
+            const item=added.body.menu_item||added.body.item||added.body;
+            expect(item.id,'created menu item ID').to.exist;
+            req('PATCH','/menu/categories/'+category.id,h,{is_active:false}).then(disabled=>{
+              expect(disabled.status,'hide QA category').eq(200);
+              req('GET','/menu/categories',h).then(all=>{
+                expect(all.status).eq(200);
+                const hidden=jsonItems(all.body).find(x=>String(x.id)===String(category.id));
+                expect(hidden,'hidden category retained').to.exist;
+                expect(hidden.is_active).eq(false);
+                verify(category.id,item.id);
+              });
+            });
+          });
         });
       });
     }));
