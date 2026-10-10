@@ -2,10 +2,15 @@
    Configuration: Cypress.env('POS_BASE_URL'), POS_USERNAME, POS_PASSWORD,
    optional EXT_RUN_MUTATIONS=true and fixtures (see TC_EXT_README.md).
    Never run these mutation cases against production. */
-const base = (Cypress.env('POS_BASE_URL') || 'http://160.191.47.17').replace(/\/$/, '');
-const api = (path) => base + '/api/v1' + path;
-const mutable = () => String(Cypress.env('EXT_RUN_MUTATIONS')) === 'true';
-const get = (key) => Cypress.env(key);
+const QA_ENV_KEYS = ['POS_BASE_URL','POS_USERNAME','POS_PASSWORD','EXT_RUN_MUTATIONS',
+  'EXT_AVAILABLE_TABLE_ID','EXT_INACTIVE_CATEGORY_ID','EXT_CATEGORY_ID',
+  'EXT_CATEGORY_MENU_ITEM_ID','EXT_PRICE_MENU_ITEM_ID','EXT_OLD_ORDER_ID',
+  'EXT_NEW_ORDER_ID','EXT_NEW_PRICE','EXT_ORDER_ID','EXT_UNAVAILABLE_ITEM_ID',
+  'EXT_SELLABLE_ITEM_ID'];
+let qaEnv = {};
+const get = (key) => qaEnv[key];
+const api = (path) => (get('POS_BASE_URL') || 'http://160.191.47.17').replace(/\/$/, '') + '/api/v1' + path;
+const mutable = () => String(get('EXT_RUN_MUTATIONS')) === 'true';
 const requireFixtures = (...keys) => {
   const missing = keys.filter(k => !get(k));
   if (missing.length) return false;
@@ -36,6 +41,9 @@ const req = (method,path,headers,body,more={}) => cy.request({
 const unique = () => 'ext-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 const skipCase = (ctx, reason) => { cy.log('BLOCKED / NOT RUN: ' + reason); ctx.skip(); };
 describe('TC_EXT_001–009 | QA staging API regression', () => {
+  beforeEach(() => {
+    cy.env(QA_ENV_KEYS).then(values => { qaEnv = values; });
+  });
   it('TC_EXT_009 | protected tables requires Authorization', () => {
     req('GET','/tables',{}).then(r => {
       expect(r.status).eq(401);
