@@ -46,6 +46,10 @@ const req = (method,path,headers,body,more={}) => cy.request({
   method,url:api(path),headers,body,failOnStatusCode:false,...more
 });
 const unique = () => 'ext-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+const requestKey = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, ch => {
+  const n = Math.floor(Math.random() * 16);
+  return (ch === 'x' ? n : (n & 3) | 8).toString(16);
+});
 const skipCase = (ctx, reason) => { cy.log('BLOCKED / NOT RUN: ' + reason); ctx.skip(); };
 describe('TC_EXT_001–009 | QA staging API regression', () => {
   beforeEach(() => {
@@ -73,7 +77,7 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
       if (hidden) return verify(hidden.id);
       if (!mutable()) return skipCase(this, 'No inactive category found. Set EXT_RUN_MUTATIONS=true to create an isolated QA category (persistent staging data).');
       const name='QA EXT inactive ' + unique();
-      req('POST','/menu/categories',{...h,'Idempotency-Key':unique()}, {name,sort_order:900}).then(created => {
+      req('POST','/menu/categories',{...h,'Idempotency-Key':requestKey()}, {name,sort_order:900}).then(created => {
         expect(created.status, 'create isolated QA category (response detail: ' + JSON.stringify(created.body?.detail || created.body?.message || 'none') + ')').eq(201);
         const category=created.body.category || created.body;
         expect(category.id,'new category id').to.exist;
@@ -98,7 +102,7 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
       const target = requested ? available.find(t=>String(t.id)===String(requested)) : available[0];
       if (!target) return skipCase(this, 'No AVAILABLE QA table: run validated Table Recovery before boundary case');
       req('POST','/tables/'+target.id+'/open-session',
-        {...h,'Idempotency-Key':unique()}, {guest_count:101}).then(result => {
+        {...h,'Idempotency-Key':requestKey()}, {guest_count:101}).then(result => {
           expect(result.status).eq(422);
           req('GET','/tables/'+target.id,h).then(after => {
             expect(after.status).eq(200);
@@ -114,7 +118,7 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
       expect(before.status).eq(200);
       expect(before.body.status).eq('AVAILABLE');
       req('POST','/tables/'+get('EXT_AVAILABLE_TABLE_ID')+'/open-session',h,{guest_count:100},
-        {headers:{...h,'Idempotency-Key':unique()}}).then(r => {
+        {headers:{...h,'Idempotency-Key':requestKey()}}).then(r => {
           expect(r.status).eq(201);
           req('GET','/tables/'+get('EXT_AVAILABLE_TABLE_ID'),h).then(after => {
             expect(after.status).eq(200);
@@ -154,12 +158,12 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
         const donor=items.find(item=>item.station_id);
         if (!donor) return skipCase(this,'No station_id available from existing menu items; cannot safely create QA item');
         const name='QA EXT004 '+unique();
-        req('POST','/menu/categories',{...h,'Idempotency-Key':unique()}, {name,sort_order:900}).then(created => {
+        req('POST','/menu/categories',{...h,'Idempotency-Key':requestKey()}, {name,sort_order:900}).then(created => {
           expect(created.status,'create QA category').eq(201);
           const category=created.body.category||created.body;
           expect(category.id,'category ID').to.exist;
           const body={name:name+' item',price:19000,category_id:category.id,station_id:donor.station_id,is_available:true};
-          req('POST','/menu',{...h,'Idempotency-Key':unique()},body).then(added => {
+          req('POST','/menu',{...h,'Idempotency-Key':requestKey()},body).then(added => {
             expect(added.status,'create QA menu item').eq(201);
             const item=added.body.menu_item||added.body.item||added.body;
             expect(item.id,'created menu item ID').to.exist;
@@ -217,7 +221,7 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
         const count=Array.isArray(original.items)?original.items.length:undefined;
         expect(subtotal,'pre-request subtotal').to.exist;
         req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',
-          {...h,'Idempotency-Key':unique()}, {menu_item_id:chosen.id,quantity:1}).then(result => {
+          {...h,'Idempotency-Key':requestKey()}, {items:[{menu_item_id:chosen.id,quantity:1,note:'QA TC_EXT_006'}]}).then(result => {
           expect(result.status,'unavailable item HTTP').eq(409);
           req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(after=>{
             expect(after.status).eq(200);
@@ -232,8 +236,8 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
   it('TC_EXT_007 | same Idempotency-Key and payload do not duplicate', function () {
     if (!mutable() || !requireFixtures('EXT_ORDER_ID','EXT_SELLABLE_ITEM_ID')) return skipCase(this,'isolated NEW order and sellable item required');
     auth().then(h => {
-      const key=unique(), headers={...h,'Idempotency-Key':key};
-      const body={menu_item_id:get('EXT_SELLABLE_ITEM_ID'),quantity:1};
+      const key=requestKey(), headers={...h,'Idempotency-Key':key};
+      const body={items:[{menu_item_id:get('EXT_SELLABLE_ITEM_ID'),quantity:1,note:'QA EXT idempotency'}]};
       req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',headers,body).then(first => {
         expect(first.status).eq(201);
         req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(mid => {
@@ -252,12 +256,12 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
   it('TC_EXT_008 | same Idempotency-Key different body rejected', function () {
     if (!mutable() || !requireFixtures('EXT_ORDER_ID','EXT_SELLABLE_ITEM_ID')) return skipCase(this,'isolated NEW order and sellable item required; run after EXT_007 only if fixture allows');
     auth().then(h => {
-      const key=unique(), headers={...h,'Idempotency-Key':key};
+      const key=requestKey(), headers={...h,'Idempotency-Key':key};
       const body={menu_item_id:get('EXT_SELLABLE_ITEM_ID'),quantity:1};
       req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',headers,body).then(first => {
         expect(first.status).eq(201);
         req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(before => {
-          req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',headers,{...body,quantity:2}).then(second => {
+          req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',headers,{items:[{...body.items[0],quantity:2}]}).then(second => {
             expect(second.status).eq(409);
             req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(after => {
               const a=after.body.order || after.body, b=before.body.order || before.body;
