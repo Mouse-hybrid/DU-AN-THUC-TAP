@@ -18,7 +18,7 @@ const requireFixtures = (...keys) => {
 };
 const jsonItems = (body) => {
   if (Array.isArray(body)) return body;
-  for (const key of ['items', 'data', 'results', 'categories']) {
+  for (const key of ['items', 'menu_items', 'data', 'results', 'categories']) {
     if (Array.isArray(body?.[key])) return body[key];
   }
   return [];
@@ -130,7 +130,7 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
       const inactive = jsonItems(categoriesResponse.body).filter(x => x.is_active === false);
       if (!inactive.length) return skipCase(this,'No inactive category fixture available');
       // Read-only verification: no mutation of shared staging catalog.
-      req('GET','/menu/items',h).then(itemsResponse => {
+      req('GET','/menu',h).then(itemsResponse => {
         expect(itemsResponse.status, 'menu items endpoint').eq(200);
         const allItems = jsonItems(itemsResponse.body);
         const fixture = inactive.find(category =>
