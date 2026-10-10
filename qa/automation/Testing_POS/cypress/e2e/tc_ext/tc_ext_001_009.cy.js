@@ -58,23 +58,37 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
     });
   });
   it('TC_EXT_003 | active_only categories excludes inactive', function () {
-    auth().then(h => {
-      req('GET','/menu/categories',h).then(all => {
-        expect(all.status).eq(200);
-        const categories = jsonItems(all.body);
-        expect(categories).to.be.an('array');
-        const hidden = categories.filter(c => c.is_active === false);
-        if (!hidden.length) return skipCase(this, 'No inactive category fixture in staging; cannot verify exclusion');
-        req('GET','/menu/categories?active_only=true',h).then(active => {
-          expect(active.status).eq(200);
-          const visible = jsonItems(active.body);
-          expect(visible).to.be.an('array');
-          visible.forEach(c => expect(c.is_active, 'active-only category').eq(true));
-          const visibleIds=visible.map(c=>String(c.id));
-          hidden.forEach(c=>expect(visibleIds, 'inactive category must not appear').not.to.include(String(c.id)));
+    auth().then(h => req('GET','/menu/categories',h).then(all => {
+      expect(all.status).eq(200);
+      const categories = jsonItems(all.body);
+      expect(categories).to.be.an('array');
+      const verify = (hiddenId) => req('GET','/menu/categories?active_only=true',h).then(active => {
+        expect(active.status).eq(200);
+        const visible = jsonItems(active.body);
+        expect(visible).to.be.an('array');
+        visible.forEach(x => expect(x.is_active, 'active category').eq(true));
+        expect(visible.map(x => String(x.id)), 'inactive category excluded').not.to.include(String(hiddenId));
+      });
+      const hidden = categories.find(x => x.is_active === false);
+      if (hidden) return verify(hidden.id);
+      if (!mutable()) return skipCase(this, 'No inactive category found. Set EXT_RUN_MUTATIONS=true to create an isolated QA category (persistent staging data).');
+      const name='QA EXT inactive ' + unique();
+      req('POST','/menu/categories',h,{name,sort_order:900}).then(created => {
+        expect(created.status,'create isolated QA category').eq(201);
+        const category=created.body.category || created.body;
+        expect(category.id,'new category id').to.exist;
+        req('PATCH','/menu/categories/'+category.id,h,{is_active:false}).then(disabled => {
+          expect(disabled.status,'disable category').eq(200);
+          req('GET','/menu/categories',h).then(checked => {
+            expect(checked.status).eq(200);
+            const found=jsonItems(checked.body).find(x=>String(x.id)===String(category.id));
+            expect(found,'category must remain in full listing').to.exist;
+            expect(found.is_active).eq(false);
+            verify(category.id);
+          });
         });
       });
-    });
+    }));
   });
   it('TC_EXT_002 | guest_count=101 rejected without mutating table', function () {
     auth().then(h => req('GET','/tables',h).then(tables => {
