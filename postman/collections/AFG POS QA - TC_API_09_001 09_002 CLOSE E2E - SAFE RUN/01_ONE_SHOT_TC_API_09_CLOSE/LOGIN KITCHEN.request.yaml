@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "kitchen",
+      "password": "{{password}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("HTTP 200",()=>{pm.response.to.have.status(200);});
+      pm.test("Token and role valid",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('KITCHEN');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_kitchen',x.access_token);});
+      if (pm.response.code !== 200) {
+          console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);
+          pm.execution.setNextRequest(null);
+      }
+    language: text/javascript
+order: 5000

@@ -1,0 +1,1250 @@
+{
+  "info": {
+    "name": "AFG POS QA | PAY-AUTH FIXED - SAFE GUARDS | 2026-10-09",
+    "_postman_id": "22625b75-12e4-4466-8b8c-9ec0230b05f8",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "One-shot E2E API subset for TC_PAY_002_001, 007 and TC_AUTH_003_001, 002. PAYMENT GATEWAY callback request_id/double-charge and MANAGER APPROVAL/discount require separate integration evidence; DO NOT mark those full baseline TCs as PASS solely from this runner. Runs mutate staging. 1 iteration only. Avoid exporting secret environment.\nFIX: no AVAILABLE table now stops Runner immediately. Prerequisite guards. Never consider status 422 caused by unresolved variable a product defect. Prepare QA fixtures first."
+  },
+  "item": [
+    {
+      "name": "01_ONE_SHOT_PAY_AUTH_API",
+      "item": [
+        {
+          "name": "00 INIT - Reset PAY AUTH test variables",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "['pa_table','pa_session','pa_order','pa_menu','pa_item','pa_payment_key','pa_first_pay','pa_second_table','pa_second_session','pa_second_order','pa_second_item','pa_status_before_void'].forEach(k=>pm.environment.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Health 200\",()=>{pm.response.to.have.status(200);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN SUPERVISOR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('SUPERVISOR');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_supervisor',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN CASHIER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cashier\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('CASHIER');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_cashier',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN WAITER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"waiter\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('WAITER');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_waiter',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN KITCHEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"kitchen\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('KITCHEN');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_kitchen',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 GET TABLE AVAILABLE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tables 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Fresh AVAILABLE table selected (otherwise BLOCKED)\", () => { const result = pm.response.json(); pm.expect(result).to.be.an(\"array\"); pm.expect(result.some(t => t.status === \"AVAILABLE\"), \"No AVAILABLE table — QA fixture blocked\").to.equal(true); });",
+                  "const result = pm.response.json();",
+                  "const free = Array.isArray(result) ? result.find(t => t.status === 'AVAILABLE') : null;",
+                  "if (pm.response.code !== 200 || !free) {",
+                  "    pm.environment.unset('pa_table');",
+                  "    console.warn('BLOCKED: No AVAILABLE table. Stop runner; restore an authorized QA fixture first.');",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else { pm.environment.set('pa_table', free.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 OPEN SESSION",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/{{pa_table}}/open-session",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_count\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Session 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Session valid\",()=>{const x=pm.response.json();pm.expect(x.table_id).to.eql(pm.environment.get('pa_table'));pm.environment.set('pa_session',x.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_table\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 CREATE ORDER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_session_id\": \"{{pa_session}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Order valid\",()=>{const x=pm.response.json();pm.expect(x.table_session_id).to.eql(pm.environment.get('pa_session'));pm.expect(x.status).to.eql('NEW');pm.environment.set('pa_order',x.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_session\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 GET MENU",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?available_only=true"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Menu 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Available item selected\",()=>{const x=pm.response.json();const i=x.find(t=>t.is_available===true&&Number(t.price)>0);pm.expect(i,'No available menu').to.exist;pm.environment.set('pa_menu',i.id);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 ADD ITEM",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"menu_item_id\": \"{{pa_menu}}\",\n      \"quantity\": 1,\n      \"note\": \"PAY AUTH QA\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Add item 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Added item valid\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));const i=x.items.find(t=>t.menu_item_id===pm.environment.get('pa_menu'));pm.expect(i).to.exist;pm.environment.set('pa_item',i.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\", \"pa_menu\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 SEND KITCHEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/send-to-kitchen"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Send 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Send response valid\",()=>{const x=pm.response.json();pm.expect(x.order.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.order.items.some(i=>i.status==='SENT')).to.eql(true);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 REQUEST BILLING",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/request-billing"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Billing 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order billing\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.status).to.eql('BILLING');});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 TC_PAY_002_001 PAY FIRST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{pa_payment_key}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/pay"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}",
+                  "pm.environment.set('pa_payment_key',pm.variables.replaceIn('{{$guid}}'));pm.environment.unset('pa_first_pay');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Pay 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order PAID and response saved\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.status).to.eql('PAID');pm.environment.set('pa_first_pay',JSON.stringify(x));});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 TC_PAY_002_007 RETRY SAME PAYMENT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{pa_payment_key}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/pay"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\", \"pa_payment_key\", \"pa_first_pay\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}",
+                  "if (!pm.environment.get('pa_payment_key') || !pm.environment.get('pa_first_pay')) throw new Error('Missing first payment evidence');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retry pay 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Same response on retry\",()=>{const first=JSON.parse(pm.environment.get('pa_first_pay'));const now=pm.response.json();pm.expect(now).to.deep.equal(first);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 VERIFY PAID ORDER",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Get order 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order remains PAID\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.status).to.eql('PAID');pm.expect(x.current_version).to.eql(JSON.parse(pm.environment.get('pa_first_pay')).current_version);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 CLOSE FIRST ORDER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/close"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Close 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order CLOSED\",()=>{const x=pm.response.json();pm.expect(x.status).to.eql('CLOSED');});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 MARK TABLE CLEAN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/{{pa_table}}/mark-clean"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mark clean 200\",()=>{pm.response.to.have.status(200);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_table\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 GET SECOND TABLE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tables 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Fresh AVAILABLE table selected (otherwise BLOCKED)\", () => { const result = pm.response.json(); pm.expect(result).to.be.an(\"array\"); pm.expect(result.some(t => t.status === \"AVAILABLE\"), \"No AVAILABLE table — QA fixture blocked\").to.equal(true); });",
+                  "const result = pm.response.json();",
+                  "const free = Array.isArray(result) ? result.find(t => t.status === 'AVAILABLE') : null;",
+                  "if (pm.response.code !== 200 || !free) {",
+                  "    pm.environment.unset('pa_second_table');",
+                  "    console.warn('BLOCKED: No AVAILABLE table. Stop runner; restore an authorized QA fixture first.');",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else { pm.environment.set('pa_second_table', free.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 OPEN SECOND SESSION",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/{{pa_second_table}}/open-session",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_count\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Session 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Session ID saved\",()=>{const x=pm.response.json();pm.environment.set('pa_second_session',x.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_table\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 CREATE SECOND ORDER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_session_id\": \"{{pa_second_session}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Order ID saved\",()=>{const x=pm.response.json();pm.environment.set('pa_second_order',x.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_session\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 ADD SECOND ITEM",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"menu_item_id\": \"{{pa_menu}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Add 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Item ID saved\",()=>{const x=pm.response.json();const a=x.items.find(i=>i.menu_item_id===pm.environment.get('pa_menu'));pm.expect(a).to.exist;pm.environment.set('pa_second_item',a.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\", \"pa_menu\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 SEND SECOND KITCHEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}/send-to-kitchen"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Send 200\",()=>{pm.response.to.have.status(200);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 START COOKING PREPARING",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_kitchen}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}/items/{{pa_second_item}}/start-cooking"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cooking 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Item PREPARING\",()=>{const x=pm.response.json();const i=x.items.find(t=>t.id===pm.environment.get('pa_second_item'));pm.expect(i.status).to.eql('PREPARING');pm.environment.set('pa_status_before_void',i.status);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\", \"pa_second_item\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 TC_AUTH_003_002 WAITER VOID DENIED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}/items/{{pa_second_item}}/void",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"QA RBAC unauthorized void\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"WAITER forbidden 403\",()=>{pm.response.to.have.status(403);});",
+                  "pm.test(\"Error detail exists\",()=>{const x=pm.response.json();pm.expect(x.detail).to.exist;});",
+                  "if (pm.response.code !== 403) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\", \"pa_second_item\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 VERIFY STILL PREPARING",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Item still PREPARING\",()=>{const x=pm.response.json();const i=x.items.find(t=>t.id===pm.environment.get('pa_second_item'));pm.expect(i.status).to.eql('PREPARING');});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 TC_AUTH_003_001 SUPERVISOR VOID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}/items/{{pa_second_item}}/void",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"QA manager-authorized void while cooking\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Supervisor void 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Item VOIDED\",()=>{const x=pm.response.json();const i=x.items.find(t=>t.id===pm.environment.get('pa_second_item'));pm.expect(i).to.exist;pm.expect(i.status).to.eql('VOIDED');});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\", \"pa_second_item\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 VERIFY VOID AND NO DOUBLE BILL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_second_order}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"GET order 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Voided item preserved\",()=>{const x=pm.response.json();const i=x.items.find(t=>t.id===pm.environment.get('pa_second_item'));pm.expect(i).to.exist;pm.expect(i.status).to.eql('VOIDED');});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_second_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_NOT_AUTOMATED_RFI",
+      "description": "TC_PAY_002_011: duplicate external payment gateway callback request_id is NOT available in current OpenAPI. TC_PAY_002_001/007: 50ms parallel callback/payment debit NOT tested (sequential retry only). TC_AUTH_003_001/002: manager approval workflow and discount lack current endpoint/contract; this suite only verifies SUPERVISOR role void vs WAITER denied, state PREPARING, and VOIDED. Record partial coverage, ask BE/PO for callback/approval sandbox and event/transaction evidence.",
+      "item": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://160.191.47.17"
+    }
+  ]
+}

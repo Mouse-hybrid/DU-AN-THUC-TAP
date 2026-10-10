@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/orders/{{pa_order}}/close"
+method: POST
+headers:
+  Authorization: Bearer {{pa_token_cashier}}
+  Idempotency-Key: "{{$guid}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Close 200",()=>{pm.response.to.have.status(200);});
+      pm.test("Order CLOSED",()=>{const x=pm.response.json();pm.expect(x.status).to.eql('CLOSED');});
+      pm.test('TC_API_09_001: Correct order ID',()=>pm.expect(pm.response.json().id).to.eql(pm.environment.get('pa_order')));
+      if (pm.response.code !== 200) {
+          console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);
+          pm.execution.setNextRequest(null);
+      }
+    language: text/javascript
+  - type: beforeRequest
+    code: |-
+      const required = ["pa_order"];
+      for (const key of required) {
+          if (!pm.environment.get(key)) { throw new Error("BLOCKED: missing " + key + "; do not run downstream requests"); }
+      }
+    language: text/javascript
+order: 17000

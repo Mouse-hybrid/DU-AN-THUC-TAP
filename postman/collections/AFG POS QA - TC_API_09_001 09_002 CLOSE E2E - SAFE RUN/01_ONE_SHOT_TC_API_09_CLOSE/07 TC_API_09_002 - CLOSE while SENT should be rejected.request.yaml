@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/orders/{{pa_order}}/close"
+method: POST
+headers:
+  Authorization: Bearer {{pa_token_cashier}}
+  Idempotency-Key: "{{$guid}}"
+scripts:
+  - type: beforeRequest
+    code: "if (!pm.environment.get('pa_order')) { throw new Error('BLOCKED: missing pa_order'); }"
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('TC_API_09_002: HTTP 409 invalid state',()=>pm.response.to.have.status(409));
+      pm.test('TC_API_09_002: Error detail returned',()=>{const d=pm.response.json();pm.expect(d).to.have.property('detail');});
+      if (pm.response.code !== 409) { console.warn('Unexpected negative close response');pm.execution.setNextRequest(null); }
+    language: text/javascript
+order: 12000

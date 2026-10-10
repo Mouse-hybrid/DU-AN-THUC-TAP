@@ -1,0 +1,1176 @@
+{
+  "info": {
+    "name": "AFG POS QA | TC_TECH_001 through TC_API_18_002 | SAFE E2E | TOKEN CHECK FIXED",
+    "_postman_id": "6da29e50-5804-4598-a8f3-17f3d94d045b",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "One-shot API-12..15 positive/negative KDS transitions, invalid state 409 + GET state unchanged, full cleanup. Requires POS_STAGING baseUrl/password, one AVAILABLE table. Note workbook TC_API_12_001 says ACCEPTED->PREPARING; staging API actually uses SENT->PREPARING; report contract discrepancy. Never run >1 iteration. This collection is generated, not executed."
+  },
+  "item": [
+    {
+      "name": "01_ONE_SHOT_TECH_TO_API18",
+      "item": [
+        {
+          "name": "00 TC_TECH_001 GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "['ks_before','ks_after'].forEach(k=>pm.environment.unset(k));",
+                  "['pa_table','pa_session','pa_order','pa_menu','pa_item','pa_payment_key','pa_first_pay','pa_second_table','pa_second_session','pa_second_order','pa_second_item','pa_status_before_void'].forEach(k=>pm.environment.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Health 200\",()=>{pm.response.to.have.status(200);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "1ea0d6c6-ba0e-4a7e-9a17-9f56d7d60274"
+        },
+        {
+          "name": "LOGIN SUPERVISOR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('SUPERVISOR');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_supervisor',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "02e905b4-f65c-41e2-99df-c0d7d9a02415"
+        },
+        {
+          "name": "LOGIN CASHIER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cashier\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('CASHIER');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_cashier',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "8e775eaa-6143-4ee8-b4be-048d38088fc0"
+        },
+        {
+          "name": "LOGIN WAITER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"waiter\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('WAITER');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_waiter',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "8a8323de-b379-407c-8987-3b652cf7c517"
+        },
+        {
+          "name": "LOGIN KITCHEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"kitchen\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Token and role valid\",()=>{const x=pm.response.json();pm.expect(x.staff.role).to.eql('KITCHEN');pm.expect(x.access_token).to.be.a('string').and.not.empty;pm.environment.set('pa_token_kitchen',x.access_token);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "31b95571-9339-4692-b0aa-4a3a0055d836"
+        },
+        {
+          "name": "TC_TECH_002 GET /ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Ready response valid\",()=>{pm.expect(pm.response.text()).not.to.be.empty;});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC_TECH_003 GET mock summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/mock/summary"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Mock summary JSON response\",()=>{const x=pm.response.json();pm.expect(x).to.be.an(\"object\");});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC_API_01_004 Validate TokenResponse schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"waiter\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TokenResponse core fields and WAITER role\", () => {\n  const x = pm.response.json();\n  pm.expect(x).to.be.an(\"object\");\n  pm.expect(x.access_token, \"access_token\").to.be.a(\"string\").and.not.empty;\n  pm.expect(x.staff, \"staff\").to.be.an(\"object\");\n  pm.expect(x.staff.role, \"staff.role\").to.eql(\"WAITER\");\n  if (Object.prototype.hasOwnProperty.call(x, \"token_type\")) {\n    pm.expect(x.token_type, \"token_type\").to.be.a(\"string\").and.not.empty;\n  }\n  if (Object.prototype.hasOwnProperty.call(x, \"expires_in\")) {\n    pm.expect(x.expires_in, \"expires_in\").to.be.a(\"number\").and.above(0);\n  }\n});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC_API_04_004 Missing table_session_id rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "pm.test(\"Validation detail returned\",()=>pm.expect(pm.response.json()).to.have.property(\"detail\"));",
+                  "if (!(pm.response.code===422)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC_API_16_001 GET Dashboard and select AVAILABLE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tables 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Fresh AVAILABLE table selected (otherwise BLOCKED)\", () => { const result = pm.response.json(); pm.expect(result).to.be.an(\"array\"); pm.expect(result.some(t => t.status === \"AVAILABLE\"), \"No AVAILABLE table — QA fixture blocked\").to.equal(true); });",
+                  "const result = pm.response.json();",
+                  "const free = Array.isArray(result) ? result.find(t => t.status === 'AVAILABLE') : null;",
+                  "if (pm.response.code !== 200 || !free) {",
+                  "    pm.environment.unset('pa_table');",
+                  "    console.warn('BLOCKED: No AVAILABLE table. Stop runner; restore an authorized QA fixture first.');",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else { pm.environment.set('pa_table', free.id); }"
+                ]
+              }
+            }
+          ],
+          "id": "484f6e55-ccc2-450b-a9a8-631cd7e52b1a"
+        },
+        {
+          "name": "SETUP Open QA session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/{{pa_table}}/open-session",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_count\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Session 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Session valid\",()=>{const x=pm.response.json();pm.expect(x.table_id).to.eql(pm.environment.get('pa_table'));pm.environment.set('pa_session',x.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_table\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "4f4c64d0-82e4-4bd8-ace4-b8e5a2680d58"
+        },
+        {
+          "name": "TC_API_16_002 Dashboard tracks OCCUPIED session",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_table\", \"pa_session\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Table OCCUPIED in current session\",()=>{const x=pm.response.json();const t=x.find(t=>t.id===pm.environment.get(\"pa_table\"));pm.expect(t).to.exist;pm.expect(t.status).to.eql(\"OCCUPIED\");pm.expect(t.current_session_id).to.eql(pm.environment.get(\"pa_session\"));});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SETUP Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_session_id\": \"{{pa_session}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 201\",()=>{pm.response.to.have.status(201);});",
+                  "pm.test(\"Order valid\",()=>{const x=pm.response.json();pm.expect(x.table_session_id).to.eql(pm.environment.get('pa_session'));pm.expect(x.status).to.eql('NEW');pm.environment.set('pa_order',x.id);});",
+                  "if (pm.response.code !== 201) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_session\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "12c81635-da96-43a3-a954-a32117e1cc72"
+        },
+        {
+          "name": "SETUP Choose two distinct available menu items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?available_only=true"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"GET menu 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"At least two distinct available menu items\",()=>{const x=pm.response.json();pm.expect(x).to.be.an(\"array\"); const uniq=[...new Set(x.map(y=>y.id))];pm.expect(uniq.length).to.be.at.least(2);pm.environment.set(\"pa_menu\",uniq[0]);pm.environment.set(\"qa_menu_second\",uniq[1]);});",
+                  "if(pm.response.code!==200)pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "id": "db178645-81df-4abc-a697-f9083d1bd071"
+        },
+        {
+          "name": "TC_API_05_006 Add two order items in one request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"menu_item_id\": \"{{pa_menu}}\",\n      \"quantity\": 1,\n      \"note\": \"QA API05 multi-item\"\n    },\n    {\n      \"menu_item_id\": \"{{qa_menu_second}}\",\n      \"quantity\": 2,\n      \"note\": null\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_order\", \"pa_menu\", \"qa_menu_second\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "pm.test(\"Both menu items added\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get(\"pa_order\"));const a=x.items.find(i=>i.menu_item_id===pm.environment.get(\"pa_menu\"));const b=x.items.find(i=>i.menu_item_id===pm.environment.get(\"qa_menu_second\"));pm.expect(a).to.exist;pm.expect(b).to.exist;pm.environment.set(\"pa_item\",a.id);pm.environment.set(\"qa_second_item\",b.id);});",
+                  "if (!(pm.response.code===201)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC_API_18_001 PATCH item while editable",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/items/{{pa_item}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2,\n  \"note\": \"QA API18 edit before send\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_order\", \"pa_item\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Item edit successful\",()=>{const x=pm.response.json();const a=(x.items||[]).find(i=>i.id===pm.environment.get(\"pa_item\"));pm.expect(a,\"updated item\").to.exist;pm.expect(a.quantity).to.eql(2);});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "VERIFY edited item persisted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_order\", \"pa_item\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Edited item persisted in order\",()=>{const x=pm.response.json();const a=x.items.find(i=>i.id===pm.environment.get(\"pa_item\"));pm.expect(a).to.exist;pm.expect(a.quantity).to.eql(2);});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SETUP Send Order to Kitchen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/send-to-kitchen"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Send 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Send response valid\",()=>{const x=pm.response.json();pm.expect(x.order.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.order.items.some(i=>i.status==='SENT')).to.eql(true);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "b3c3329d-49c5-47b8-8139-3ca7aa5dda73"
+        },
+        {
+          "name": "TC_API_18_002 PATCH after SEND rejected",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/items/{{pa_item}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3,\n  \"note\": \"QA should be rejected after SENT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_order\", \"pa_item\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+                  "pm.test(\"Business rule error detail\",()=>pm.expect(pm.response.json()).to.have.property(\"detail\"));",
+                  "if (!(pm.response.code===409)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "VERIFY update after SEND did not persist",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_order\", \"pa_item\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Quantity remains 2 and item SENT\",()=>{const x=pm.response.json(),a=x.items.find(i=>i.id===pm.environment.get(\"pa_item\"));pm.expect(a).to.exist;pm.expect(a.quantity).to.eql(2);pm.expect(a.status).to.eql(\"SENT\");});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC_API_17_002 Unknown valid-format table_id rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/00000000-0000-4000-8000-000000000000/mark-clean"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+                  "pm.test(\"Error detail available\",()=>pm.expect(pm.response.json()).to.have.property(\"detail\"));",
+                  "if (!(pm.response.code===404)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "VERIFY QA table still OCCUPIED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_table\"]){if(!pm.environment.get(k)){console.warn('BLOCKED missing '+k);pm.execution.setNextRequest(null);pm.execution.skipRequest();}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Unknown table request did not affect QA table\",()=>{const x=pm.response.json(),a=x.find(t=>t.id===pm.environment.get(\"pa_table\"));pm.expect(a).to.exist;pm.expect(a.status).to.eql(\"OCCUPIED\");});",
+                  "if (!(pm.response.code===200)) {console.warn(\"BLOCKED: unexpected status at \"+pm.info.requestName);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CLEANUP 07 REQUEST BILLING",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/request-billing"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Billing 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order billing\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.status).to.eql('BILLING');});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "4146669a-3891-4389-83d1-17a970594132"
+        },
+        {
+          "name": "CLEANUP 08 TC_PAY_002_001 PAY FIRST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{pa_payment_key}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/pay"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}",
+                  "pm.environment.set('pa_payment_key',pm.variables.replaceIn('{{$guid}}'));pm.environment.unset('pa_first_pay');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Pay 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order PAID and response saved\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.status).to.eql('PAID');pm.environment.set('pa_first_pay',JSON.stringify(x));});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "43379304-0227-49cb-abee-0c7e1cc15764"
+        },
+        {
+          "name": "CLEANUP 10 VERIFY PAID ORDER",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Get order 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order remains PAID\",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));pm.expect(x.status).to.eql('PAID');pm.expect(x.current_version).to.eql(JSON.parse(pm.environment.get('pa_first_pay')).current_version);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "3ad1d890-c54a-4494-b700-e0f5a7d85312"
+        },
+        {
+          "name": "CLEANUP 12 TC_API_09_001 - CLOSE PAID ORDER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}/close"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Close 200\",()=>{pm.response.to.have.status(200);});",
+                  "pm.test(\"Order CLOSED\",()=>{const x=pm.response.json();pm.expect(x.status).to.eql('CLOSED');});",
+                  "pm.test('TC_API_09_001: Correct order ID',()=>pm.expect(pm.response.json().id).to.eql(pm.environment.get('pa_order')));",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_order\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "de01ddc2-d3cd-4710-a739-3d6722c3202e"
+        },
+        {
+          "name": "CLEANUP 13 TC_API_09_001 - VERIFY order CLOSED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{pa_order}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('pa_order')) { throw new Error('BLOCKED: missing pa_order'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('GET closed order 200',()=>pm.response.to.have.status(200));",
+                  "pm.test('TC_API_09_001: Order remains CLOSED',()=>{const o=pm.response.json();pm.expect(o.id).to.eql(pm.environment.get('pa_order'));pm.expect(o.status).to.eql('CLOSED');});",
+                  "if(pm.response.code!==200) pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "id": "ccad017b-644d-47f8-9bed-ee0814974c48"
+        },
+        {
+          "name": "TC_API_17_001 Mark Clean valid closed QA table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/{{pa_table}}/mark-clean"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mark clean 200\",()=>{pm.response.to.have.status(200);});",
+                  "if (pm.response.code !== 200) {",
+                  "    console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);",
+                  "    pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const required = [\"pa_table\"];",
+                  "for (const key of required) {",
+                  "    if (!pm.environment.get(key)) { throw new Error(\"BLOCKED: missing \" + key + \"; do not run downstream requests\"); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "id": "3831f4f1-186a-4941-8191-828e97e0b1f4"
+        },
+        {
+          "name": "VERIFY TC_API_17_001/16_002 table restored AVAILABLE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('GET tables 200',()=>pm.response.to.have.status(200));",
+                  "pm.test('QA table restored AVAILABLE',()=>{const tables=pm.response.json();pm.expect(tables).to.be.an('array');const t=tables.find(t=>t.id===pm.environment.get('pa_table'));pm.expect(t,'QA table exists').to.exist;pm.expect(t.status).to.eql('AVAILABLE');});"
+                ]
+              }
+            }
+          ],
+          "id": "d219aa65-4698-40f1-9d12-75a36816f346"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://160.191.47.17"
+    }
+  ],
+  "description": "12 test cases from rows 48–59 of AFG_POS_QAQC_TestCase_Full_116TC_2026-10-08.xlsx. Staging only. Strict contract expectations; stop on mismatch. Note /ready, /mock/summary, PATCH item schema/status and unknown table 404 need live contract verification; never mark PASS before runner. Requires AVAILABLE QA table and valid {{baseUrl}}, {{password}}."
+}

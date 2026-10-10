@@ -1,0 +1,1013 @@
+{
+  "info": {
+    "_postman_id": "d1de5b87-a188-4903-bbf0-1d9cfe1c8601",
+    "name": "AFG POS QA | SAFE E2E through TC_KDS_005_011 | 2026-10-09",
+    "description": "One-off staging API automation. Tests KDS refire, replay, billing sum. Requires POS_STAGING env with baseUrl and password only; tokens and run_* variables created automatically. Use 1 iteration, 0 delay safe, but each run occupies a table; do not rerun without cleanup. Baseline discrepancies: TC_API_07_002 pre-SERVED vs QA data SENT allowed; payment callbacks and manager approvals NOT in OpenAPI. No secrets embedded.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01_ONE_SHOT_E2E_TO_KDS",
+      "item": [
+        {
+          "name": "00 RUN GUARD - Reset run variables",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "One-time init: clears only run_* scoped variables. Run once with 1 iteration. This suite creates staging state. Do not rerun while earlier run occupies a table."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "[",
+                  "  'run_table_id','run_session_id','run_order_id','run_item_id_1','run_item_id_2',",
+                  "  'run_menu_id_1','run_menu_id_2','run_bill_before','run_bill_after',",
+                  "  'run_refire_response','run_refire_key','run_pay_key','run_pay_first'",
+                  "].forEach(k=>pm.environment.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN SUPERVISOR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Valid token and role\",()=>{ const r=pm.response.json(); pm.expect(r.staff.role).to.eql('SUPERVISOR'); pm.expect(r.access_token).to.be.a('string').and.not.empty; pm.environment.set('token_supervisor',r.access_token); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN CASHIER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cashier\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Valid token and role\",()=>{ const r=pm.response.json(); pm.expect(r.staff.role).to.eql('CASHIER'); pm.expect(r.access_token).to.be.a('string').and.not.empty; pm.environment.set('token_cashier',r.access_token); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN WAITER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"waiter\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Valid token and role\",()=>{ const r=pm.response.json(); pm.expect(r.staff.role).to.eql('WAITER'); pm.expect(r.access_token).to.be.a('string').and.not.empty; pm.environment.set('token_waiter',r.access_token); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "LOGIN KITCHEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"kitchen\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Valid token and role\",()=>{ const r=pm.response.json(); pm.expect(r.staff.role).to.eql('KITCHEN'); pm.expect(r.access_token).to.be.a('string').and.not.empty; pm.environment.set('token_kitchen',r.access_token); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 GET AVAILABLE TABLE (fresh)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"GET tables 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Select available table\",()=>{ const t=pm.response.json(); pm.expect(t).to.be.an('array'); const found=t.find(x=>x.status==='AVAILABLE'); pm.expect(found,'NO AVAILABLE TABLE - run blocked; complete cleanup or ask BE').to.exist; pm.environment.set('run_table_id',found.id); pm.environment.set('run_table_code',found.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 OPEN SESSION",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/tables/{{run_table_id}}/open-session",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_count\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_table_id\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Session 201\",()=>{ pm.response.to.have.status(201); });",
+                  "pm.test(\"Session belongs to table\",()=>{ const x=pm.response.json();pm.expect(x.table_id).to.eql(pm.environment.get('run_table_id'));pm.expect(x.guest_count).to.eql(2);pm.environment.set('run_session_id',x.id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 CREATE ORDER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_session_id\": \"{{run_session_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_session_id\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 201\",()=>{ pm.response.to.have.status(201); });",
+                  "pm.test(\"New order created\",()=>{ const x=pm.response.json();pm.expect(x.status).to.eql('NEW');pm.expect(x.table_session_id).to.eql(pm.environment.get('run_session_id'));pm.environment.set('run_order_id',x.id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 GET AVAILABLE MENU",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?available_only=true",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Menu 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"At least two valid menu items\",()=>{ const x=pm.response.json(); pm.expect(x).to.be.an('array'); const v=x.filter(i=>i.is_available===true&&Number(i.price)>0&&typeof i.id==='string'); pm.expect(v.length).to.be.at.least(2); pm.environment.set('run_menu_id_1',v[0].id);pm.environment.set('run_menu_id_2',v[1].id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 ADD TWO ITEMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"menu_item_id\": \"{{run_menu_id_1}}\",\n      \"quantity\": 1,\n      \"note\": \"QA E2E run\"\n    },\n    {\n      \"menu_item_id\": \"{{run_menu_id_2}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_menu_id_1\", \"run_menu_id_2\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Items 201\",()=>{ pm.response.to.have.status(201); });",
+                  "pm.test(\"Two created items\",()=>{ const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('run_order_id'));pm.expect(x.items.length).to.eql(2);let a=x.items.find(i=>i.menu_item_id===pm.environment.get('run_menu_id_1'));let b=x.items.find(i=>i.menu_item_id===pm.environment.get('run_menu_id_2'));pm.expect(a).to.exist;pm.expect(b).to.exist;pm.expect(a.status).to.eql('CREATED');pm.environment.set('run_item_id_1',a.id);pm.environment.set('run_item_id_2',b.id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 SEND TO KITCHEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/send-to-kitchen",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Send 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Send response schema\",()=>{ const x=pm.response.json();pm.expect(x.order.id).to.eql(pm.environment.get('run_order_id'));pm.expect(x.kitchen_queue_entries_created).to.be.greaterThan(0);x.order.items.forEach(i=>pm.expect(i.status).to.eql('SENT')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 QUEUE BASELINE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_kitchen}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/kitchen/queue",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Queue 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Queue contains order\",()=>{ const q=pm.response.json();pm.expect(q).to.be.an('array');let own=q.filter(i=>i.order_id===pm.environment.get('run_order_id'));pm.expect(own.length).to.be.greaterThan(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 CONTRACT OBSERVATION - Billing while SENT (SKIPPED)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}",
+            "description": "Does not mutate. TC_API_07_002 baseline says not yet SERVED must reject, but QA test-data explicitly accepts SENT for billing. Treat as RFI, NOT negative-test PASS. Actual invalid-state coverage was executed manually on BILLING in AUTO_19."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"GET Order 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Order SENT before cooking\",()=>{ const x=pm.response.json();pm.expect(x.status).to.eql('SENT'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09.1 ITEM 1 START-COOKING",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_kitchen}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_1}}/start-cooking",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_1\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 1 PREPARING\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_1'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('PREPARING'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10.1 ITEM 1 MARK-READY",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_kitchen}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_1}}/mark-ready",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_1\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 1 READY\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_1'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('READY'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.1 ITEM 1 PICKUP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_1}}/pickup",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_1\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 1 PICKED_UP\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_1'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('PICKED_UP'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12.1 ITEM 1 SERVED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_1}}/served",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_1\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 1 SERVED\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_1'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('SERVED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09.2 ITEM 2 START-COOKING",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_kitchen}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_2}}/start-cooking",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_2\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 2 PREPARING\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_2'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('PREPARING'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10.2 ITEM 2 MARK-READY",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_kitchen}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_2}}/mark-ready",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_2\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 2 READY\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_2'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('READY'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.2 ITEM 2 PICKUP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_2}}/pickup",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_2\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 2 PICKED_UP\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_2'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('PICKED_UP'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12.2 ITEM 2 SERVED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_waiter}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_2}}/served",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_2\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Item 2 SERVED\",()=>{ const x=pm.response.json();const it=x.items.find(z=>z.id===pm.environment.get('run_item_id_2'));pm.expect(it,'target order item missing').to.exist;pm.expect(it.status).to.eql('SERVED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 VERIFY ITEMS SERVED AND CAPTURE BILL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Original items served and total captured\",()=>{ const o=pm.response.json();pm.expect(o.id).to.eql(pm.environment.get('run_order_id'));const ids=[pm.environment.get('run_item_id_1'),pm.environment.get('run_item_id_2')]; ids.forEach(id=>{const it=o.items.find(i=>i.id===id);pm.expect(it).to.exist;pm.expect(it.status).to.eql('SERVED');}); const sum=o.items.filter(i=>i.status!=='VOIDED').reduce((s,i)=>s+Number(i.line_total),0);pm.expect(sum).to.be.greaterThan(0);pm.environment.set('run_bill_before',String(sum)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 TC_KDS_005_001 REFIRE ONCE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_refire_key}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_1}}/refire",
+            "description": "Test case baseline expects -R1 and higher priority. OpenAPI only specifies OrderOut, no R1/priority fields. Verify visible extra item / priority manually and report TBD, not automatic PASS for entire business TC. Run only after both item loops PASS. Starting this mutates the order; use one iteration only."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_1\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }",
+                  "pm.environment.set('run_refire_key',pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Refire HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Refire retains order ID and original item\",()=>{ const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('run_order_id'));pm.expect(x.items).to.be.an('array');pm.expect(x.items.some(i=>i.id===pm.environment.get('run_item_id_1'))).to.eql(true);pm.environment.set('run_refire_response',JSON.stringify(x)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 TC_KDS_005_007 RETRY REFIRE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_refire_key}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}/items/{{run_item_id_1}}/refire",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\", \"run_item_id_1\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }",
+                  "if (!pm.environment.get('run_refire_key')) throw new Error('Missing run_refire_key: first refire was not completed');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Refire retry HTTP 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Same response replay\",()=>{ const first=pm.environment.get('run_refire_response');pm.expect(first).to.be.a('string').and.not.empty; pm.expect(pm.response.json()).to.deep.equal(JSON.parse(first)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 TC_KDS_005_011 CHECK BILL AFTER REFIRE",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{run_order_id}}",
+            "description": "Tests summation of non-VOIDED order line_total, NOT actual payment transaction / invoice. Re-fire -R1 and priority also require verification. Possible legitimate differences in implementation until BE/PO confirms billing rule."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"run_order_id\"] .filter(k => !pm.environment.get(k)); if (missing.length) { console.error(\"SKIP: missing execution variables\",missing); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order 200\",()=>{ pm.response.to.have.status(200); });",
+                  "pm.test(\"Refire billing must not double-charge\",()=>{ const o=pm.response.json();pm.expect(o.id).to.eql(pm.environment.get('run_order_id'));const before=Number(pm.environment.get('run_bill_before'));pm.expect(before).to.be.greaterThan(0);const after=o.items.filter(i=>i.status!=='VOIDED').reduce((s,i)=>s+Number(i.line_total),0);pm.environment.set('run_bill_after',String(after));pm.expect(after,'Refire changed chargeable sum; inspect bill rule / SRS before classifying backend defect').to.eql(before); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_NOT_AUTOMATABLE_FROM_OPENAPI",
+      "description": "TC_PAY_002_001/007/011: real gateway request_id + 2 callbacks within 50ms not defined in OpenAPI. TC_AUTH_003_001/002: supervisor void may be tested, but manager approval/discount UI requires specs/workflow, not emulated. TC_API_07_002: baseline says billing from SENT invalid, QA data says SENT accepted. TC_KDS_005_001: -R1 priority not represented in OrderOut; manual evidence needed. No false green assertions.",
+      "item": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://160.191.47.17"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/tables"
+method: GET
+headers:
+  Authorization: Bearer {{pa_token_waiter}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('GET tables 200',()=>pm.response.to.have.status(200));
+      pm.test('QA table restored AVAILABLE',()=>{const tables=pm.response.json();pm.expect(tables).to.be.an('array');const t=tables.find(t=>t.id===pm.environment.get('pa_table'));pm.expect(t,'QA table exists').to.exist;pm.expect(t.status).to.eql('AVAILABLE');});
+    language: text/javascript
+order: 20000

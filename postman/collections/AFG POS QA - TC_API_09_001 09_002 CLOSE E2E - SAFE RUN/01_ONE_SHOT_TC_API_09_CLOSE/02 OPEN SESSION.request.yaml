@@ -1,0 +1,31 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/tables/{{pa_table}}/open-session"
+method: POST
+headers:
+  Authorization: Bearer {{pa_token_waiter}}
+  Content-Type: application/json
+  Idempotency-Key: "{{$guid}}"
+body:
+  type: json
+  content: |-
+    {
+      "guest_count": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Session 201",()=>{pm.response.to.have.status(201);});
+      pm.test("Session valid",()=>{const x=pm.response.json();pm.expect(x.table_id).to.eql(pm.environment.get('pa_table'));pm.environment.set('pa_session',x.id);});
+      if (pm.response.code !== 201) {
+          console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);
+          pm.execution.setNextRequest(null);
+      }
+    language: text/javascript
+  - type: beforeRequest
+    code: |-
+      const required = ["pa_table"];
+      for (const key of required) {
+          if (!pm.environment.get(key)) { throw new Error("BLOCKED: missing " + key + "; do not run downstream requests"); }
+      }
+    language: text/javascript
+order: 7000

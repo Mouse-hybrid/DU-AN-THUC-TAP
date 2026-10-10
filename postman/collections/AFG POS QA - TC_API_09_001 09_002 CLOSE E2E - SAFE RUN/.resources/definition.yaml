@@ -1,0 +1,5 @@
+$kind: collection
+name: AFG POS QA | TC_API_09_001 09_002 CLOSE E2E | SAFE RUN
+description: One-shot staging QA, simulated payment. Negative CLOSE from SENT must return 409 without state change; positive CLOSE from PAID must return 200/CLOSED. Cleans up table afterward. Requires POS_STAGING with baseUrl and password. Not yet executed. Stop on failed assertions; 1 iteration. No secrets embedded.
+variables:
+  baseUrl: http://160.191.47.17

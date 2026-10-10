@@ -24,4 +24,7 @@ __console.log(process.env.POS_TEST_USERNAME);
 console.log(process.env.POS_TEST_TABLE_ID); 
 console.log(process.env.POS_TEST_PASSWORD)"
 
+# test table occupied to available
+.\scripts\qa-table-readiness.ps1
+
 

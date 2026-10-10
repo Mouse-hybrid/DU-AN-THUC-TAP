@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/tables"
+method: GET
+headers:
+  Authorization: Bearer {{pa_token_waiter}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Tables 200", () => pm.response.to.have.status(200));
+      pm.test("Fresh AVAILABLE table selected (otherwise BLOCKED)", () => { const result = pm.response.json(); pm.expect(result).to.be.an("array"); pm.expect(result.some(t => t.status === "AVAILABLE"), "No AVAILABLE table — QA fixture blocked").to.equal(true); });
+      const result = pm.response.json();
+      const free = Array.isArray(result) ? result.find(t => t.status === 'AVAILABLE') : null;
+      if (pm.response.code !== 200 || !free) {
+          pm.environment.unset('pa_table');
+          console.warn('BLOCKED: No AVAILABLE table. Stop runner; restore an authorized QA fixture first.');
+          pm.execution.setNextRequest(null);
+      } else { pm.environment.set('pa_table', free.id); }
+    language: text/javascript
+order: 6000

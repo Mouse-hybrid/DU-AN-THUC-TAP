@@ -1,0 +1,3 @@
+$kind: collection
+description: Run exactly once. Requires an AVAILABLE QA table. Creates & closes test order, then mark-clean. No gateway involved.
+order: 1000

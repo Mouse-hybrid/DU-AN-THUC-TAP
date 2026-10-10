@@ -1,0 +1,37 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/orders/{{pa_order}}/items"
+method: POST
+headers:
+  Authorization: Bearer {{pa_token_cashier}}
+  Content-Type: application/json
+  Idempotency-Key: "{{$guid}}"
+body:
+  type: json
+  content: |-
+    {
+      "items": [
+        {
+          "menu_item_id": "{{pa_menu}}",
+          "quantity": 1,
+          "note": "PAY AUTH QA"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Add item 201",()=>{pm.response.to.have.status(201);});
+      pm.test("Added item valid",()=>{const x=pm.response.json();pm.expect(x.id).to.eql(pm.environment.get('pa_order'));const i=x.items.find(t=>t.menu_item_id===pm.environment.get('pa_menu'));pm.expect(i).to.exist;pm.environment.set('pa_item',i.id);});
+      if (pm.response.code !== 201) {
+          console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);
+          pm.execution.setNextRequest(null);
+      }
+    language: text/javascript
+  - type: beforeRequest
+    code: |-
+      const required = ["pa_order", "pa_menu"];
+      for (const key of required) {
+          if (!pm.environment.get(key)) { throw new Error("BLOCKED: missing " + key + "; do not run downstream requests"); }
+      }
+    language: text/javascript
+order: 10000

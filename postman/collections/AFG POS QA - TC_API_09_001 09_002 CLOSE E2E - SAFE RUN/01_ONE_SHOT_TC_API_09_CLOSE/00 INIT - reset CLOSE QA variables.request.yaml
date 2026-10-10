@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/health"
+method: GET
+scripts:
+  - type: beforeRequest
+    code: "['pa_table','pa_session','pa_order','pa_menu','pa_item','pa_payment_key','pa_first_pay','pa_second_table','pa_second_session','pa_second_order','pa_second_item','pa_status_before_void'].forEach(k=>pm.environment.unset(k));"
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test("Health 200",()=>{pm.response.to.have.status(200);});
+      if (pm.response.code !== 200) {
+          console.warn('Stopping PAY-AUTH run after unexpected HTTP status: ' + pm.response.code + ' in ' + pm.info.requestName);
+          pm.execution.setNextRequest(null);
+      }
+    language: text/javascript
+order: 1000

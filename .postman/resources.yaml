@@ -2,6 +2,10 @@
 workspace:
   id: 8ee2ec0d-7c2f-4092-83d1-1566069445ee
 
+cloudResources:
+  collections:
+    ../postman/collections/AFG POS QA - TC_API_09_001 09_002 CLOSE E2E - SAFE RUN: b460236c-6a9a-4fae-892e-a7a577a97c98
+
 # All resources in the `postman/` folder are automatically registered in Local View.
 # Point to additional files outside the `postman/` folder to register them individually. Example:
 #localResources:
