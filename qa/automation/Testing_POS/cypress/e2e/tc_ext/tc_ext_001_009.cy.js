@@ -1,5 +1,5 @@
 /* TC_EXT_001..009 — API-backed Cypress regression against approved QA staging only.
-   Configuration: Cypress.env('POS_BASE_URL'), POS_USERNAME, POS_PASSWORD,
+   Configuration: cy.env('POS_BASE_URL'), POS_USERNAME, POS_PASSWORD,
    optional EXT_RUN_MUTATIONS=true and fixtures (see TC_EXT_README.md).
    Never run these mutation cases against production. */
 const QA_ENV_KEYS = ['POS_BASE_URL','POS_USERNAME','POS_PASSWORD','EXT_RUN_MUTATIONS',
@@ -58,24 +58,41 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
     });
   });
   it('TC_EXT_003 | active_only categories excludes inactive', function () {
-    auth().then(h => req('GET','/menu/categories?active_only=true',h).then(r => {
-      expect(r.status).eq(200);
-      const list = jsonItems(r.body);
-      expect(list, 'category response').to.be.an('array');
-      list.forEach(c => expect(c.is_active, 'is_active').eq(true));
-      if (!requireFixtures('EXT_INACTIVE_CATEGORY_ID')) {
-        cy.log('Coverage note: inactive category fixture absent; filter checked but negative exclusion is not fully proven');
-        // This TC requires a known inactive fixture to claim full coverage.
-        this.skip();
-        return;
-      }
-      expect(list.map(c => String(c.id))).not.to.include(String(get('EXT_INACTIVE_CATEGORY_ID')));
-    }));
+    auth().then(h => {
+      req('GET','/menu/categories',h).then(all => {
+        expect(all.status).eq(200);
+        const categories = jsonItems(all.body);
+        expect(categories).to.be.an('array');
+        const hidden = categories.filter(c => c.is_active === false);
+        if (!hidden.length) return skipCase(this, 'No inactive category fixture in staging; cannot verify exclusion');
+        req('GET','/menu/categories?active_only=true',h).then(active => {
+          expect(active.status).eq(200);
+          const visible = jsonItems(active.body);
+          expect(visible).to.be.an('array');
+          visible.forEach(c => expect(c.is_active, 'active-only category').eq(true));
+          const visibleIds=visible.map(c=>String(c.id));
+          hidden.forEach(c=>expect(visibleIds, 'inactive category must not appear').not.to.include(String(c.id)));
+        });
+      });
+    });
   });
   it('TC_EXT_002 | guest_count=101 rejected without mutating table', function () {
-    if (!requireFixtures('EXT_AVAILABLE_TABLE_ID')) return skipCase(this,'EXT_AVAILABLE_TABLE_ID required');
-    auth().then(h => req('POST','/tables/'+get('EXT_AVAILABLE_TABLE_ID')+'/open-session',h,{guest_count:101},
-      {headers:{...h,'Idempotency-Key':unique()}}).then(r => expect(r.status).eq(422)));
+    auth().then(h => req('GET','/tables',h).then(tables => {
+      expect(tables.status).eq(200);
+      const requested = get('EXT_AVAILABLE_TABLE_ID');
+      const available = jsonItems(tables.body).filter(t => t.status==='AVAILABLE');
+      const target = requested ? available.find(t=>String(t.id)===String(requested)) : available[0];
+      if (!target) return skipCase(this, 'No AVAILABLE QA table: run validated Table Recovery before boundary case');
+      req('POST','/tables/'+target.id+'/open-session',
+        {...h,'Idempotency-Key':unique()}, {guest_count:101}).then(result => {
+          expect(result.status).eq(422);
+          req('GET','/tables/'+target.id,h).then(after => {
+            expect(after.status).eq(200);
+            expect(after.body.status).eq('AVAILABLE');
+            expect(after.body.current_session, 'rejected boundary must not open session').to.be.oneOf([null, undefined]);
+          });
+        });
+    }));
   });
   it('TC_EXT_001 | guest_count=100 boundary — controlled mutation', function () {
     if (!mutable() || !requireFixtures('EXT_AVAILABLE_TABLE_ID')) return skipCase(this,'EXT_RUN_MUTATIONS=true and EXT_AVAILABLE_TABLE_ID required; creates open session');
