@@ -26,10 +26,17 @@ const jsonItems = (body) => {
 const auth = () => {
   const username = get('POS_USERNAME');
   const password = get('POS_PASSWORD');
-  if (!username || !password) throw new Error('Set POS_USERNAME/POS_PASSWORD for approved QA account');
+  if (!username || !password) throw new Error('Missing CYPRESS_POS_USERNAME or CYPRESS_POS_PASSWORD. Load real staging credentials in this terminal (not example placeholders).');
   return cy.request({ method:'POST', url:api('/auth/login'), body:{username,password}, failOnStatusCode:false })
     .then(r => {
-      expect(r.status, 'login HTTP').eq(200);
+      if (r.status !== 200) {
+        const fields = Array.isArray(r.body?.detail)
+          ? r.body.detail.map(x => String((x.loc || []).join('.')) + ': ' + String(x.type || 'invalid')).join('; ')
+          : (typeof r.body?.detail === 'string' ? r.body.detail : 'check credentials or login schema');
+        throw new Error('AUTH_SETUP_FAILED: login returned HTTP ' + r.status +
+          ' (not an EXT testcase failure). ' + fields +
+          '. Verify POS_TEST_USERNAME/POS_TEST_PASSWORD in your local .env or set CYPRESS_POS_USERNAME/PASSWORD with valid staging values.');
+      }
       const token = r.body.access_token || r.body?.data?.access_token;
       expect(token, 'access_token').to.be.a('string').and.not.be.empty;
       return { Authorization: 'Bearer ' + token };
