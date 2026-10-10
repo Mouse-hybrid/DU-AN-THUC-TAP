@@ -73,8 +73,8 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
       if (hidden) return verify(hidden.id);
       if (!mutable()) return skipCase(this, 'No inactive category found. Set EXT_RUN_MUTATIONS=true to create an isolated QA category (persistent staging data).');
       const name='QA EXT inactive ' + unique();
-      req('POST','/menu/categories',h,{name,sort_order:900}).then(created => {
-        expect(created.status,'create isolated QA category').eq(201);
+      req('POST','/menu/categories',{...h,'Idempotency-Key':unique()}, {name,sort_order:900}).then(created => {
+        expect(created.status, 'create isolated QA category (response detail: ' + JSON.stringify(created.body?.detail || created.body?.message || 'none') + ')').eq(201);
         const category=created.body.category || created.body;
         expect(category.id,'new category id').to.exist;
         req('PATCH','/menu/categories/'+category.id,h,{is_active:false}).then(disabled => {
