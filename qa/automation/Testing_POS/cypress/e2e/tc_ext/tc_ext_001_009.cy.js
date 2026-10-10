@@ -201,15 +201,30 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
     }));
   });
   it('TC_EXT_006 | unavailable item rejected and subtotal unchanged', function () {
-    if (!mutable() || !requireFixtures('EXT_ORDER_ID','EXT_UNAVAILABLE_ITEM_ID')) return skipCase(this,'isolated order and unavailable menu item required');
-    auth().then(h => req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(before => {
-      expect(before.status).eq(200);
-      const value=before.body.subtotal ?? before.body.order?.subtotal;
-      req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',{...h,'Idempotency-Key':unique()}, {menu_item_id:get('EXT_UNAVAILABLE_ITEM_ID'),quantity:1}).then(r => {
-        expect(r.status).eq(409);
-        req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(after => {
-          expect(after.status).eq(200);
-          expect(String(after.body.subtotal ?? after.body.order?.subtotal)).eq(String(value));
+    if (!mutable() || !requireFixtures('EXT_ORDER_ID')) return skipCase(this,'Requires isolated QA NEW order: set EXT_ORDER_ID and EXT_RUN_MUTATIONS=true');
+    auth().then(h => req('GET','/menu',h).then(menu => {
+      expect(menu.status).eq(200);
+      const inactive=jsonItems(menu.body).filter(item=>item.is_available===false);
+      const chosen=get('EXT_UNAVAILABLE_ITEM_ID')
+        ? inactive.find(i=>String(i.id)===String(get('EXT_UNAVAILABLE_ITEM_ID')))
+        : inactive[0];
+      if (!chosen) return skipCase(this,'No unavailable menu item in GET /menu');
+      req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(before => {
+        expect(before.status).eq(200);
+        const original=before.body.order||before.body;
+        expect(original.status,'Order fixture must be NEW').eq('NEW');
+        const subtotal=original.subtotal;
+        const count=Array.isArray(original.items)?original.items.length:undefined;
+        expect(subtotal,'pre-request subtotal').to.exist;
+        req('POST','/orders/'+get('EXT_ORDER_ID')+'/items',
+          {...h,'Idempotency-Key':unique()}, {menu_item_id:chosen.id,quantity:1}).then(result => {
+          expect(result.status,'unavailable item HTTP').eq(409);
+          req('GET','/orders/'+get('EXT_ORDER_ID'),h).then(after=>{
+            expect(after.status).eq(200);
+            const current=after.body.order||after.body;
+            expect(String(current.subtotal),'subtotal unchanged').eq(String(subtotal));
+            if (count!==undefined) expect(current.items.length,'item count unchanged').eq(count);
+          });
         });
       });
     }));
