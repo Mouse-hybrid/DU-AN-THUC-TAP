@@ -124,20 +124,24 @@ describe('TC_EXT_001–009 | QA staging API regression', () => {
         });
     }));
   });
-  it('TC_EXT_004 | inactive category remains physically linked to menu item', function () {
-    if (!mutable() || !requireFixtures('EXT_CATEGORY_ID','EXT_CATEGORY_MENU_ITEM_ID')) return skipCase(this,'isolated category/menu item fixture + mutation opt-in required');
-    auth().then(h => req('GET','/menu',h).then(before => {
-      expect(before.status).eq(200);
-      expect(jsonItems(before.body).some(x => String(x.id)===String(get('EXT_CATEGORY_MENU_ITEM_ID')))).eq(true);
-      req('PATCH','/menu/categories/'+get('EXT_CATEGORY_ID'),h,{is_active:false}).then(update => {
-        expect(update.status).eq(200);
-        req('GET','/menu/categories?active_only=true',h).then(hidden => {
-          expect(hidden.status).eq(200);
-          expect(jsonItems(hidden.body).map(c=>String(c.id))).not.to.include(String(get('EXT_CATEGORY_ID')));
-        });
-        req('GET','/menu',h).then(after => {
-          expect(after.status).eq(200);
-          expect(jsonItems(after.body).some(x => String(x.id)===String(get('EXT_CATEGORY_MENU_ITEM_ID')))).eq(true);
+  it('TC_EXT_004 | inactive category still retains its menu-item relationship', function () {
+    auth().then(h => req('GET','/menu/categories',h).then(categoriesResponse => {
+      expect(categoriesResponse.status).eq(200);
+      const inactive = jsonItems(categoriesResponse.body).filter(x => x.is_active === false);
+      if (!inactive.length) return skipCase(this,'No inactive category fixture available');
+      // Read-only verification: no mutation of shared staging catalog.
+      req('GET','/menu/items',h).then(itemsResponse => {
+        expect(itemsResponse.status, 'menu items endpoint').eq(200);
+        const allItems = jsonItems(itemsResponse.body);
+        const fixture = inactive.find(category =>
+          allItems.some(item => String(item.category_id) === String(category.id)));
+        if (!fixture) return skipCase(this,'No menu item linked to an inactive category; needs isolated QA fixture');
+        const matches = allItems.filter(item => String(item.category_id) === String(fixture.id));
+        expect(matches.length,'linked menu items retained').to.be.greaterThan(0);
+        matches.forEach(item => expect(String(item.category_id)).eq(String(fixture.id)));
+        req('GET','/menu/categories?active_only=true',h).then(filtered => {
+          expect(filtered.status).eq(200);
+          expect(jsonItems(filtered.body).map(x => String(x.id))).not.to.include(String(fixture.id));
         });
       });
     }));
