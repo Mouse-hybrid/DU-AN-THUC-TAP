@@ -1,7 +1,7 @@
 // Isolated staging QA: TC_EXT_006/007/008. Mutations opt-in only.
 // Uses QA simulated payment, never a real payment gateway.
 describe('TC_EXT_006-008 | isolated order verification', () => {
-  const envKeys=['POS_BASE_URL','POS_USERNAME','POS_PASSWORD','EXT_RUN_MUTATIONS','EXT_CASHIER_USERNAME','EXT_CASHIER_PASSWORD','EXT_WAITER_USERNAME','EXT_WAITER_PASSWORD'];
+  const envKeys=['POS_BASE_URL','POS_USERNAME','POS_PASSWORD','EXT_RUN_MUTATIONS','EXT_CASHIER_USERNAME','EXT_CASHIER_PASSWORD','EXT_WAITER_USERNAME','EXT_WAITER_PASSWORD','EXT_CASHIER_TOKEN','EXT_WAITER_TOKEN'];
   let env={}, headers={}, cashier={}, waiter={}, ctx={};
   const list=b=>Array.isArray(b)?b:(Array.isArray(b?.items)?b.items:(Array.isArray(b?.data)?b.data:(Array.isArray(b?.results)?b.results:[])));
   const base=()=>String(env.POS_BASE_URL||'http://160.191.47.17').replace(/\/$/,'');
@@ -9,6 +9,7 @@ describe('TC_EXT_006-008 | isolated order verification', () => {
   const call=(method,path,h,body)=>cy.request({method,url:base()+'/api/v1'+path,headers:h,body,failOnStatusCode:false,log:false});
   const idem=h=>({...h,'Idempotency-Key':key()});
   const unwrap=b=>b?.order||b;
+  const roleHeaders=(role,token,username,password)=>token ? cy.wrap({Authorization:'Bearer '+token},{log:false}) : login(username,password);
   const login=(username,password)=>call('POST','/auth/login',{}, {username,password}).then(r=>{
     expect(r.status,'login HTTP').eq(200);
     const token=r.body.access_token||r.body?.data?.access_token;
@@ -20,15 +21,17 @@ describe('TC_EXT_006-008 | isolated order verification', () => {
     cy.env(envKeys).then(v=>{
       env=v;
       if(String(v.EXT_RUN_MUTATIONS)!=='true'||!v.POS_USERNAME||!v.POS_PASSWORD||
-         !v.EXT_CASHIER_USERNAME||!v.EXT_CASHIER_PASSWORD||
-         !v.EXT_WAITER_USERNAME||!v.EXT_WAITER_PASSWORD){
+         !(v.EXT_CASHIER_TOKEN||(v.EXT_CASHIER_USERNAME&&v.EXT_CASHIER_PASSWORD))||
+         !(v.EXT_WAITER_TOKEN||(v.EXT_WAITER_USERNAME&&v.EXT_WAITER_PASSWORD))){
         cy.log('PENDING: set EXT_RUN_MUTATIONS and separate cashier/waiter QA credentials');
         this.skip();
       }
     });
     cy.then(()=>login(env.POS_USERNAME,env.POS_PASSWORD)).then(h=>{headers=h;});
-    cy.then(()=>login(env.EXT_CASHIER_USERNAME,env.EXT_CASHIER_PASSWORD)).then(h=>{cashier=h;});
-    cy.then(()=>login(env.EXT_WAITER_USERNAME,env.EXT_WAITER_PASSWORD)).then(h=>{waiter=h;});
+    cy.then(()=>roleHeaders('cashier',env.EXT_CASHIER_TOKEN,env.EXT_CASHIER_USERNAME,env.EXT_CASHIER_PASSWORD)).then(h=>{cashier=h;});
+    cy.then(()=>roleHeaders('waiter',env.EXT_WAITER_TOKEN,env.EXT_WAITER_USERNAME,env.EXT_WAITER_PASSWORD)).then(h=>{waiter=h;});
+    cy.then(()=>call('GET','/tables',cashier)).then(r=>{expect(r.status,'cashier token preflight').eq(200);});
+    cy.then(()=>call('GET','/tables',waiter)).then(r=>{expect(r.status,'waiter token preflight').eq(200);});
     cy.then(()=>call('GET','/tables',headers)).then(r=>{
       expect(r.status).eq(200);
       const available=list(r.body).filter(t=>t.status==='AVAILABLE'&&!t.current_session_id);
