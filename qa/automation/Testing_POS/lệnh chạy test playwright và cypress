@@ -11,7 +11,7 @@ npx playwright test api-new-endpoints-smoke.spec.ts --project=chromium
 # lệnh kiểm tra id của git push 
 # git log -1 --oneline
 
-# git pull --rebase origin ONLY_TESTING 
+# git pull --rebase origin ONLY_TESTING, git pull --ff-only origin ONLY_TESTING
 
  #.env.example identify
  $env:POS_TEST_USERNAME="customer"
@@ -22,7 +22,17 @@ $env:POS_TEST_TABLE_ID="01"
 node -e "require('dotenv').config();__ (viet tắt) __console.log(process.env.POS_TEST_USERNAME);
 __console.log(process.env.POS_TEST_USERNAME); 
 console.log(process.env.POS_TEST_TABLE_ID); 
-console.log(process.env.POS_TEST_PASSWORD)"
+
+# Promopt run cypress tc_ext_001 to 009
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_001_009.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_018_customer_mock.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_014_kitchen_sla.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_011_cashier_void_preflight.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_012_013_refire_preflight.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_020_full_e2e_preflight.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_010_void_contract_preflight.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_016_017_ws_contract_preflight.cy.js"
+npx cypress run --browser chrome --headless --spec "cypress/e2e/tc_ext/tc_ext_020_full_e2e.cy.js"
 
 # test table occupied to available
 .\scripts\qa-table-readiness.ps1
