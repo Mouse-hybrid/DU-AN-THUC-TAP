@@ -29,9 +29,11 @@ describe('TC_EXT_020 | isolated POS full lifecycle', () => {
   const request=(method,path,headers,body,stage,expected)=>{
     const h=method==='GET'?headers:{...headers,'Idempotency-Key':key()};
     return api(method,path,h,body).then(r=>{
-      write(stage,r.status);
-      expect(r.status,stage+' HTTP').eq(expected);
-      return r;
+      // Return the Cypress command chain, not a synchronous response after cy.writeFile.
+      return write(stage,r.status).then(()=>{
+        expect(r.status,stage+' HTTP').eq(expected);
+        return r;
+      });
     });
   };
   const login=(username,password)=>api('POST','/auth/login',{}, {username,password}).then(r=>{
@@ -123,7 +125,7 @@ describe('TC_EXT_020 | isolated POS full lifecycle', () => {
         expect(r.body.status).eq('AVAILABLE');
         expect(r.body.current_session).to.be.oneOf([null,undefined]);
         ctx.cleanup='VERIFIED_AVAILABLE';
-        write('COMPLETE',200);
+        return write('COMPLETE',200);
       });
   });
 
