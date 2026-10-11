@@ -1,0 +1,942 @@
+{
+  "info": {
+    "name": "AFG POS QA | MENU CRUD TC_PM_10 to TC_PM_23 | STANDALONE RETEST V1",
+    "_postman_id": "aeaae656-7508-4e0d-8878-0ff439da3f81",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run ONLY on approved QA staging; creates persistent Menu Category and item. Requires POS_STAGING password + qa_allow_persistent_menu_mutations=true. No cleanup deletion route verified. Partial TC_PM_19/20 coverage must not be recorded as full PASS. Other assertions are real, not forced PASS."
+  },
+  "item": [
+    {
+      "name": "01_TC_PM_10_TO_23_MENU_CRUD",
+      "item": [
+        {
+          "name": "PREFLIGHT - MENU MUTATIONS PERMISSION (BLOCKED if not opted in)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "GATED by qa_allow_persistent_menu_mutations=true in POS_STAGING. The suite creates persistent category/menu items; when false, BLOCKED is expected and TC_PM_10–23 must remain NOT RUN. No silent PASS."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const raw=pm.environment.get(\"qa_allow_persistent_menu_mutations\");",
+                  "const allowed=String(raw).trim().toLowerCase()===\"true\";",
+                  "pm.test(\"PREFLIGHT /health HTTP 200\",function(){pm.response.to.have.status(200);});",
+                  "pm.test(\"PREFLIGHT persistent Menu CRUD authorized (BLOCKED if unset)\",function(){pm.expect(allowed,\"Set POS_STAGING variable qa_allow_persistent_menu_mutations=true ONLY with authorization; new categories/menu items persist\").to.be.true;});",
+                  "if(!allowed || pm.response.code!==200){pm.environment.set(\"qa_pm_block_reason\",\"BLOCKED_MENU_OPT_IN\");console.error(\"BLOCKED_MENU_OPT_IN: persistent CRUD not authorized or health failed; zero menu mutations executed. Do not report TC_PM_10-23 as FAIL or PASS.\");pm.execution.setNextRequest(null);}",
+                  "else {pm.environment.unset(\"qa_pm_block_reason\");pm.environment.set(\"qa_pm_run_tag\",\"pm-\"+Date.now());[\"pm_cat\",\"pm_created_menu\",\"pm_station\"].forEach(k=>pm.environment.unset(k));}"
+                ]
+              }
+            }
+          ],
+          "id": "f8544de8-be74-4a45-8209-39c0baa71aff",
+          "description": "Gate for persistent menu mutations. qa_allow_persistent_menu_mutations=true required. FAIL/BLOCKED if disabled (correct safety behavior)."
+        },
+        {
+          "id": "f02f30f3-8591-4313-b472-f1357354ec68",
+          "name": "02-01 SETUP Login SUPERVISOR (standalone)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"SETUP Login SUPERVISOR assertions\",()=>{const j=pm.response.json();pm.expect(j.staff.role).eql(\"SUPERVISOR\");pm.expect(j.access_token).a(\"string\").not.empty;pm.environment.set(\"pa_token_supervisor\",j.access_token);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2c8ad532-51f7-40ee-b104-74c8279e6f95",
+          "name": "02-02 SETUP Login CASHIER (standalone)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cashier\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_02 Login CASHIER assertions\",()=>{const j=pm.response.json();pm.expect(j.staff.role).eql(\"CASHIER\");pm.expect(j.access_token).a(\"string\").not.empty;pm.environment.set(\"pa_token_cashier\",j.access_token);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "81b1af9d-e228-42a2-874e-aecfa859229c",
+          "name": "02-03 SETUP Stations read (standalone)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/kitchen/stations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"SETUP Stations read assertions\",()=>{const a=pm.response.json();pm.expect(a).an(\"array\").not.empty;const st=a.find(x=>x.is_active);pm.expect(st,\"Requires active station\").exist;pm.environment.set(\"pm_station\",st.id);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "43ede18c-9dea-470f-89b3-b514c05c50bc",
+          "name": "TC_PM_10 Create QA category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA PM {{qa_pm_run_tag}}\",\n  \"sort_order\": 900\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pa_token_supervisor\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "pm.test(\"TC_PM_10 Create QA category assertions\",()=>{const x=pm.response.json();pm.expect(x.id).a(\"string\");pm.environment.set(\"pm_cat\",x.id);});",
+                  "if(pm.response.code!==201){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "e50a9c71-9467-4d8b-8def-2deb0f2f7f91",
+          "name": "TC_PM_11 Duplicate category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA PM {{qa_pm_run_tag}}\",\n  \"sort_order\": 901\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+                  "pm.test(\"TC_PM_11 Duplicate category assertions\",()=>{pm.expect(pm.response.json()).have.property(\"detail\");});",
+                  "if(pm.response.code!==409){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);console.warn(\"Unexpected negative HTTP; continue to next TC for diagnostic. Inspect for unexpected persistent mutation.\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "71f5798f-c8c3-4738-b95d-de61cb979b85",
+          "name": "TC_PM_12 PATCH category sort_order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/categories/{{pm_cat}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sort_order\": 901\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_12 PATCH category sort_order assertions\",()=>{const x=pm.response.json();pm.expect(x.sort_order).eql(901);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "8d09e022-c4bf-4d96-994d-34068639010f",
+          "name": "TC_PM_13 Empty category PATCH",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/categories/{{pm_cat}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "pm.test(\"TC_PM_13 Empty category PATCH assertions\",()=>{pm.expect(pm.response.json()).have.property(\"detail\");});",
+                  "if(pm.response.code!==422){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);console.warn(\"Unexpected negative HTTP; continue to next TC for diagnostic. Inspect for unexpected persistent mutation.\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a8fcbd21-8645-41df-8c50-432a194a1462",
+          "name": "VERIFY category retains sort_order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/categories"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"VERIFY category retains sort_order assertions\",()=>{const x=pm.response.json().find(i=>i.id===pm.environment.get(\"pm_cat\"));pm.expect(x).exist;pm.expect(x.sort_order).eql(901);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "cec5b078-3071-466b-b5b2-5b0dca3379d2",
+          "name": "TC_PM_14 Create QA menu item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA PM item {{qa_pm_run_tag}}\",\n  \"price\": 19000,\n  \"category_id\": \"{{pm_cat}}\",\n  \"station_id\": \"{{pm_station}}\",\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\", \"pm_station\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+                  "pm.test(\"TC_PM_14 Create QA menu item assertions\",()=>{const x=pm.response.json();pm.expect(x.id).a(\"string\");pm.environment.set(\"pm_created_menu\",x.id);});",
+                  "if(pm.response.code!==201){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "09e4816e-98af-438d-9b2c-5d12ae2866a5",
+          "name": "TC_PM_15 Create invalid price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA invalid 15 {{qa_pm_run_tag}}\",\n  \"price\": 0,\n  \"category_id\": \"{{pm_cat}}\",\n  \"station_id\": \"{{pm_station}}\",\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\", \"pm_station\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "pm.test(\"TC_PM_15 Create invalid price assertions\",()=>{pm.expect(pm.response.json()).have.property(\"detail\");});",
+                  "if(pm.response.code!==422){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);console.warn(\"Unexpected negative HTTP; continue to next TC for diagnostic. Inspect for unexpected persistent mutation.\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "ccb7293e-0636-4019-b91a-ac4174eae981",
+          "name": "TC_PM_16 Create invalid name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"price\": 19000,\n  \"category_id\": \"{{pm_cat}}\",\n  \"station_id\": \"{{pm_station}}\",\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\", \"pm_station\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\",()=>pm.response.to.have.status(422));",
+                  "pm.test(\"TC_PM_16 Create invalid name assertions\",()=>{pm.expect(pm.response.json()).have.property(\"detail\");});",
+                  "if(pm.response.code!==422){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);console.warn(\"Unexpected negative HTTP; continue to next TC for diagnostic. Inspect for unexpected persistent mutation.\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "5d5e8b04-7628-4f71-a592-398dd21886a0",
+          "name": "TC_PM_17 Create invalid category_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA invalid 17 {{qa_pm_run_tag}}\",\n  \"price\": 19000,\n  \"category_id\": \"00000000-0000-4000-8000-000000000000\",\n  \"station_id\": \"{{pm_station}}\",\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\", \"pm_station\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+                  "pm.test(\"TC_PM_17 Create invalid category_id assertions\",()=>{pm.expect(pm.response.json()).have.property(\"detail\");});",
+                  "if(pm.response.code!==404){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);console.warn(\"Unexpected negative HTTP; continue to next TC for diagnostic. Inspect for unexpected persistent mutation.\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a34ceb80-7947-4d41-b720-142112ff6089",
+          "name": "TC_PM_18 CASHIER cannot create menu",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA FORBIDDEN {{qa_pm_run_tag}}\",\n  \"price\": 19000,\n  \"category_id\": \"{{pm_cat}}\",\n  \"station_id\": \"{{pm_station}}\",\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\", \"pm_station\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));",
+                  "pm.test(\"TC_PM_18 CASHIER cannot create menu assertions\",()=>{pm.expect(pm.response.json()).have.property(\"detail\");});",
+                  "if(pm.response.code!==403){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);console.warn(\"Unexpected negative HTTP; continue to next TC for diagnostic. Inspect for unexpected persistent mutation.\");}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b6f749d1-f429-419d-9c82-92c6158adc4b",
+          "name": "TC_PM_19 PATCH menu price",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/{{pm_created_menu}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 21000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_created_menu\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_19 PATCH menu price assertions\",()=>{const x=pm.response.json();pm.expect(Number(x.price)).eql(21000);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ],
+          "description": "PARTIAL COVERAGE: verifies updated menu price only. Full TC_PM_19 also requires proof an existing Order retains old price."
+        },
+        {
+          "id": "473574bf-89ee-46a2-a0e7-eb25f0754c39",
+          "name": "TC_PM_20 Set is_available false",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/{{pm_created_menu}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_available\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_created_menu\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_20 Set is_available false assertions\",()=>{const x=pm.response.json();pm.expect(x.is_available).eql(false);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ],
+          "description": "PARTIAL COVERAGE: verifies disabling menu and omission from available-only. Full TC_PM_20 additionally expects add-item rejected 409."
+        },
+        {
+          "id": "b15ecbae-f66b-41dd-a271-3b50702ba325",
+          "name": "VERIFY PM_20 hidden available_only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?available_only=true"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_created_menu\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"VERIFY PM_20 hidden available_only assertions\",()=>{const a=pm.response.json();pm.expect(a.some(x=>x.id===pm.environment.get(\"pm_created_menu\"))).eql(false);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "abb249b4-1af8-4674-acef-18ddf56878bc",
+          "name": "TC_PM_22 Filter category_id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?category_id={{pm_cat}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_cat\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_22 Filter category_id assertions\",()=>{const a=pm.response.json();pm.expect(a).an(\"array\");a.forEach(x=>pm.expect(x.category_id).eql(pm.environment.get(\"pm_cat\")));});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}",
+                  "pm.test(\"TC_PM_22 filter must return QA category item\",()=>{const a=pm.response.json();pm.expect(a.some(x=>x.id===pm.environment.get(\"pm_created_menu\"))).eql(true);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "1e0e4dfe-1e3d-4d7f-9eb4-e9b78f51a2de",
+          "name": "TC_PM_23 Restore availability true",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_supervisor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu/{{pm_created_menu}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_available\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_created_menu\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_23 Restore availability true assertions\",()=>{pm.expect(pm.response.json().is_available).eql(true);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "5a4b50f9-b141-44c3-a59a-47bc670a10c3",
+          "name": "VERIFY PM_23 item available",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?available_only=true"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const k of [\"pm_created_menu\"]){if(!pm.environment.get(k)){throw new Error(\"BLOCKED: missing \" + k);}}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"VERIFY PM_23 item available assertions\",()=>{pm.expect(pm.response.json().some(x=>x.id===pm.environment.get(\"pm_created_menu\"))).eql(true);});",
+                  "if(pm.response.code!==200){console.warn(\"BLOCKED after \"+pm.info.requestName+\": HTTP \"+pm.response.code);pm.execution.setNextRequest(null);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "ff2e2227-2547-48b4-9481-19bb872e89e5",
+          "name": "TC_PM_21 Search name q",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pa_token_cashier}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/menu?q={{qa_pm_run_tag}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"TC_PM_21 HTTP 200\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"TC_PM_21 search finds correct QA menu item and matches name\",()=>{",
+                  "  const result=pm.response.json();const list=Array.isArray(result)?result:(result.items||[]);",
+                  "  const created=pm.environment.get(\"pm_created_menu\");const tag=pm.environment.get(\"qa_pm_run_tag\");",
+                  "  pm.expect(list,\"Result must not be empty\").to.be.an(\"array\").that.is.not.empty;",
+                  "  pm.expect(list.some(i=>i.id===created&&String(i.name).includes(tag)),\"Expected specific QA fixture to be returned\").to.be.true;",
+                  "  list.forEach(i=>pm.expect(String(i.name).toLowerCase()).to.contain(String(tag).toLowerCase()));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://160.191.47.17"
+    }
+  ]
+}
