@@ -1,0 +1,27 @@
+DES-QA-05 / PF-06 | CI execution evidence
+Date: 2026-10-12 11:55 ICT (2026-10-12 04:55 UTC)
+Source: GitHub Actions run 38205693015, job 114668571092
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38205693015
+Commit tested: 1bbac15a099a09d91e0c9f1628c79f6a22cc6934 (ONLY_TESTING)
+Runner/browser: ubuntu-latest / Cypress Electron headless
+Artifact (video and original PF-06_CI.log; retention 14 days): https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38205693015/artifacts/11726993912
+
+PF-06 Cypress output (selected lines, ANSI and CI timestamps removed):
+  Running:  des_qa_05_tc_016_expeditor_partial_ready_preflight.cy.js                        (1 of 1)
+  DES-QA-05 | TC-016 partial-ready Expeditor preflight
+[DES-QA-05] PF-06 PENDING: isolated mixed-station QA Order/Item IDs or Supervisor login missing
+    - PF-06 | one READY/DONE and one pending/active item belong to separate stations
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_016_expeditor_partial_ready_preflight.cy.js                         │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_016_expeditor_partial_ready_preflight.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+QA interpretation: PF-06 Pending; mixed-station fixture and Supervisor credentials were not available to this CI run. No Expeditor UI or business state assertion completed. TC-016 remains Blocked/Not Executed; workflow success is not testcase Passed.
