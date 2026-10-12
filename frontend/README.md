@@ -1,84 +1,62 @@
-# NOVA POS frontend — Batch 1
+# NOVA POS Frontend
 
-Frontend tĩnh, không có bước build và không cần cài package. Batch này gồm đúng ba luồng: đăng nhập, sơ đồ bàn và mở bàn.
+Frontend độc lập dùng Vite, React và TypeScript strict. Ứng dụng gọi API thật, không có mock data và không dùng CDN.
 
-## Chạy local
+## Yêu cầu
 
-Mở PowerShell tại thư mục `frontend/` rồi chạy:
+- Node.js 24 trở lên (xem `.nvmrc`)
+- npm
+- Backend NOVA POS đang chạy và cho phép origin của frontend
+
+## Cài đặt và chạy
 
 ```powershell
-py -m http.server 5173
+cd frontend
+Copy-Item .env.example .env.local
+npm ci
+npm run dev
 ```
 
-Truy cập: <http://localhost:5173/login.html>
+Mở `http://localhost:5173/login`. Vite cố định cổng `5173`; nếu cổng đang bận, lệnh sẽ báo lỗi thay vì tự đổi cổng.
 
-`assets/js/config.js` đang đặt:
+`VITE_API_BASE_URL` phải trỏ tới gốc API có `/api/v1`, ví dụ:
 
-- `API_BASE_URL = "http://127.0.0.1:8000"`
-- `USE_MOCK = true`
+```dotenv
+VITE_API_BASE_URL=http://160.191.47.17/api/v1
+```
 
-Đổi `USE_MOCK` thành `false` khi muốn gọi backend local. Bootstrap 5.3.3 và icon SVG Lucide đã được lưu local, không cần Internet lúc chạy.
+Nếu không cấu hình biến này, ứng dụng dùng `/api/v1` trên cùng origin. Khi triển khai production với `BrowserRouter`, web server cần trả `index.html` cho các route `/login`, `/tables`, `/tables/:id/open` và `/kitchen`.
 
-## Dữ liệu mock và giả lỗi
+## Các lệnh
 
-- Mock login chấp nhận mọi `username` và `password` không rỗng.
-- Role mặc định là `CASHIER`. Thử role khác bằng `login.html?mock_role=WAITER`, `KITCHEN` hoặc `SUPERVISOR`.
-- Role `KITCHEN` được chuyển đến `kitchen.html` và không thể mở `tables.html` hoặc `open-table.html`.
-- Mock bàn có đủ tám trạng thái trong schema: `AVAILABLE`, `OCCUPIED`, `BILLING`, `PAID`, `CLEANING`, `RESERVED`, `DELAYED`, `MERGED`.
-- Thêm query `mock_error=401`, `403`, `409`, `422`, `500`, `network` hoặc `empty` để thử trạng thái lỗi. Ví dụ: `tables.html?mock_error=500`.
-- Có thể đặt `sessionStorage.nova_mock_error` cùng các giá trị trên để lỗi tiếp tục qua nhiều trang. Xoá key đó để trở lại bình thường.
-- Mock state bàn được giữ trong `sessionStorage` để bàn vừa mở chuyển sang `OCCUPIED` khi quay lại danh sách.
+```powershell
+npm run dev
+npm run lint
+npm run typecheck
+npm run build
+npm run gen:api
+```
+
+`npm run gen:api` sinh lại `src/api/schema.d.ts` từ `../docs/api/openapi.json`. Không sửa tay file sinh ra.
+
+## Route và phân quyền
+
+- `/login`: đăng nhập bằng mã nhân viên và mã PIN.
+- `/tables`: sơ đồ bàn, lọc trạng thái và làm mới.
+- `/tables/:id/open`: mở bàn với duy nhất `guest_count` từ 1 đến 100.
+- `/kitchen`: trang tạm “Màn bếp sắp có”.
+- Role `KITCHEN` chỉ truy cập `/kitchen`; các role khác chỉ truy cập luồng POS.
+
+Token được lưu trong `localStorage` với key `pos_auth` cùng thời điểm hết hạn. Không lưu mật khẩu. Các request thay đổi dữ liệu dùng một `Idempotency-Key` cho toàn bộ lần thử lại của cùng một thao tác.
 
 ## Checklist kiểm tra tay
 
-### Chung
-
-- [ ] Chạy được từ HTTP server, không mở file trực tiếp bằng `file://`.
-- [ ] Ngắt mạng: banner “Đang ngoại tuyến” xuất hiện.
-- [ ] Giao diện dùng được ở 1280×800 và từ chiều rộng 768px.
-- [ ] Tab bằng bàn phím thấy focus rõ, nút và ô nhập cao tối thiểu 48px.
-
-### Đăng nhập
-
-- [ ] Bỏ trống từng ô: hiện lỗi tại client, không gửi request.
-- [ ] Nút Hiện/Ẩn đổi đúng trạng thái mã PIN.
-- [ ] Khi gửi: khoá nút và hai ô nhập, không ghi password/token ra console.
-- [ ] Mock thành công lưu `localStorage.pos_auth` với `expires_at`.
-- [ ] Role `CASHIER`/`WAITER` vào sơ đồ bàn; `KITCHEN` vào `kitchen.html` và thấy “Màn bếp sắp có”.
-- [ ] Khi đang đăng nhập bằng role `KITCHEN`, mở trực tiếp `tables.html` hoặc `open-table.html?table_id=...` đều quay về `kitchen.html`.
-- [ ] Thử `mock_error=401`, `500`, `network`.
-
-### Sơ đồ bàn
-
-- [ ] Hiện đúng code, số chỗ, số khách, thời gian mở bàn và badge màu + chữ.
-- [ ] Bộ lọc hoạt động với đủ tám trạng thái.
-- [ ] Nút Làm mới có trạng thái đang tải.
-- [ ] Bàn `AVAILABLE` mở trang `open-table.html?table_id=...`.
-- [ ] Bàn trạng thái khác hiện “Chi tiết bàn sắp có”.
-- [ ] Thử `mock_error=empty`, `403`, `500`, `network`; trạng thái error có nút Thử lại.
-
-### Mở bàn
-
-- [ ] Nút +/- và nhập tay chỉ chấp nhận số nguyên từ 1 đến 100.
-- [ ] Khi gửi: nút và bộ đếm bị khoá.
-- [ ] POST có `Idempotency-Key`; retry nội bộ của cùng lần bấm dùng lại key đó.
-- [ ] Thành công quay về sơ đồ và hiện “Đã mở bàn”.
-- [ ] Thử `mock_error=403`, `409`, `422`, `500`, `network`.
-
-## Khoảng trống giữa Figma và API
-
-Không triển khai các phần sau vì API hiện chưa có field tương ứng:
-
-- Khu vực bàn như Khu chung, VIP, Ngoài trời.
-- Ghi chú khi mở bàn.
-- Chọn nhân viên phục vụ.
-- Chọn khách thành viên/tên khách.
-- WebSocket cập nhật bàn theo thời gian thực.
-
-## Giả định của batch
-
-- Tên chi nhánh “Chi nhánh Quận 1” chỉ là nhãn giao diện vì `TableDashboardItem` không trả outlet; không gửi nó lên API.
-- `OpenSessionRequest.guest_count` áp dụng giới hạn 1–100 theo OpenAPI.
-- Backend quyết định quyền mở bàn. UI vẫn cho người đã đăng nhập đi tới thao tác và hiển thị lỗi 403 rõ ràng nếu role không được phép.
-- Một lần bấm tạo một UUID idempotency mới; retry tự động do timeout/mất kết nối của chính lần bấm đó dùng lại UUID.
-- Thời lượng mở bàn được tính theo thời gian trình duyệt từ `opened_at`.
+1. Mở `/login`, thử để trống từng ô và xác nhận có lỗi tiếng Việt.
+2. Tắt mạng, thử đăng nhập và xác nhận banner “Đang ngoại tuyến” cùng thông báo lỗi.
+3. Đăng nhập role thường, xác nhận vào `/tables`; mở thẳng `/kitchen` phải quay lại `/tables`.
+4. Đăng nhập role `KITCHEN`, xác nhận vào `/kitchen`; mở thẳng `/tables` hoặc `/tables/<id>/open` phải quay lại `/kitchen`.
+5. Ở `/tables`, kiểm tra đủ chữ và màu của 8 trạng thái, bộ lọc, loading, empty, error và nút “Thử lại”.
+6. Chọn bàn `AVAILABLE`, tăng/giảm số khách ở biên 1 và 100, bấm “Mở bàn”; xác nhận request chỉ có `guest_count` và nút bị khóa lúc gửi.
+7. Sau khi mở bàn thành công, xác nhận quay về `/tables` và hiện “Đã mở bàn”.
+8. Giả lập lỗi FastAPI 422 có `detail` dạng mảng và xác nhận thông báo không chứa `[object Object]`.
+9. Xóa hoặc làm hết hạn `pos_auth`, mở route bảo vệ và xác nhận quay về `/login`.

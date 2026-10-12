@@ -95,6 +95,7 @@
   gap: var(--nova-space-2);
   border-radius: var(--nova-radius-small);
   font-weight: 800;
+  cursor: pointer;
   transition: transform var(--nova-transition), background var(--nova-transition), border-color var(--nova-transition);
 }
 
@@ -178,6 +179,23 @@
   border-radius: var(--nova-radius-small);
   color: #8a302e;
   background: var(--nova-color-danger-soft);
+}
+
+.nova-stale-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nova-space-4);
+  margin-bottom: var(--nova-space-4);
+  padding: var(--nova-space-3) var(--nova-space-4);
+  border: 1px solid #e6b96f;
+  border-radius: var(--nova-radius-small);
+  color: #74460c;
+  background: var(--nova-color-warning-soft);
+}
+
+.nova-stale-notice p {
+  margin: var(--nova-space-1) 0 0;
 }
 
 .nova-state-card,
@@ -359,6 +377,17 @@
 .nova-toast--success { border-left: 4px solid var(--nova-color-primary); }
 .nova-toast--error { border-left: 4px solid var(--nova-color-danger); }
 .nova-toast--info { border-left: 4px solid #4d7eb5; }
+
+.nova-toast-close {
+  margin: -4px -4px -4px auto;
+  padding: 4px 8px;
+  border: 0;
+  color: var(--nova-color-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .nova-spinner {
