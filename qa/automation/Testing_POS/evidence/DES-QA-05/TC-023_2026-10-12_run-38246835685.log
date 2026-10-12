@@ -1,0 +1,25 @@
+DES-QA-05 / TC-023 guarded CI execution evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: 1c3c295b06ddd5da079c2838838c9839a62e1662
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38246835685
+Job ID: 114802706831
+Artifact ID: 11746167544 (des-qa-05-preflight-evidence; includes TC-023_CI.log and Cypress video; retention 14 days)
+Guard: CYPRESS_DES05_TC023_RUN and CYPRESS_DES05_TC023_CLEANUP_CONFIRMED empty in CI.
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+  DES-QA-05 | TC-023 Refire invalid item state on isolated QA order
+[DES-QA-05] TC-023 PENDING: isolated SENT fixture and cleanup plan must be explicitly approved locally
+    - TC-023 | SENT item Refire returns 409 without changing order or queue
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_023_refire_invalid_state_isolated.cy.js                             │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_023_refire_invalid_state_isolated.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+Interpretation: 0 Passed, 0 Failed, 1 Pending. Guard skipped before login or Refire request. Workflow success is not TC-023 functional success; no 409 or queue assertions were executed.
