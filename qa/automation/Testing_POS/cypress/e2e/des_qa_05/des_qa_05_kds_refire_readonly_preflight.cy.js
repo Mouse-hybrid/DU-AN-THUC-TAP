@@ -12,6 +12,7 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
     return null;
   };
   const base = (value) => String(value || 'http://160.191.47.17').replace(/\/+$/, '');
+  const note = (message) => cy.task('des05Note', message, { log: false });
   const get = (origin, path, token) => cy.request({
     method: 'GET',
     url: origin + path,
@@ -35,21 +36,19 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
       get(base(e.POS_BASE_URL), '/api/v1/menu?available_only=true', e.DES05_MENU_TOKEN)
         .then((response) => {
           if (!e.DES05_MENU_TOKEN && [401, 403].includes(response.status)) {
-            cy.log('PENDING: menu read requires a QA token');
-            this.skip();
-            return;
+            return note(`PF-02 PENDING: Menu HTTP ${response.status}; QA token required`)
+              .then(() => this.skip());
           }
           expect(response.status, 'GET available menu status').eq(200);
           const items = rows(response.body, ['items', 'menu_items', 'results']);
           expect(items, 'menu collection').to.be.an('array');
           const candidates = items.filter((item) => item.is_available !== false && item.station_id);
           const stations = new Set(candidates.map((item) => String(item.station_id)));
-          cy.log(`Available items with station_id: ${candidates.length}; distinct stations: ${stations.size}`);
           if (stations.size < 6) {
-            cy.log('PENDING: fewer than six distinct station fixture candidates; mapping remains unconfirmed');
-            this.skip();
-            return;
+            return note(`PF-02 PENDING: Menu HTTP 200; station candidates ${candidates.length}; distinct station IDs ${stations.size}; need six mapped fixtures`)
+              .then(() => this.skip());
           }
+          note(`PF-02: Menu HTTP 200; station candidates ${candidates.length}; distinct station IDs ${stations.size}`);
           cy.log('PREFLIGHT ONLY: six station IDs observed; routing and station mapping are untested');
         });
     });
@@ -58,16 +57,15 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   it('PF-03 | Kitchen JWT can read the queue', function () {
     cy.env(['POS_BASE_URL', 'EXT_KITCHEN_TOKEN']).then((e) => {
       if (!e.EXT_KITCHEN_TOKEN) {
-        cy.log('PENDING: configure EXT_KITCHEN_TOKEN locally or in CI secrets');
-        this.skip();
-        return;
+        return note('PF-03 PENDING: EXT_KITCHEN_TOKEN is not configured')
+          .then(() => this.skip());
       }
       get(base(e.POS_BASE_URL), '/api/v1/kitchen/queue', e.EXT_KITCHEN_TOKEN)
         .then((response) => {
           expect(response.status, 'GET Kitchen Queue status').eq(200);
           const entries = rows(response.body, ['entries', 'queue', 'items', 'results']);
           expect(entries, 'Kitchen Queue collection').to.be.an('array');
-          cy.log(`Queue entries observed: ${entries.length}; no routing assertion performed`);
+          note(`PF-03: Kitchen Queue HTTP ${response.status}; entries ${entries.length}; routing untested`);
         });
     });
   });
@@ -76,9 +74,8 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
     cy.env(['POS_BASE_URL', 'EXT_REFIRE_SUPERVISOR_TOKEN', 'EXT_REFIRE_ORDER_ID'])
       .then((e) => {
         if (!e.EXT_REFIRE_SUPERVISOR_TOKEN || !e.EXT_REFIRE_ORDER_ID) {
-          cy.log('PENDING: isolated QA Order ID and supervisor JWT are required');
-          this.skip();
-          return;
+          return note('PF-04 PENDING: isolated QA Order ID and/or supervisor JWT not configured')
+            .then(() => this.skip());
         }
         expect(e.EXT_REFIRE_ORDER_ID, 'QA order UUID').to.match(uuid);
         get(base(e.POS_BASE_URL), '/api/v1/orders/' + e.EXT_REFIRE_ORDER_ID,
@@ -89,9 +86,8 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
           const served = order.items.filter((item) => item.status === 'SERVED');
           cy.log(`SERVED items observed: ${served.length}; subtotal: ${String(order.subtotal ?? 'unavailable')}`);
           if (!served.length) {
-            cy.log('PENDING: confirmed QA order has no SERVED item');
-            this.skip();
-            return;
+            return note('PF-04 PENDING: QA order has no SERVED item')
+              .then(() => this.skip());
           }
           cy.log('PREFLIGHT ONLY: no Refire request or billing comparison performed');
         });
