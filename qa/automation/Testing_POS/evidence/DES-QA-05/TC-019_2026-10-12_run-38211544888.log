@@ -1,0 +1,26 @@
+DES-QA-05 / TC-019 guarded CI execution evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: c6bba61bca59b4eef6c76aade4583d678d5c97b0
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38211544888
+Job ID: 114686611378
+Artifact ID: 11728419742 (des-qa-05-preflight-evidence; includes TC-019_CI.log and Cypress video; retention 14 days)
+Guard: CYPRESS_DES05_TC019_RUN and CYPRESS_DES05_TC019_CLEANUP_CONFIRMED empty in CI.
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+  DES-QA-05 | TC-019 Refire once on isolated QA order
+[DES-QA-05] TC-019 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally
+    - TC-019 | SERVED to REFIRED; new QUEUED ticket on original station; version increments
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_019_refire_once_isolated.cy.js                                      │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_019_refire_once_isolated.cy.js.mp4
+  (Run Finished)
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+Interpretation: 0 Passed, 0 Failed, 1 Pending. Guard skipped before login or Refire request. Workflow success is not TC-019 functional success; no new ticket, version or audit assertion was executed.
