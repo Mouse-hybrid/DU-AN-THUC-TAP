@@ -39,7 +39,22 @@ jobs:
           CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME: ${{ secrets.EXT_REFIRE_SUPERVISOR_USERNAME }}
           CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD: ${{ secrets.EXT_REFIRE_SUPERVISOR_PASSWORD }}
           CYPRESS_EXT_REFIRE_ORDER_ID: ${{ vars.EXT_REFIRE_ORDER_ID }}
-        run: npx cypress run --browser electron --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js'
+        run: |
+          mkdir -p evidence/DES-QA-05
+          set -o pipefail
+          npx cypress run --browser electron --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-01_to_04_CI.log
+      - name: Run TC-011 to TC-015 safe guards
+        if: always()
+        env:
+          CYPRESS_POS_BASE_URL: http://160.191.47.17
+          CYPRESS_DES05_TC012_RUN: ''
+          CYPRESS_DES05_TC013_RUN: ''
+          CYPRESS_DES05_TC014_RUN: ''
+          CYPRESS_DES05_TC015_RUN: ''
+        run: |
+          mkdir -p evidence/DES-QA-05
+          set -o pipefail
+          npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_tc_011_modifier_contract_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_tc_012_start_cooking_isolated.cy.js,cypress/e2e/des_qa_05/des_qa_05_tc_013_mark_ready_isolated.cy.js,cypress/e2e/des_qa_05/des_qa_05_tc_014_pickup_served_isolated.cy.js,cypress/e2e/des_qa_05/des_qa_05_tc_015_backward_transition_isolated.cy.js' 2>&1 | tee evidence/DES-QA-05/TC-011_to_015_CI.log
       - name: Run PF-06 partial-ready data preflight
         if: always()
         env:
@@ -61,6 +76,6 @@ jobs:
           path: |
             qa/automation/Testing_POS/cypress/screenshots/
             qa/automation/Testing_POS/cypress/videos/
-            qa/automation/Testing_POS/evidence/DES-QA-05/PF-06_CI.log
+            qa/automation/Testing_POS/evidence/DES-QA-05/*.log
           if-no-files-found: ignore
           retention-days: 14
