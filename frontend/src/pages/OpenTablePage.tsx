@@ -11,6 +11,7 @@ import { setFlash } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Icon } from "../components/Icon";
 import { StateCard } from "../components/StateCard";
+import { createIdempotencyKey } from "../utils/idempotency";
 
 function clampGuestCount(value: number): number {
   return Math.min(100, Math.max(1, Math.trunc(value || 1)));
@@ -64,8 +65,8 @@ export function OpenTablePage() {
     setSubmitError("");
     setBusy(true);
     const body: OpenSessionRequest = { guest_count: normalizedCount };
-    const idempotencyKey = crypto.randomUUID();
     try {
+      const idempotencyKey = createIdempotencyKey();
       await apiRequest<OpenSessionResponse, OpenSessionRequest>(`/tables/${encodeURIComponent(id)}/open-session`, {
         method: "POST",
         body,

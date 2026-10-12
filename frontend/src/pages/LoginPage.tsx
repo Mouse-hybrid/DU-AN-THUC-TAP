@@ -5,6 +5,7 @@ import type { LoginRequest, LoginResponse } from "../api/types";
 import { consumeFlash, getAuth, getHomePath, saveAuth, type FlashMessage } from "../auth/storage";
 import { Icon } from "../components/Icon";
 import { Toast } from "../components/Toast";
+import { createIdempotencyKey } from "../utils/idempotency";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -32,8 +33,8 @@ export function LoginPage() {
 
     setBusy(true);
     const body: LoginRequest = { username: cleanUsername, password };
-    const idempotencyKey = crypto.randomUUID();
     try {
+      const idempotencyKey = createIdempotencyKey();
       const response = await apiRequest<LoginResponse, LoginRequest>("/auth/login", {
         method: "POST",
         body,
