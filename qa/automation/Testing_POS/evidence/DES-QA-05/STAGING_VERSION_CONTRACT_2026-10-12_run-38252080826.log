@@ -1,0 +1,32 @@
+DES-QA-05 / staging version and OpenAPI comparison
+Audit time: 2026-10-12T12:55:26Z (19:55:26 Asia/Saigon)
+Branch: ONLY_TESTING
+Workflow commit: 3adb386504da89a1e6191e66e19d7508fb0574d4
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38252080826
+Job ID: 114820685529
+Artifact ID: 11748876682 (des-qa-05-preflight-evidence; includes STAGING_VERSION_CONTRACT_CI.log)
+
+Exact audit output (GitHub timestamps removed):
+[DES-QA-05] Live staging version and OpenAPI audit
+{
+  "staging_version": {
+    "commit": "06cf149fd43e2f36ead277ddfa5babf2c03af273",
+    "short_commit": "06cf149",
+    "built_at": "2026-10-12T09:54:25Z",
+    "environment": "staging",
+    "api_version": "0.1.0"
+  },
+  "main_commit_at_audit": "06cf149fd43e2f36ead277ddfa5babf2c03af273",
+  "openapi_equal_to_main": true,
+  "staging_openapi_sha256": "047b5d4f94611490f5536f348bbf2a8f97528fdb687ed31af3cdce9d57f17342",
+  "main_openapi_sha256": "047b5d4f94611490f5536f348bbf2a8f97528fdb687ed31af3cdce9d57f17342",
+  "staging_path_count": 29,
+  "main_path_count": 29,
+  "staging_rest_operation_count": 33,
+  "main_rest_operation_count": 33,
+  "staging_get_orders": true,
+  "main_get_orders": true
+}
+[DES-QA-05] Read-only audit; no testcase business flow executed.
+
+Interpretation: Staging reported the same commit as main at audit time. The staging OpenAPI and docs/api/openapi.json on main had equal canonical JSON SHA-256. This confirms contract presence of GET /api/v1/orders, not an authenticated functional call.
