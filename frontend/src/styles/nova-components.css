@@ -135,6 +135,15 @@
   background: var(--nova-color-soft);
 }
 
+.nova-button--danger {
+  color: var(--nova-color-white);
+  background: var(--nova-color-danger);
+}
+
+.nova-button--danger:hover:not(:disabled) {
+  background: #b94745;
+}
+
 .nova-button--full {
   width: 100%;
   margin-top: var(--nova-space-5);
@@ -252,7 +261,6 @@
 .nova-table-card {
   display: grid;
   min-height: 164px;
-  align-content: space-between;
   gap: var(--nova-space-3);
   padding: var(--nova-space-4);
   border: 1px solid var(--nova-color-border);
@@ -262,6 +270,30 @@
   background: var(--nova-color-white);
   box-shadow: 0 6px 20px rgb(22 48 43 / 4%);
   transition: border-color var(--nova-transition), transform var(--nova-transition), box-shadow var(--nova-transition);
+}
+
+.nova-table-card-select {
+  display: grid;
+  width: 100%;
+  min-height: 130px;
+  align-content: space-between;
+  gap: var(--nova-space-3);
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.nova-table-card-select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--nova-color-primary) 40%, transparent);
+  outline-offset: 4px;
+  border-radius: var(--nova-radius-small);
+}
+
+.nova-table-clean-action {
+  width: 100%;
 }
 
 .nova-table-card:hover {

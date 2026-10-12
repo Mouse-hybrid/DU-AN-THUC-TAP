@@ -21,4 +21,17 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/utils/idempotency.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='randomUUID']",
+          message: "Dùng createIdempotencyKey() thay cho randomUUID() trực tiếp.",
+        },
+      ],
+    },
+  },
 );
