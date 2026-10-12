@@ -60,6 +60,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tables/{table_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Table Detail
+         * @description Chi tiết bàn: phiên OPEN hiện tại (nếu có) + toàn bộ order của phiên đó,
+         *     kèm tên món/thành tiền. Bàn không có phiên mở -> current_session=null, orders=[].
+         */
+        get: operations["table_detail_api_v1_tables__table_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tables/{table_id}/mark-clean": {
         parameters: {
             query?: never;
@@ -78,6 +99,44 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/menu/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Menu Categories */
+        get: operations["list_menu_categories_api_v1_menu_categories_get"];
+        put?: never;
+        /** Create Menu Category */
+        post: operations["create_menu_category_api_v1_menu_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/menu/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Menu Category
+         * @description Ẩn nhóm = `is_active: false` (không xóa, để món cũ vẫn giữ liên kết).
+         */
+        patch: operations["update_menu_category_api_v1_menu_categories__category_id__patch"];
         trace?: never;
     };
     "/api/v1/menu": {
@@ -126,10 +185,38 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Orders
+         * @description Danh sách order của outlet, mới nhất trước. Dùng để tìm order (QA fixture,
+         *     màn tra cứu); chi tiết từng món lấy qua GET /orders/{id}. Như GET /orders/{id},
+         *     mọi role đã login đều xem được.
+         */
+        get: operations["list_orders_api_v1_orders_get"];
         put?: never;
         /** Create Order */
         post: operations["create_order_api_v1_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Order
+         * @description Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE
+         *     tải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem
+         *     order không bị hạn chế trong Permission Matrix — mọi role đã login.
+         */
+        get: operations["get_order_api_v1_orders__order_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -318,7 +405,7 @@ export interface paths {
         put?: never;
         /**
          * Start Cooking Order Item
-         * @description SENT -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
+         * @description SENT/REFIRED -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
          *     (ACCEPTED) vào action này — BRD chỉ định nghĩa 1 action "Start Cooking",
          *     không tách riêng bước "accept". Nếu sau này cần tách, thêm action mới và
          *     dùng ACCEPTED làm bước trung gian (schema đã có sẵn giá trị này).
@@ -442,6 +529,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Version
+         * @description Commit và thời điểm build của bản đang chạy — đối chiếu với lịch sử `main`.
+         */
+        get: operations["version_version_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ready": {
         parameters: {
             query?: never;
@@ -540,6 +647,13 @@ export interface components {
             queued_at: string;
             /** Started At */
             started_at: string | null;
+            /** Elapsed Minutes */
+            elapsed_minutes?: number | null;
+            /**
+             * Sla Status
+             * @default NORMAL
+             */
+            sla_status: string;
         };
         /** KitchenStationOut */
         KitchenStationOut: {
@@ -560,6 +674,44 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** MenuCategoryCreate */
+        MenuCategoryCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** MenuCategoryOut */
+        MenuCategoryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** MenuCategoryUpdate */
+        MenuCategoryUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
         /** MenuItemCreate */
         MenuItemCreate: {
             /** Name */
@@ -568,6 +720,8 @@ export interface components {
             price: number | string;
             /** Station Id */
             station_id?: string | null;
+            /** Category Id */
+            category_id?: string | null;
             /**
              * Is Available
              * @default true
@@ -589,11 +743,13 @@ export interface components {
             is_available: boolean;
             /** Station Id */
             station_id: string | null;
+            /** Category Id */
+            category_id: string | null;
         };
         /**
          * MenuItemUpdate
-         * @description PATCH: chỉ field nào gửi lên mới được đổi. `station_id: null` = bỏ gán
-         *     trạm; không gửi `station_id` = giữ nguyên.
+         * @description PATCH: chỉ field nào gửi lên mới được đổi. `station_id: null` /
+         *     `category_id: null` = bỏ gán; không gửi field = giữ nguyên.
          */
         MenuItemUpdate: {
             /** Name */
@@ -602,6 +758,8 @@ export interface components {
             price?: number | string | null;
             /** Station Id */
             station_id?: string | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Is Available */
             is_available?: boolean | null;
         };
@@ -612,6 +770,46 @@ export interface components {
              * @default 1
              */
             guest_count: number;
+        };
+        /**
+         * OrderDetailOut
+         * @description Chi tiết 1 order cho màn POS ordering / order summary / table detail.
+         *     `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế/giảm giá — Pha 2).
+         */
+        OrderDetailOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Table Session Id
+             * Format: uuid
+             */
+            table_session_id: string;
+            /**
+             * Table Id
+             * Format: uuid
+             */
+            table_id: string;
+            /** Table Code */
+            table_code: string;
+            /** Status */
+            status: string;
+            /** Current Version */
+            current_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["OrderItemDetailOut"][];
+            /** Subtotal */
+            subtotal: string;
         };
         /** OrderItemCreate */
         OrderItemCreate: {
@@ -627,6 +825,35 @@ export interface components {
             quantity: number;
             /** Note */
             note?: string | null;
+        };
+        /**
+         * OrderItemDetailOut
+         * @description Dòng món kèm tên món và thành tiền — đủ để FE vẽ màn order mà không phải
+         *     gọi thêm GET /menu.
+         */
+        OrderItemDetailOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Menu Item Id
+             * Format: uuid
+             */
+            menu_item_id: string;
+            /** Status */
+            status: string;
+            /** Quantity */
+            quantity: number;
+            /** Unit Price */
+            unit_price: string;
+            /** Note */
+            note: string | null;
+            /** Menu Item Name */
+            menu_item_name: string;
+            /** Line Total */
+            line_total: string;
         };
         /** OrderItemOut */
         OrderItemOut: {
@@ -676,6 +903,43 @@ export interface components {
              */
             items: components["schemas"]["OrderItemOut"][];
         };
+        /**
+         * OrderSummaryOut
+         * @description 1 dòng trong danh sách order (GET /orders) — đủ để chọn order rồi gọi
+         *     GET /orders/{id} lấy chi tiết. `item_count`/`subtotal` không tính món VOIDED.
+         */
+        OrderSummaryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Table Session Id
+             * Format: uuid
+             */
+            table_session_id: string;
+            /**
+             * Table Id
+             * Format: uuid
+             */
+            table_id: string;
+            /** Table Code */
+            table_code: string;
+            /** Status */
+            status: string;
+            /** Current Version */
+            current_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Item Count */
+            item_count: number;
+            /** Subtotal */
+            subtotal: string;
+        };
         /** SendToKitchenResponse */
         SendToKitchenResponse: {
             order: components["schemas"]["OrderOut"];
@@ -723,6 +987,29 @@ export interface components {
             guest_count?: number | null;
             /** Opened At */
             opened_at?: string | null;
+        };
+        /**
+         * TableDetailOut
+         * @description Chi tiết 1 bàn (Figma screen-05): phiên đang mở + mọi order của phiên đó.
+         */
+        TableDetailOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Seats */
+            seats: number;
+            /** Status */
+            status: string;
+            current_session?: components["schemas"]["TableSessionOut"] | null;
+            /**
+             * Orders
+             * @default []
+             */
+            orders: components["schemas"]["OrderDetailOut"][];
         };
         /** TableOut */
         TableOut: {
@@ -896,6 +1183,37 @@ export interface operations {
             };
         };
     };
+    table_detail_api_v1_tables__table_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     mark_table_clean_api_v1_tables__table_id__mark_clean_post: {
         parameters: {
             query?: never;
@@ -929,11 +1247,117 @@ export interface operations {
             };
         };
     };
+    list_menu_categories_api_v1_menu_categories_get: {
+        parameters: {
+            query?: {
+                /** @description Chỉ trả nhóm đang is_active=True */
+                active_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuCategoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_menu_category_api_v1_menu_categories_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MenuCategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_menu_category_api_v1_menu_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MenuCategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_menu_api_v1_menu_get: {
         parameters: {
             query?: {
                 /** @description Chỉ trả món đang is_available=True */
                 available_only?: boolean;
+                /** @description Tìm món có tên chứa chuỗi này (không phân biệt hoa thường) */
+                q?: string | null;
+                /** @description Chỉ lấy món thuộc nhóm này */
+                category_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -1031,6 +1455,46 @@ export interface operations {
             };
         };
     };
+    list_orders_api_v1_orders_get: {
+        parameters: {
+            query?: {
+                /** @description Lọc theo trạng thái, lặp lại được: ?status=SENT&status=SERVED */
+                status?: string[] | null;
+                /** @description Chỉ order của 1 bàn */
+                table_id?: string | null;
+                /** @description created_at >= (ISO 8601) */
+                created_from?: string | null;
+                /** @description created_at < (ISO 8601) */
+                created_to?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderSummaryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_order_api_v1_orders_post: {
         parameters: {
             query?: never;
@@ -1053,6 +1517,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_order_api_v1_orders__order_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
                 };
             };
             /** @description Validation Error */
@@ -1522,6 +2017,8 @@ export interface operations {
                 station_id?: string | null;
                 /** @description QUEUED | IN_PROGRESS | DONE | CANCELLED. Mặc định: QUEUED + IN_PROGRESS */
                 status?: string | null;
+                /** @description Chỉ trả món đang nấu quá ngưỡng (DELAYED/CRITICAL) */
+                delayed_only?: boolean;
             };
             header?: never;
             path?: never;
@@ -1570,6 +2067,28 @@ export interface operations {
         };
     };
     health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    version_version_get: {
         parameters: {
             query?: never;
             header?: never;
