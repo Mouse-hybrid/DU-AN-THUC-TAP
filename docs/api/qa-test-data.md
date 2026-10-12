@@ -111,3 +111,25 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 | Dọn bàn xong | `POST /api/v1/tables/{id}/mark-clean` | WAITER, SUPERVISOR | bàn CLEANING | `200` → AVAILABLE |
 
 **SLA bếp** (món đang nấu, tính từ `started_at` theo giờ server): < 8 phút NORMAL · ≥ 8 WARNING · ≥ 12 DELAYED · ≥ 15 CRITICAL. Ngưỡng lấy từ bộ test BVA DSG-QA-06, chờ PO xác nhận. Món chưa bắt đầu nấu luôn NORMAL, `elapsed_minutes = null`.
+
+## 6. Reset dữ liệu staging
+
+Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 bàn B1–B6). Trước mỗi đợt test, mỗi lần diễn tập và trước buổi demo thì reset:
+
+1. GitHub → tab **Actions** → **Reset staging data** → **Run workflow** (nhánh `main`).
+2. `with_fixtures` (mặc định bật): tạo sẵn dữ liệu mẫu. `dry_run`: chỉ xem trước sẽ xóa gì.
+3. Mở log của job để lấy `order_id` / `item_id` của dữ liệu mẫu.
+
+| Reset làm gì | Chi tiết |
+|---|---|
+| Xóa | Mọi phiên bàn, order, món, phiếu bếp, version, Idempotency-Key |
+| Đưa về | Mọi bàn `AVAILABLE`, mọi món `is_available = true` |
+| Giữ nguyên | Menu, nhóm món, trạm bếp, 4 tài khoản, audit log (có thêm 1 dòng `STAGING_DATA_RESET`) |
+
+| Dữ liệu mẫu (`with_fixtures`) | Dùng cho |
+|---|---|
+| **B6**: order `SERVED`, 2 món `SERVED` | Refire (TC_EXT_012/013), thanh toán. Tìm nhanh: `GET /api/v1/orders?status=SERVED` |
+| **B5**: order `SENT`, 1 món chờ bếp (`QUEUED`), 1 món đang nấu 9 phút (`WARNING`), 1 món đang nấu 16 phút (`CRITICAL`) | Hàng đợi bếp, SLA (TC_EXT_014), `?delayed_only=true` |
+| **B1–B4** trống | Test thủ công mở bàn → gọi món |
+
+Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).
