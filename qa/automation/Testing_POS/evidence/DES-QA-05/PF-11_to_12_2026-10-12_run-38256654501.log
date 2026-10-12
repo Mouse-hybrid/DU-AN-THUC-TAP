@@ -1,0 +1,26 @@
+DES-QA-05 / GET orders list read-only runtime preflight
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: aab1dd96fad54784ba8462c731f0a94429018eea
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38256654501
+Job ID: 114836357213
+Artifact ID: 11749919349 (des-qa-05-preflight-evidence; includes PF-11_to_12_CI.log and Cypress video)
+
+Selected Cypress job-log lines (timestamps and ANSI colors removed):
+PF-11_to_12_CI.log
+  DES-QA-05 | GET orders list runtime preflight
+[DES-QA-05] PF-11: GET /api/v1/orders?limit=5 returned 401 without JWT (route exists; not 405)
+    ✓ PF-11 | route exists and rejects a request without JWT (549ms)
+[DES-QA-05] PF-12 PENDING: local QA login absent; authenticated GET /orders not executed
+    - PF-12 | authenticated GET /orders returns summary records
+  1 passing (4s)
+  1 pending
+  │ Tests:        2                                                                                │
+  │ Passing:      1                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_orders_list_readonly_preflight.cy.js.mp4
+    ✔  All specs passed!
+
+Interpretation: PF-11 passed (401 rather than 405 with no JWT); PF-12 pending because CI has no QA login credentials. No authenticated GET /orders or business testcase was executed.
