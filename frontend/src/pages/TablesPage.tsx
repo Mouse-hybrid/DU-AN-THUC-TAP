@@ -1,72 +1,101 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiRequest, getErrorMessage } from "../api/client";
-import type { TableDashboardItem, TableDashboardResponse } from "../api/types";
+import { ApiError, getErrorMessage } from "../api/client";
+import { listTables, markClean, type TableListResponse } from "../api/tables";
+import type { TableDashboardItem } from "../api/types";
 import { consumeFlash, type FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
+import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
+import { RoleGuard } from "../components/RoleGuard";
 import { StateCard } from "../components/StateCard";
+import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
+import { getStatusMeta } from "../components/status";
 import { formatOpenDuration } from "../utils/format";
+import { createIdempotencyKey } from "../utils/idempotency";
 
 const TABLE_STATUSES = ["AVAILABLE", "OCCUPIED", "BILLING", "PAID", "CLEANING", "RESERVED", "DELAYED", "MERGED"] as const;
 type TableStatus = (typeof TABLE_STATUSES)[number];
 type StatusFilter = "ALL" | TableStatus;
 
-const STATUS_META: Record<TableStatus, { label: string; className: string }> = {
-  AVAILABLE: { label: "Trống", className: "available" },
-  OCCUPIED: { label: "Đang phục vụ", className: "occupied" },
-  BILLING: { label: "Chờ thanh toán", className: "billing" },
-  PAID: { label: "Đã thanh toán", className: "paid" },
-  CLEANING: { label: "Đang dọn", className: "cleaning" },
-  RESERVED: { label: "Đã đặt", className: "reserved" },
-  DELAYED: { label: "Chậm phục vụ", className: "delayed" },
-  MERGED: { label: "Đã gộp", className: "merged" },
-};
-
-function isTableStatus(status: string): status is TableStatus {
-  return TABLE_STATUSES.some((knownStatus) => knownStatus === status);
+interface TableCardProps {
+  table: TableDashboardItem;
+  cleaning: boolean;
+  onSelect: (table: TableDashboardItem) => void;
+  onMarkClean: (table: TableDashboardItem) => void;
 }
 
-function statusMeta(status: string) {
-  return isTableStatus(status) ? STATUS_META[status] : { label: status, className: "merged" };
-}
-
-function TableCard({ table, onSelect }: { table: TableDashboardItem; onSelect: (table: TableDashboardItem) => void }) {
-  const status = statusMeta(table.status);
+function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
   const session = table.opened_at
     ? `${table.guest_count ?? 0} khách · ${formatOpenDuration(table.opened_at)}`
     : "Chưa có phiên phục vụ";
 
   return (
-    <button className="nova-table-card" type="button" onClick={() => onSelect(table)}>
-      <span className="nova-table-card-topline">
-        <strong className="nova-table-code">{table.code}</strong>
-        <span className={`nova-status-badge nova-status--${status.className}`}>{status.label}</span>
-      </span>
-      <span className="nova-table-meta">{table.seats} chỗ ngồi</span>
-      <span className="nova-table-session">{session}</span>
-    </button>
+    <article className="nova-table-card">
+      <button
+        className="nova-table-card-select"
+        type="button"
+        onClick={() => onSelect(table)}
+        aria-label={`Bàn ${table.code}, ${getStatusMeta(table.status).label}`}
+      >
+        <span className="nova-table-card-topline">
+          <strong className="nova-table-code">{table.code}</strong>
+          <StatusBadge status={table.status} />
+        </span>
+        <span className="nova-table-meta">{table.seats} chỗ ngồi</span>
+        <span className="nova-table-session">{session}</span>
+      </button>
+      {table.status === "CLEANING" ? (
+        <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
+          <Button
+            className="nova-table-clean-action"
+            variant="secondary"
+            type="button"
+            accessibleLabel={`Dọn xong bàn ${table.code}`}
+            busy={cleaning}
+            busyLabel="Đang cập nhật…"
+            onClick={(event) => {
+              event.stopPropagation();
+              onMarkClean(table);
+            }}
+          >
+            Dọn xong
+          </Button>
+        </RoleGuard>
+      ) : null}
+    </article>
   );
+}
+
+function markCleanErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
+    if (error.status === 404) return "Không tìm thấy bàn.";
+    if (error.status === 409) return "Bàn không còn ở trạng thái đang dọn.";
+  }
+  return getErrorMessage(error);
 }
 
 export function TablesPage() {
   const navigate = useNavigate();
-  const [tables, setTables] = useState<TableDashboardResponse>([]);
+  const [tables, setTables] = useState<TableListResponse>([]);
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<FlashMessage | null>(() => consumeFlash());
+  const [cleaningTableIds, setCleaningTableIds] = useState<Set<string>>(() => new Set());
   const hasSuccessfulLoad = useRef(false);
+  const markCleanInFlight = useRef(new Set<string>());
 
   const loadTables = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
     else if (!hasSuccessfulLoad.current) setState("loading");
     setError("");
     try {
-      const data = await apiRequest<TableDashboardResponse>("/tables");
+      const data = await listTables();
       setTables(data);
       hasSuccessfulLoad.current = true;
       setStale(false);
@@ -103,6 +132,30 @@ export function TablesPage() {
     setToast({ message: "Chi tiết bàn sắp có.", type: "info" });
   }
 
+  async function cleanTable(table: TableDashboardItem) {
+    if (markCleanInFlight.current.has(table.id)) return;
+    markCleanInFlight.current.add(table.id);
+    setCleaningTableIds((current) => new Set(current).add(table.id));
+    try {
+      const idempotencyKey = createIdempotencyKey();
+      await markClean(table.id, idempotencyKey);
+      await loadTables(true);
+      setToast({ message: `Đã dọn xong bàn ${table.code}.`, type: "success" });
+    } catch (cleanError) {
+      if (cleanError instanceof ApiError && cleanError.status === 409) {
+        await loadTables(true);
+      }
+      setToast({ message: markCleanErrorMessage(cleanError), type: "error" });
+    } finally {
+      markCleanInFlight.current.delete(table.id);
+      setCleaningTableIds((current) => {
+        const next = new Set(current);
+        next.delete(table.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <AppShell>
       <main className="nova-content">
@@ -117,7 +170,7 @@ export function TablesPage() {
               <label htmlFor="nova-status-filter">Trạng thái</label>
               <select id="nova-status-filter" value={filter} onChange={(event) => setFilter(event.target.value as StatusFilter)}>
                 <option value="ALL">Tất cả trạng thái</option>
-                {TABLE_STATUSES.map((status) => <option key={status} value={status}>{STATUS_META[status].label}</option>)}
+                {TABLE_STATUSES.map((status) => <option key={status} value={status}>{getStatusMeta(status).label}</option>)}
               </select>
             </div>
             <button className="nova-button nova-button--secondary" type="button" onClick={() => void loadTables(true)} disabled={refreshing}>
@@ -145,7 +198,15 @@ export function TablesPage() {
         ) : null}
         {state === "ready" && visibleTables.length > 0 ? (
           <section className="nova-table-grid" aria-live="polite">
-            {visibleTables.map((table) => <TableCard key={table.id} table={table} onSelect={selectTable} />)}
+            {visibleTables.map((table) => (
+              <TableCard
+                key={table.id}
+                table={table}
+                cleaning={cleaningTableIds.has(table.id)}
+                onSelect={selectTable}
+                onMarkClean={(selected) => void cleanTable(selected)}
+              />
+            ))}
           </section>
         ) : null}
       </main>
