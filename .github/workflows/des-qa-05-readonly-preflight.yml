@@ -40,13 +40,27 @@ jobs:
           CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD: ${{ secrets.EXT_REFIRE_SUPERVISOR_PASSWORD }}
           CYPRESS_EXT_REFIRE_ORDER_ID: ${{ vars.EXT_REFIRE_ORDER_ID }}
         run: npx cypress run --browser electron --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js'
-      - name: Upload failure evidence
-        if: failure()
+      - name: Run PF-06 partial-ready data preflight
+        if: always()
+        env:
+          CYPRESS_POS_BASE_URL: http://160.191.47.17
+          CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME: ${{ secrets.EXT_REFIRE_SUPERVISOR_USERNAME }}
+          CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD: ${{ secrets.EXT_REFIRE_SUPERVISOR_PASSWORD }}
+          CYPRESS_DES05_TC016_ORDER_ID: ${{ vars.DES05_TC016_ORDER_ID }}
+          CYPRESS_DES05_TC016_READY_ITEM_ID: ${{ vars.DES05_TC016_READY_ITEM_ID }}
+          CYPRESS_DES05_TC016_PENDING_ITEM_ID: ${{ vars.DES05_TC016_PENDING_ITEM_ID }}
+        run: |
+          mkdir -p evidence/DES-QA-05
+          set -o pipefail
+          npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_tc_016_expeditor_partial_ready_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-06_CI.log
+      - name: Upload preflight evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: des-qa-05-preflight-evidence
           path: |
             qa/automation/Testing_POS/cypress/screenshots/
             qa/automation/Testing_POS/cypress/videos/
+            qa/automation/Testing_POS/evidence/DES-QA-05/PF-06_CI.log
           if-no-files-found: ignore
           retention-days: 14
