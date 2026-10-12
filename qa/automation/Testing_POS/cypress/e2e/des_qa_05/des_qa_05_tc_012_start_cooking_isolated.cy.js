@@ -96,7 +96,7 @@ describe('DES-QA-05 | TC-012 Start Cooking on isolated QA order', () => {
                 expect(after.queue.id, 'same queue entry').eq(before.queue.id);
                 expect(after.queue.station_id, 'same station').eq(before.queue.station_id);
                 expect(after.queue.started_at, 'queue started_at').to.be.a('string');
-                expect(Date.parse(after.queue.started_at), 'valid started_at').not.to.be.NaN;
+                expect(Number.isFinite(Date.parse(after.queue.started_at)), 'valid started_at').eq(true);
                 note(`TC-012: order ${orderId}; item ${itemId}; SENT/QUEUED -> PREPARING/IN_PROGRESS; audit actor requires separate check`);
               });
           }));
