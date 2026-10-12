@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/des-qa-05-readonly-preflight.yml'
       - 'qa/automation/Testing_POS/cypress/e2e/des_qa_05/**'
+      - 'qa/automation/Testing_POS/scripts/des05_verify_staging_contract.mjs'
   workflow_dispatch:
 
 permissions:
