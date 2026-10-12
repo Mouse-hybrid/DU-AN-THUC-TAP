@@ -4,6 +4,9 @@
 describe('DES-QA-05 | TC-014 Pickup then Served on isolated QA order', () => {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const note = (message) => cy.task('des05Note', message, { log: false });
+  const pending = (message, context) => note(message)
+    .then(() => cy.log(`${message} (video evidence pause: 3 seconds)`).wait(3000, { log: false }))
+    .then(() => context.skip());
   const request = (origin, path, token, method = 'GET', key) => cy.request({
     method,
     url: origin + path,
@@ -35,14 +38,12 @@ describe('DES-QA-05 | TC-014 Pickup then Served on isolated QA order', () => {
     ]).then((e) => {
       if (e.DES05_TC014_RUN !== 'PICKUP_AND_SERVE_ON_ISOLATED_ORDER' ||
           e.DES05_TC014_CLEANUP_CONFIRMED !== 'YES') {
-        return note('TC-014 PENDING: isolated QA fixture and cleanup plan must be explicitly approved locally')
-          .then(() => this.skip());
+        return pending('TC-014 PENDING: isolated QA fixture and cleanup plan must be explicitly approved locally', this);
       }
       if (!e.DES05_TC014_ORDER_ID || !e.DES05_TC014_ITEM_ID ||
           !e.DES05_TC014_PICKUP_KEY || !e.DES05_TC014_SERVED_KEY ||
           !e.EXT_WAITER_USERNAME || !e.EXT_WAITER_PASSWORD) {
-        return note('TC-014 PENDING: QA Order/Item IDs, two fresh keys, or Waiter login missing')
-          .then(() => this.skip());
+        return pending('TC-014 PENDING: QA Order/Item IDs, two fresh keys, or Waiter login missing', this);
       }
 
       const orderId = String(e.DES05_TC014_ORDER_ID);
