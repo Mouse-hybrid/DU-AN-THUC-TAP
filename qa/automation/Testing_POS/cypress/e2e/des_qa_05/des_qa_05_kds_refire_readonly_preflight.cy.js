@@ -23,13 +23,14 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   });
   const tokenFor = (origin, token, username, password) => {
     if (token) return cy.wrap(token, { log: false });
-    if (!username && !password) return cy.wrap(null, { log: false });
-    expect(username, 'QA username').to.be.a('string').and.not.be.empty;
-    expect(password, 'QA password').to.be.a('string').and.not.be.empty;
+    const account = String(username ?? '');
+    const secret = String(password ?? '');
+    if (!account && !secret) return cy.wrap(null, { log: false });
+    if (!account || !secret) throw new Error('QA login credentials incomplete');
     return cy.request({
       method: 'POST',
       url: origin + '/api/v1/auth/login',
-      body: { username, password },
+      body: { username: account, password: secret },
       failOnStatusCode: false,
       log: false,
       timeout: 20000,
