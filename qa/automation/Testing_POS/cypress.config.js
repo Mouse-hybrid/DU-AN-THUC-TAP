@@ -3,7 +3,12 @@ import { defineConfig } from "cypress";
 export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
-      // Cấu hình sự kiện nếu cần
+      on('task', {
+        des05Note(message) {
+          console.log(`[DES-QA-05] ${message}`);
+          return null;
+        },
+      });
     },
     // Bật ghi video và chụp màn hình
     video: true,
