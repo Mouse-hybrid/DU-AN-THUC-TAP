@@ -154,6 +154,10 @@ jobs:
     needs: [docker-build, frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: [self-hosted, staging]
+    # Dung chung nhom voi reset-staging.yml: deploy va reset du lieu khong chay chong nhau.
+    concurrency:
+      group: staging
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Khoi phuc .env.staging (khong nam trong git, luu ben ngoai checkout)
