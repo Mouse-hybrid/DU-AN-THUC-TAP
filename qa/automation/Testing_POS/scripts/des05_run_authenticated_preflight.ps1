@@ -7,6 +7,8 @@ $ErrorActionPreference = 'Stop'
 $adminCredential = Get-Credential -UserName 'admin' -Message 'Staging admin (SUPERVISOR) cho PF-02/PF-12'
 $kitchenCredential = Get-Credential -UserName 'kitchen' -Message 'Staging kitchen cho PF-03'
 $exitCode = 1
+$evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-05'
+$evidenceLog = Join-Path $evidenceDir ("PF-02_03_12_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 
 try {
   # This run uses the seeded accounts, even if this shell had stale JWT variables.
@@ -27,7 +29,9 @@ try {
 
   Push-Location (Split-Path -Parent $PSScriptRoot)
   try {
-    & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_orders_list_readonly_preflight.cy.js'
+    New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
+    & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_orders_list_readonly_preflight.cy.js' 2>&1 |
+      Tee-Object -FilePath $evidenceLog
     $exitCode = $LASTEXITCODE
   } finally {
     Pop-Location
@@ -43,4 +47,5 @@ try {
   $kitchenCredential = $null
 }
 
+Write-Host "DES-QA-05 Terminal evidence: $evidenceLog"
 exit $exitCode

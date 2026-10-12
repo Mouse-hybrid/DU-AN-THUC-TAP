@@ -13,7 +13,7 @@ npm ci
 .\scripts\des05_run_authenticated_preflight.ps1
 ```
 
-The script prompts separately for the seeded `admin` and `kitchen` accounts. Enter the current **staging** passwords provided by BE; the old locally assumed `123456` is not evidence of a valid staging password. It runs PF-01–04 and PF-11–12 in one Cypress invocation, then clears the environment variables it used even if Cypress fails. `PF-04` stays Pending until an isolated QA order ID exists. If you have one, run `.\scripts\des05_run_authenticated_preflight.ps1 -OrderId '<QA_ORDER_UUID>'` to read it with the seeded admin account. The script does not reset staging or mutate order data.
+The script prompts separately for the seeded `admin` and `kitchen` accounts. Enter the current **staging** passwords provided by BE; the old locally assumed `123456` is not evidence of a valid staging password. It runs PF-01–04 and PF-11–12 in one Cypress invocation, writes the Terminal output to `evidence/DES-QA-05/PF-02_03_12_<timestamp>.log`, then clears the environment variables it used even if Cypress fails. `PF-04` stays Pending until an isolated QA order ID exists. If you have one, run `.\scripts\des05_run_authenticated_preflight.ps1 -OrderId '<QA_ORDER_UUID>'` to read it with the seeded admin account. The script does not reset staging or mutate order data. Check the log for sensitive data before committing it to GitHub.
 
 For CI or manual runs, configure the following variables only in the runner or local PowerShell session. Never commit JWTs or passwords:
 
