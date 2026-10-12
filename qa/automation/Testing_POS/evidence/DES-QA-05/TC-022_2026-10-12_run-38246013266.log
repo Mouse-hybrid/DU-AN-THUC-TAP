@@ -1,0 +1,25 @@
+DES-QA-05 / TC-022 guarded CI execution evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: d72cad45787a7536282f25143151d1e1a374525b
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38246013266
+Job ID: 114799938238
+Artifact ID: 11745697078 (des-qa-05-preflight-evidence; includes TC-022_CI.log and Cypress video; retention 14 days)
+Guard: CYPRESS_DES05_TC022_RUN and CYPRESS_DES05_TC022_CLEANUP_CONFIRMED empty in CI.
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+  DES-QA-05 | TC-022 unauthorized Refire on isolated QA order
+[DES-QA-05] TC-022 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally
+    - TC-022 | Kitchen Refire is 403; item, version and queue remain unchanged
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_022_refire_unauthorized_isolated.cy.js                              │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_022_refire_unauthorized_isolated.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+Interpretation: 0 Passed, 0 Failed, 1 Pending. Guard skipped before login or Refire request. Workflow success is not TC-022 functional success; no RBAC or queue assertions were executed.
