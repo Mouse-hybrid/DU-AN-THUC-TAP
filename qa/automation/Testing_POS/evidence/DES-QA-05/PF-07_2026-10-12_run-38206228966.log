@@ -1,0 +1,27 @@
+DES-QA-05 / PF-07 | CI execution evidence
+Date: 2026-10-12 12:03 ICT (05:03 UTC)
+Source: GitHub Actions run 38206228966, job 114670205534
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38206228966
+Commit tested: b3c87cc0051774e43609a054af75d901c53f5cce (ONLY_TESTING)
+Runner/browser: ubuntu-latest / Cypress Electron headless
+Artifact (CI log and video; retention 14 days): https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38206228966/artifacts/11727079708
+
+PF-07 Cypress output (selected lines, ANSI and CI timestamps removed):
+  Running:  des_qa_05_tc_017_expeditor_all_ready_preflight.cy.js                            (1 of 1)
+  DES-QA-05 | TC-017 all-ready Expeditor preflight
+[DES-QA-05] PF-07 PENDING: isolated all-ready QA Order ID or Supervisor login missing
+    - PF-07 | all active order items are READY/DONE across at least two stations
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_017_expeditor_all_ready_preflight.cy.js                             │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_017_expeditor_all_ready_preflight.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+QA interpretation: PF-07 Pending because the isolated all-ready QA Order ID or Supervisor login was missing in CI. No Expeditor UI or Pickup action was tested. TC-017 remains Blocked/Not Executed; workflow success is not testcase Passed.
