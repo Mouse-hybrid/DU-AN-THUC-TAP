@@ -98,8 +98,9 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 #
 # PO chốt 09/10/2026 (thay "Create Order (POS)" chỉ Cashier trong BRD): luồng
 # phục vụ tại bàn — mở bàn, tạo order, thêm/sửa/bỏ món trước khi gửi bếp, gửi bếp —
-# cho cả Cashier, Waiter, Supervisor để 1 nhân viên đi hết được luồng. Sau khi gửi
-# bếp vẫn chỉ Supervisor được thêm/sửa (override), thanh toán giữ Cashier/Supervisor.
+# cho cả Cashier, Waiter, Supervisor để 1 nhân viên đi hết được luồng; thanh toán
+# giữ Cashier/Supervisor. PO chốt 12/10 (O1 = A): gọi thêm món sau khi đã gửi bếp
+# cũng cho các role này; món đã gửi bếp thì chỉ Supervisor void/refire.
 _ORDER_WRITE_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
 _SEND_TO_KITCHEN_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
 _REQUEST_BILLING_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")  # = "Request Bill"
@@ -310,6 +311,11 @@ def create_order(
                 f"table_session đang ở trạng thái '{table_session.status}', không thể tạo order mới"
             ),
         )
+    if table_session.table.status == "BILLING":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Bàn đang chờ thanh toán (BILLING) — không thể tạo order mới",
+        )
 
     order = Order(
         table_session_id=table_session.id,
@@ -370,15 +376,10 @@ def add_order_items(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', không thể thêm món",
         )
-    # Không role nào trong Permission Matrix được liệt kê quyền "sửa order sau khi
-    # gửi bếp" (Waiter: "Cannot modify orders after sent to kitchen") — chỉ
-    # Supervisor mới có "Override Actions". Sau khi order rời khỏi NEW
-    # (tức đã gửi bếp ít nhất 1 lần), chỉ Supervisor được thêm món tiếp.
-    if order.status != "NEW" and current.role != "SUPERVISOR":
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            detail="Order đã gửi bếp — chỉ Supervisor mới được thêm món (override)",
-        )
+    # PO chốt 12/10 (O1 = A): khách gọi thêm sau khi đã gửi bếp là chuyện thường —
+    # Cashier/Waiter thêm món mới tự do rồi gửi bếp đợt sau. Món ĐÃ gửi thì vẫn
+    # không sửa trực tiếp được (409, phải void/refire — Supervisor).
+    _ensure_table_not_billing(order)
 
     for line in payload.items:
         menu_item = session.get(MenuItem, line.menu_item_id)
@@ -432,11 +433,20 @@ def add_order_items(
     return result
 
 
+def _ensure_table_not_billing(order: Order) -> None:
+    """PO chốt 12/10 (B1 = A): bàn đang BILLING (khách đã yêu cầu thanh toán) thì
+    khóa gọi thêm món — kể cả trên order khác của cùng phiên bàn."""
+    if order.table_session.table.status == "BILLING":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Bàn đang chờ thanh toán (BILLING) — không thể gọi thêm món",
+        )
+
+
 def _ensure_item_editable_before_send(order: Order, item: OrderItem, current: CurrentStaff) -> None:
     """BRD In Scope: "Order modification (before kitchen send)". Chỉ món còn CREATED
-    (bếp chưa nhận) mới sửa/bỏ tự do; món đã gửi bếp phải đi qua void/refire
-    (Supervisor). Cùng quy tắc quyền với thêm món: order đã rời NEW thì chỉ
-    Supervisor được đụng vào."""
+    (bếp chưa nhận) mới sửa/bỏ tự do — kể cả món gọi thêm sau khi order đã gửi bếp
+    đợt trước; món đã gửi bếp phải đi qua void/refire (Supervisor)."""
     if order.status in _CLOSED_ORDER_STATUSES:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -450,11 +460,7 @@ def _ensure_item_editable_before_send(order: Order, item: OrderItem, current: Cu
                 "dùng void/refire thay vì sửa trực tiếp"
             ),
         )
-    if order.status != "NEW" and current.role != "SUPERVISOR":
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            detail="Order đã gửi bếp — chỉ Supervisor mới được sửa món (override)",
-        )
+    _ensure_table_not_billing(order)
 
 
 def _record_item_change(
@@ -614,6 +620,7 @@ def send_order_to_kitchen(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', không thể gửi bếp",
         )
+    _ensure_table_not_billing(order)
 
     pending_items = [item for item in order.items if item.status == "CREATED"]
     if not pending_items:
@@ -635,7 +642,9 @@ def send_order_to_kitchen(
         item.status = "SENT"
         created_count += 1
 
-    order.status = "SENT" if order.status == "NEW" else order.status
+    # Món gọi thêm sau khi order đã SERVED: order lại có món đang nấu → về SENT,
+    # phục vụ xong món cuối thì _maybe_mark_order_served đưa lại SERVED.
+    order.status = "SENT"
     order.current_version += 1
     session.flush()
     session.refresh(order)
@@ -690,7 +699,9 @@ def request_billing(
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """SENT/SERVED -> BILLING. Khách yêu cầu thanh toán — chưa nhận tiền, chỉ khóa
-    order lại để không ai thêm/sửa món trong lúc tính tiền."""
+    order lại để không ai thêm/sửa món trong lúc tính tiền. PO chốt 12/10 (B1 = A):
+    bàn cũng chuyển OCCUPIED -> BILLING để sơ đồ bàn thấy ngay bàn sắp trống và
+    khóa gọi thêm/gộp bàn; thanh toán xong bàn sang thẳng CLEANING (B2 = A)."""
     endpoint = f"POST /api/v1/orders/{order_id}/request-billing"
     request_hash = hash_request_body({"order_id": str(order_id)})
 
@@ -710,6 +721,8 @@ def request_billing(
         )
 
     order.status = "BILLING"
+    table = order.table_session.table
+    table.status = "BILLING"
     session.flush()
     session.refresh(order)
 
@@ -720,6 +733,7 @@ def request_billing(
         action="ORDER_BILLING_REQUESTED",
         entity_type="order",
         entity_id=order.id,
+        payload={"table_id": str(table.id)},
     )
 
     result = OrderOut.model_validate(order)
@@ -733,6 +747,12 @@ def request_billing(
         )
     )
     session.commit()
+    manager.publish(
+        current.outlet_id,
+        "tables",
+        "TABLE_STATUS_CHANGED",
+        {"table_id": str(table.id), "status": table.status},
+    )
     return result
 
 

@@ -151,21 +151,43 @@ def test_waiter_can_edit_items_before_send(client, seed):
     assert resp.status_code == 200, resp.text
 
 
-def test_waiter_cannot_add_items_after_send(client, seed):
-    """BRD Waiter: "Cannot modify orders after sent to kitchen" — giữ nguyên."""
-    order_id, _, _, waiter = _open_order_with_item(
+def test_add_more_items_after_send_then_edit_and_send_second_round(client, seed):
+    """PO chốt 12/10 (O1 = A): Waiter/Cashier gọi thêm sau khi gửi bếp; món mới
+    (CREATED) sửa/bỏ được, món đã gửi thì không (409, phải void)."""
+    order_id, sent_item_id, _, waiter = _open_order_with_item(
         client, seed["table_id"], seed["menu_item_id"], "after"
     )
     client.post(
         f"/api/v1/orders/{order_id}/send-to-kitchen",
         headers={**waiter, "Idempotency-Key": "after-send"},
     )
-    resp = client.post(
+    more = client.post(
         f"/api/v1/orders/{order_id}/items",
         json={"items": [{"menu_item_id": str(seed["menu_item_id"]), "quantity": 1}]},
         headers={**waiter, "Idempotency-Key": "after-more-items"},
     )
-    assert resp.status_code == 403
+    assert more.status_code == 201, more.text
+    new_item_id = next(i["id"] for i in more.json()["items"] if i["status"] == "CREATED")
+
+    edit_new = client.patch(
+        f"/api/v1/orders/{order_id}/items/{new_item_id}",
+        json={"quantity": 2},
+        headers={**waiter, "Idempotency-Key": "after-edit-new"},
+    )
+    assert edit_new.status_code == 200, edit_new.text
+    edit_sent = client.patch(
+        f"/api/v1/orders/{order_id}/items/{sent_item_id}",
+        json={"quantity": 2},
+        headers={**waiter, "Idempotency-Key": "after-edit-sent"},
+    )
+    assert edit_sent.status_code == 409
+
+    second = client.post(
+        f"/api/v1/orders/{order_id}/send-to-kitchen",
+        headers={**waiter, "Idempotency-Key": "after-send-2"},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["kitchen_queue_entries_created"] == 1
 
 
 def test_kitchen_cannot_edit_items(client, seed):

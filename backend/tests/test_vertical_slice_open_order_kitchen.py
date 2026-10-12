@@ -241,14 +241,15 @@ def test_full_flow_open_table_create_order_send_to_kitchen(client, seed, db_sess
     assert body["order"]["status"] == "SENT"
     assert body["order"]["items"][0]["status"] == "SENT"
 
-    # Sau khi gui bep (status != NEW), Cashier KHONG con duoc them mon nua —
-    # chi Supervisor moi override duoc (xem app/api/v1/orders.py).
-    blocked_resp = client.post(
+    # PO chot 12/10 (O1 = A): khach goi them sau khi gui bep — Cashier them mon moi
+    # duoc, mon moi o CREATED cho gui bep dot 2.
+    more_resp = client.post(
         f"/api/v1/orders/{order_id}/items",
         json={"items": [{"menu_item_id": str(menu_item_id), "quantity": 1}]},
-        headers={**cashier_headers, "Idempotency-Key": "items-after-send-blocked"},
+        headers={**cashier_headers, "Idempotency-Key": "items-after-send"},
     )
-    assert blocked_resp.status_code == 403
+    assert more_resp.status_code == 201, more_resp.text
+    assert sorted(i["status"] for i in more_resp.json()["items"]) == ["CREATED", "SENT"]
 
     # Ban phai chuyen AVAILABLE -> OCCUPIED ngay khi mo phien
     session = db_session_factory()

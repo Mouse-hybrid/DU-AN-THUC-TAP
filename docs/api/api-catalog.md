@@ -66,7 +66,7 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | 16 | POST | `/api/v1/orders` | S C W | 09 Gọi món | ✅ 🧪 |
 | 17 | GET | `/api/v1/orders/{id}` | mọi role | 09, 19 Tóm tắt order, 05 | ✅ 🧪 |
 | 18 | GET | `/api/v1/orders?status=&table_id=&created_from=&created_to=&limit=&offset=` | mọi role | — (xem mục B) | ✅ 🧪 |
-| 19 | POST | `/api/v1/orders/{id}/items` | S C W (sau gửi bếp chỉ S) | 09 | ✅ 🧪 |
+| 19 | POST | `/api/v1/orders/{id}/items` | S C W (gọi thêm sau gửi bếp được; bàn BILLING → 409) | 09 | ✅ 🧪 |
 | 20 | PATCH | `/api/v1/orders/{id}/items/{item_id}` | S C W, món CREATED | 09, 19 | ✅ 🧪 |
 | 21 | DELETE | `/api/v1/orders/{id}/items/{item_id}` | S C W, món CREATED | 09, 19 | ✅ 🧪 |
 | 22 | POST | `/api/v1/orders/{id}/send-to-kitchen` | S C W | 09, 19 | ✅ 🧪 |
@@ -86,7 +86,7 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 
 | # | Method | Endpoint | Quyền | Màn hình dùng | Trạng thái |
 |---|---|---|---|---|---|
-| 29 | POST | `/api/v1/orders/{id}/request-billing` | S C W | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
+| 29 | POST | `/api/v1/orders/{id}/request-billing` (order + bàn → BILLING) | S C W | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 30 | POST | `/api/v1/orders/{id}/pay` | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 31 | POST | `/api/v1/orders/{id}/close` | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 32 | POST | `/api/v1/orders/{id}/items/{item_id}/void` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
