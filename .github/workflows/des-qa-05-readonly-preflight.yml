@@ -79,6 +79,14 @@ jobs:
           mkdir -p evidence/DES-QA-05
           set -o pipefail
           npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_tc_017_expeditor_all_ready_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-07_CI.log
+      - name: Run PF-08 Expeditor action contract preflight
+        if: always()
+        env:
+          CYPRESS_POS_BASE_URL: http://160.191.47.17
+        run: |
+          mkdir -p evidence/DES-QA-05
+          set -o pipefail
+          npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_tc_018_expeditor_rbac_contract_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-08_CI.log
       - name: Upload preflight evidence
         if: always()
         uses: actions/upload-artifact@v4
