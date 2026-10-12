@@ -1,0 +1,25 @@
+DES-QA-05 / TC-021 guarded CI execution evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: b501a13f4b82a04ea79865a9fd09c22558d51e0e
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38245514116
+Job ID: 114798262850
+Artifact ID: 11745970188 (des-qa-05-preflight-evidence; includes TC-021_CI.log and Cypress video; retention 14 days)
+Guard: CYPRESS_DES05_TC021_RUN and CYPRESS_DES05_TC021_CLEANUP_CONFIRMED empty in CI.
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+  DES-QA-05 | TC-021 Refire subtotal on isolated QA order
+[DES-QA-05] TC-021 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally
+    - TC-021 | Refire creates a ticket without increasing GET Order subtotal
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_021_refire_subtotal_isolated.cy.js                                  │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_021_refire_subtotal_isolated.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+Interpretation: 0 Passed, 0 Failed, 1 Pending. Guard skipped before login or Refire request. Workflow success is not TC-021 functional success; no before/after subtotal assertions were executed.
