@@ -60,6 +60,44 @@ class OrderOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OrderItemDetailOut(OrderItemOut):
+    """Dòng món kèm tên món và thành tiền — đủ để FE vẽ màn order mà không phải
+    gọi thêm GET /menu."""
+
+    menu_item_name: str
+    line_total: Decimal
+
+
+class OrderDetailOut(BaseModel):
+    """Chi tiết 1 order cho màn POS ordering / order summary / table detail.
+    `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế/giảm giá — Pha 2)."""
+
+    id: uuid.UUID
+    table_session_id: uuid.UUID
+    table_id: uuid.UUID
+    table_code: str
+    status: str
+    current_version: int
+    created_at: datetime
+    items: list[OrderItemDetailOut] = []
+    subtotal: Decimal
+
+
+class OrderSummaryOut(BaseModel):
+    """1 dòng trong danh sách order (GET /orders) — đủ để chọn order rồi gọi
+    GET /orders/{id} lấy chi tiết. `item_count`/`subtotal` không tính món VOIDED."""
+
+    id: uuid.UUID
+    table_session_id: uuid.UUID
+    table_id: uuid.UUID
+    table_code: str
+    status: str
+    current_version: int
+    created_at: datetime
+    item_count: int
+    subtotal: Decimal
+
+
 class SendToKitchenResponse(BaseModel):
     order: OrderOut
     kitchen_queue_entries_created: int

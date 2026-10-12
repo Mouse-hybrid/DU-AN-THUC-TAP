@@ -7,6 +7,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.orders import OrderDetailOut
+
 
 class OpenSessionRequest(BaseModel):
     guest_count: int = Field(default=1, ge=1, le=100)
@@ -41,3 +43,10 @@ class TableDashboardItem(BaseModel):
     current_session_id: uuid.UUID | None = None
     guest_count: int | None = None
     opened_at: datetime | None = None
+
+
+class TableDetailOut(TableOut):
+    """Chi tiết 1 bàn (Figma screen-05): phiên đang mở + mọi order của phiên đó."""
+
+    current_session: TableSessionOut | None = None
+    orders: list[OrderDetailOut] = []

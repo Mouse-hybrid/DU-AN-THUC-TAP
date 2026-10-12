@@ -138,7 +138,8 @@ def test_cannot_edit_or_remove_item_after_send_to_kitchen(client, seed):
     assert delete_resp.status_code == 409
 
 
-def test_waiter_cannot_edit_items(client, seed):
+def test_waiter_can_edit_items_before_send(client, seed):
+    """PO chốt 09/10/2026: Waiter sửa/bỏ món được khi chưa gửi bếp."""
     order_id, item_id, _, waiter = _open_order_with_item(
         client, seed["table_id"], seed["menu_item_id"], "role"
     )
@@ -146,6 +147,36 @@ def test_waiter_cannot_edit_items(client, seed):
         f"/api/v1/orders/{order_id}/items/{item_id}",
         json={"quantity": 2},
         headers={**waiter, "Idempotency-Key": "role-patch"},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_waiter_cannot_add_items_after_send(client, seed):
+    """BRD Waiter: "Cannot modify orders after sent to kitchen" — giữ nguyên."""
+    order_id, _, _, waiter = _open_order_with_item(
+        client, seed["table_id"], seed["menu_item_id"], "after"
+    )
+    client.post(
+        f"/api/v1/orders/{order_id}/send-to-kitchen",
+        headers={**waiter, "Idempotency-Key": "after-send"},
+    )
+    resp = client.post(
+        f"/api/v1/orders/{order_id}/items",
+        json={"items": [{"menu_item_id": str(seed["menu_item_id"]), "quantity": 1}]},
+        headers={**waiter, "Idempotency-Key": "after-more-items"},
+    )
+    assert resp.status_code == 403
+
+
+def test_kitchen_cannot_edit_items(client, seed):
+    order_id, item_id, _, _ = _open_order_with_item(
+        client, seed["table_id"], seed["menu_item_id"], "kit"
+    )
+    kitchen = login(client, "kitchen_test")
+    resp = client.patch(
+        f"/api/v1/orders/{order_id}/items/{item_id}",
+        json={"quantity": 2},
+        headers={**kitchen, "Idempotency-Key": "kit-patch"},
     )
     assert resp.status_code == 403
 

@@ -1,6 +1,8 @@
 """Vertical slice bước 2+3: Tạo order → Gửi bếp, + vòng đời thanh toán và
 void/refire món.
 
+GET  /api/v1/orders                             — danh sách order (lọc status/bàn/thời gian).
+GET  /api/v1/orders/{order_id}                  — chi tiết order (tên món, thành tiền, bàn).
 POST /api/v1/orders                             — tạo order mới cho 1 table_session đang OPEN.
 POST /api/v1/orders/{order_id}/items             — thêm món vào order (snapshot giá tại thời
                                                      điểm thêm).
@@ -29,14 +31,16 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit_log
 from app.core.deps import (
     CurrentStaff,
+    get_current_staff,
     get_idempotent_response,
     hash_request_body,
     require_idempotency_key,
@@ -45,6 +49,7 @@ from app.core.deps import (
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
+    ORDER_STATUS,
     IdempotencyKey,
     KitchenQueue,
     MenuItem,
@@ -57,7 +62,10 @@ from app.db.models import (
 from app.schemas.orders import (
     AddItemsRequest,
     CreateOrderRequest,
+    OrderDetailOut,
+    OrderItemDetailOut,
     OrderOut,
+    OrderSummaryOut,
     SendToKitchenResponse,
     UpdateOrderItemRequest,
     VoidItemRequest,
@@ -87,8 +95,13 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 # trên — suy ra từ mô tả Key Responsibilities/Restrictions của từng role
 # (vd Kitchen "Cannot modify orders" + Override Actions chỉ Supervisor ->
 # void/refire coi là override action, Supervisor-only).
-_ORDER_WRITE_ROLES = ("CASHIER", "SUPERVISOR")  # = "Create Order (POS)"
-_SEND_TO_KITCHEN_ROLES = ("WAITER", "SUPERVISOR")  # suy từ Key Responsibilities của Waiter
+#
+# PO chốt 09/10/2026 (thay "Create Order (POS)" chỉ Cashier trong BRD): luồng
+# phục vụ tại bàn — mở bàn, tạo order, thêm/sửa/bỏ món trước khi gửi bếp, gửi bếp —
+# cho cả Cashier, Waiter, Supervisor để 1 nhân viên đi hết được luồng. Sau khi gửi
+# bếp vẫn chỉ Supervisor được thêm/sửa (override), thanh toán giữ Cashier/Supervisor.
+_ORDER_WRITE_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
+_SEND_TO_KITCHEN_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
 _REQUEST_BILLING_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")  # = "Request Bill"
 _PAY_ROLES = (
     "CASHIER",
@@ -107,6 +120,8 @@ _PICKUP_SERVE_ROLES = ("WAITER", "SUPERVISOR")  # = "Serve Food"
 _CLOSED_ORDER_STATUSES = ("BILLING", "PAID", "CLOSED")
 _VOIDABLE_ITEM_STATUSES = ("CREATED", "SENT", "ACCEPTED", "PREPARING")
 _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
+# Món refire có phiếu bếp mới (QUEUED) và đi lại vòng nấu như món mới gửi bếp.
+_STARTABLE_ITEM_STATUSES = ("SENT", "REFIRED")
 
 
 def _load_order_or_404(session: Session, order_id: uuid.UUID, outlet_id: uuid.UUID) -> Order:
@@ -150,6 +165,121 @@ def _snapshot_order(order: Order) -> str:
             ],
         }
     )
+
+
+def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
+    """Dùng chung cho GET /orders/{id} và GET /tables/{id} (tables.py)."""
+    menu_ids = {item.menu_item_id for item in order.items}
+    names = (
+        dict(
+            session.execute(select(MenuItem.id, MenuItem.name).where(MenuItem.id.in_(menu_ids)))
+            .tuples()
+            .all()
+        )
+        if menu_ids
+        else {}
+    )
+    items = [
+        OrderItemDetailOut(
+            id=item.id,
+            menu_item_id=item.menu_item_id,
+            menu_item_name=names.get(item.menu_item_id, ""),
+            status=item.status,
+            quantity=item.quantity,
+            unit_price=item.unit_price,
+            note=item.note,
+            line_total=item.unit_price * item.quantity,
+        )
+        for item in sorted(order.items, key=lambda i: i.created_at)
+    ]
+    table = order.table_session.table
+    return OrderDetailOut(
+        id=order.id,
+        table_session_id=order.table_session_id,
+        table_id=table.id,
+        table_code=table.code,
+        status=order.status,
+        current_version=order.current_version,
+        created_at=order.created_at,
+        items=items,
+        subtotal=sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0")),
+    )
+
+
+@router.get("", response_model=list[OrderSummaryOut])
+def list_orders(
+    order_status: list[str] | None = Query(
+        default=None,
+        alias="status",
+        description="Lọc theo trạng thái, lặp lại được: ?status=SENT&status=SERVED",
+    ),
+    table_id: uuid.UUID | None = Query(default=None, description="Chỉ order của 1 bàn"),
+    created_from: datetime | None = Query(default=None, description="created_at >= (ISO 8601)"),
+    created_to: datetime | None = Query(default=None, description="created_at < (ISO 8601)"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    current: CurrentStaff = Depends(get_current_staff),
+    session: Session = Depends(get_session),
+) -> list[OrderSummaryOut]:
+    """Danh sách order của outlet, mới nhất trước. Dùng để tìm order (QA fixture,
+    màn tra cứu); chi tiết từng món lấy qua GET /orders/{id}. Như GET /orders/{id},
+    mọi role đã login đều xem được."""
+    invalid = sorted(set(order_status or ()) - set(ORDER_STATUS))
+    if invalid:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"status không hợp lệ: {', '.join(invalid)}. "
+            f"Chỉ nhận: {', '.join(ORDER_STATUS)}",
+        )
+
+    stmt = (
+        select(Order, RestaurantTable)
+        .join(TableSession, Order.table_session_id == TableSession.id)
+        .join(RestaurantTable, TableSession.table_id == RestaurantTable.id)
+        .where(RestaurantTable.outlet_id == current.outlet_id)
+        .options(selectinload(Order.items))
+        .order_by(Order.created_at.desc(), Order.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    if order_status:
+        stmt = stmt.where(Order.status.in_(order_status))
+    if table_id is not None:
+        stmt = stmt.where(RestaurantTable.id == table_id)
+    if created_from is not None:
+        stmt = stmt.where(Order.created_at >= created_from)
+    if created_to is not None:
+        stmt = stmt.where(Order.created_at < created_to)
+
+    summaries = []
+    for order, table in session.execute(stmt).all():
+        active = [item for item in order.items if item.status != "VOIDED"]
+        summaries.append(
+            OrderSummaryOut(
+                id=order.id,
+                table_session_id=order.table_session_id,
+                table_id=table.id,
+                table_code=table.code,
+                status=order.status,
+                current_version=order.current_version,
+                created_at=order.created_at,
+                item_count=len(active),
+                subtotal=sum((i.unit_price * i.quantity for i in active), Decimal("0")),
+            )
+        )
+    return summaries
+
+
+@router.get("/{order_id}", response_model=OrderDetailOut)
+def get_order(
+    order_id: uuid.UUID,
+    current: CurrentStaff = Depends(get_current_staff),
+    session: Session = Depends(get_session),
+) -> OrderDetailOut:
+    """Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE
+    tải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem
+    order không bị hạn chế trong Permission Matrix — mọi role đã login."""
+    return build_order_detail(session, _load_order_or_404(session, order_id, current.outlet_id))
 
 
 @router.post("", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
@@ -240,9 +370,9 @@ def add_order_items(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', không thể thêm món",
         )
-    # BRD: Cashier là role duy nhất tạo order (Create Order (POS)); không role
-    # nào trong Permission Matrix được liệt kê quyền "sửa order sau khi gửi bếp"
-    # — chỉ Supervisor mới có "Override Actions". Sau khi order rời khỏi NEW
+    # Không role nào trong Permission Matrix được liệt kê quyền "sửa order sau khi
+    # gửi bếp" (Waiter: "Cannot modify orders after sent to kitchen") — chỉ
+    # Supervisor mới có "Override Actions". Sau khi order rời khỏi NEW
     # (tức đã gửi bếp ít nhất 1 lần), chỉ Supervisor được thêm món tiếp.
     if order.status != "NEW" and current.role != "SUPERVISOR":
         raise HTTPException(
@@ -939,7 +1069,7 @@ def start_cooking_order_item(
     current: CurrentStaff = Depends(require_role(*_KITCHEN_ACTION_ROLES)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
-    """SENT -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
+    """SENT/REFIRED -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
     (ACCEPTED) vào action này — BRD chỉ định nghĩa 1 action "Start Cooking",
     không tách riêng bước "accept". Nếu sau này cần tách, thêm action mới và
     dùng ACCEPTED làm bước trung gian (schema đã có sẵn giá trị này)."""
@@ -955,10 +1085,13 @@ def start_cooking_order_item(
         return OrderOut.model_validate_json(existing.response_body)
 
     order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
-    if item.status != "SENT":
+    if item.status not in _STARTABLE_ITEM_STATUSES:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"Món đang ở trạng thái '{item.status}', phải ở SENT mới start-cooking được",
+            detail=(
+                f"Món đang ở trạng thái '{item.status}', "
+                "phải ở SENT hoặc REFIRED mới start-cooking được"
+            ),
         )
 
     queue_entry = _load_active_kitchen_queue_entry(session, item.id)

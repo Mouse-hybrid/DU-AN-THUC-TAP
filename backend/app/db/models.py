@@ -1,9 +1,9 @@
 """Schema cốt lõi cho POS System — Release 1 (modular monolith, theo ADR 0002).
 
-12 bảng, đúng theo BRD/HLR đã review:
-  outlet, restaurant_table, table_session, kitchen_station, menu_item,
-  "order", order_item, order_version, kitchen_queue, audit_log, staff,
-  idempotency_key.
+13 bảng, đúng theo BRD/HLR đã review:
+  outlet, restaurant_table, table_session, kitchen_station, menu_category,
+  menu_item, "order", order_item, order_version, kitchen_queue, audit_log,
+  staff, idempotency_key. (menu_category thêm ở migration 0003.)
 
 Quy ước áp dụng cho toàn bộ file:
 - PK = GUID (uuid4 sinh phía client hoặc server) — KHÔNG dùng auto-increment,
@@ -195,6 +195,25 @@ class KitchenStation(Base):
 
 
 # ---------------------------------------------------------------------------
+# MenuCategory — nhóm món (vd "Món chính", "Đồ uống") để POS lọc món và quản
+# lý menu theo nhóm (BRD Menu Management; Figma screen-102). Migration 0003.
+# ---------------------------------------------------------------------------
+
+
+class MenuCategory(Base):
+    __tablename__ = "menu_category"
+    __table_args__ = (UniqueConstraint("outlet_id", "name", name="uq_menu_category_outlet_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    menu_items: Mapped[list["MenuItem"]] = relationship(back_populates="category")
+
+
+# ---------------------------------------------------------------------------
 # MenuItem — món trong menu, gắn với 1 kitchen_station để biết gửi bếp nào.
 # ---------------------------------------------------------------------------
 
@@ -207,6 +226,9 @@ class MenuItem(Base):
     station_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("kitchen_station.id"), nullable=True
     )
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("menu_category.id"), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     price: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -217,6 +239,7 @@ class MenuItem(Base):
 
     outlet: Mapped["Outlet"] = relationship(back_populates="menu_items")
     station: Mapped["KitchenStation | None"] = relationship(back_populates="menu_items")
+    category: Mapped["MenuCategory | None"] = relationship(back_populates="menu_items")
 
 
 # ---------------------------------------------------------------------------

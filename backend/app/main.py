@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 # DATABASE_URL/APP_ENV va engine dung chung voi Alembic (migrations/env.py) qua
 # app/core/config.py va app/db/base.py - khong duplicate logic o day nua.
 from app.api.v1 import api_v1_router
-from app.core.config import APP_ENV
+from app.core.config import APP_ENV, BUILT_AT, CORS_ALLOW_ORIGINS, GIT_COMMIT
 from app.core.error_handlers import register_exception_handlers
 from app.db.base import engine as database_engine
 
@@ -21,6 +22,16 @@ app = FastAPI(
     description="Backend foundation and mock screens for the POS project.",
     version="0.1.0",
 )
+if CORS_ALLOW_ORIGINS:
+    # FE (POS/KDS/QR) chạy ở domain/cổng khác API -> trình duyệt cần header CORS.
+    # Header tự định nghĩa (Idempotency-Key) phải được liệt kê để preflight pass.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=CORS_ALLOW_ORIGINS,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        max_age=600,
+    )
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=APP_DIR / "templates")
 app.include_router(api_v1_router)
@@ -112,6 +123,18 @@ def admin_page(request: Request) -> HTMLResponse:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/version")
+def version() -> dict[str, str]:
+    """Commit và thời điểm build của bản đang chạy — đối chiếu với lịch sử `main`."""
+    return {
+        "commit": GIT_COMMIT,
+        "short_commit": GIT_COMMIT[:7],
+        "built_at": BUILT_AT,
+        "environment": APP_ENV,
+        "api_version": app.version,
+    }
 
 
 @app.get("/ready", response_model=None)
