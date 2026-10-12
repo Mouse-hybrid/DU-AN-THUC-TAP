@@ -43,6 +43,9 @@ const report = {
   staging_get_orders: Boolean(stagingOpenapi.paths?.['/api/v1/orders']?.get),
   main_get_orders: Boolean(mainOpenapi.paths?.['/api/v1/orders']?.get),
 };
-console.log('[DES-QA-05] Live staging version and OpenAPI audit');
-console.log(JSON.stringify(report, null, 2));
-console.log('[DES-QA-05] Read-only audit; no testcase business flow executed.');
+const stagingCommit = String(version.short_commit || version.commit || 'unknown').slice(0, 7);
+const mainShort = mainCommit.slice(0, 7);
+const contractResult = report.openapi_equal_to_main ? 'MATCH' : 'DIFF';
+console.log(`[DES-QA-05] staging ${stagingCommit} | main ${mainShort} | OpenAPI ${contractResult} (${report.staging_rest_operation_count} REST, ${report.staging_path_count} paths) | GET /orders: ${report.staging_get_orders ? 'YES' : 'NO'}`);
+if (process.argv.includes('--verbose')) console.log(JSON.stringify(report, null, 2));
+console.log('[DES-QA-05] Read-only audit; business testcases not executed.');
