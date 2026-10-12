@@ -1,0 +1,27 @@
+DES-QA-05 / TC-025 read-only readiness CI evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: 9e91ffbecf46e1bf69fef29342dc858633bdb4bb
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38250766974
+Job ID: 114816158158
+Artifact ID: 11746874243 (des-qa-05-preflight-evidence; includes PF-09_to_10_CI.log and Cypress video; retention 14 days)
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+PF-09_to_10_CI.log
+  DES-QA-05 | TC-025 mixed-routing E2E readiness preflight
+[DES-QA-05] PF-09 PENDING: add-item API lacks modifier input; TC-025 mixed-routing/modifier E2E cannot run against this contract
+    - PF-09 | add-item OpenAPI documents modifier input needed by TC-025
+[DES-QA-05] PF-10 PENDING: Kitchen JWT or local QA credentials missing; cannot count staging stations
+    - PF-10 | Kitchen exposes at least six distinct station fixtures
+  0 passing (7s)
+  2 pending
+  │ Tests:        2                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      2                                                                                │
+  │ Duration:     7 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_025_e2e_readiness_preflight.cy.js                                   │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_025_e2e_readiness_preflight.cy.js.mp4
+    ✔  All specs passed!                        00:07        2        -        -        2        -  
+
+Interpretation: 0 Passed, 0 Failed, 2 Pending. OpenAPI lacks modifier input. Kitchen credentials absent in CI, so six station count could not be measured in this run. Neither mixed routing nor modifiers nor full kitchen lifecycle E2E ran. CI workflow success is not TC-025 functional success.
