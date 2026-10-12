@@ -30,8 +30,14 @@ jobs:
         env:
           CYPRESS_POS_BASE_URL: http://160.191.47.17
           CYPRESS_DES05_MENU_TOKEN: ${{ secrets.DES05_MENU_TOKEN }}
+          CYPRESS_POS_USERNAME: ${{ secrets.DES05_MENU_USERNAME }}
+          CYPRESS_POS_PASSWORD: ${{ secrets.DES05_MENU_PASSWORD }}
           CYPRESS_EXT_KITCHEN_TOKEN: ${{ secrets.EXT_KITCHEN_TOKEN }}
+          CYPRESS_EXT_KITCHEN_USERNAME: ${{ secrets.EXT_KITCHEN_USERNAME }}
+          CYPRESS_EXT_KITCHEN_PASSWORD: ${{ secrets.EXT_KITCHEN_PASSWORD }}
           CYPRESS_EXT_REFIRE_SUPERVISOR_TOKEN: ${{ secrets.EXT_REFIRE_SUPERVISOR_TOKEN }}
+          CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME: ${{ secrets.EXT_REFIRE_SUPERVISOR_USERNAME }}
+          CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD: ${{ secrets.EXT_REFIRE_SUPERVISOR_PASSWORD }}
           CYPRESS_EXT_REFIRE_ORDER_ID: ${{ vars.EXT_REFIRE_ORDER_ID }}
         run: npx cypress run --browser electron --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js'
       - name: Upload failure evidence

@@ -1,4 +1,4 @@
-// DES-QA-05 preflight: every network request in this spec is GET.
+// DES-QA-05 preflight: business data requests are GET; optional login obtains a JWT.
 // A passing preflight never marks any DES05 functional testcase as Passed.
 describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -21,6 +21,25 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
     log: false,
     timeout: 20000,
   });
+  const tokenFor = (origin, token, username, password) => {
+    if (token) return cy.wrap(token, { log: false });
+    if (!username && !password) return cy.wrap(null, { log: false });
+    expect(username, 'QA username').to.be.a('string').and.not.be.empty;
+    expect(password, 'QA password').to.be.a('string').and.not.be.empty;
+    return cy.request({
+      method: 'POST',
+      url: origin + '/api/v1/auth/login',
+      body: { username, password },
+      failOnStatusCode: false,
+      log: false,
+      timeout: 20000,
+    }).then((response) => {
+      expect(response.status, 'QA login status').eq(200);
+      const accessToken = response.body?.access_token || response.body?.data?.access_token;
+      expect(accessToken, 'QA access token').to.be.a('string').and.not.be.empty;
+      return accessToken;
+    });
+  };
 
   it('PF-01 | /health responds and reports ok', () => {
     cy.env(['POS_BASE_URL']).then((e) => {
@@ -32,10 +51,12 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   });
 
   it('PF-02 | available menu exposes station fixture candidates', function () {
-    cy.env(['POS_BASE_URL', 'DES05_MENU_TOKEN']).then((e) => {
-      get(base(e.POS_BASE_URL), '/api/v1/menu?available_only=true', e.DES05_MENU_TOKEN)
+    cy.env(['POS_BASE_URL', 'DES05_MENU_TOKEN', 'POS_USERNAME', 'POS_PASSWORD']).then((e) => {
+      const origin = base(e.POS_BASE_URL);
+      tokenFor(origin, e.DES05_MENU_TOKEN, e.POS_USERNAME, e.POS_PASSWORD).then((token) =>
+        get(origin, '/api/v1/menu?available_only=true', token)
         .then((response) => {
-          if (!e.DES05_MENU_TOKEN && [401, 403].includes(response.status)) {
+          if (!token && [401, 403].includes(response.status)) {
             return note(`PF-02 PENDING: Menu HTTP ${response.status}; QA token required`)
               .then(() => this.skip());
           }
@@ -50,17 +71,21 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
           }
           note(`PF-02: Menu HTTP 200; station candidates ${candidates.length}; distinct station IDs ${stations.size}`);
           cy.log('PREFLIGHT ONLY: six station IDs observed; routing and station mapping are untested');
-        });
+        }));
     });
   });
 
   it('PF-03 | Kitchen JWT can read the queue', function () {
-    cy.env(['POS_BASE_URL', 'EXT_KITCHEN_TOKEN']).then((e) => {
-      if (!e.EXT_KITCHEN_TOKEN) {
-        return note('PF-03 PENDING: EXT_KITCHEN_TOKEN is not configured')
-          .then(() => this.skip());
-      }
-      get(base(e.POS_BASE_URL), '/api/v1/kitchen/queue', e.EXT_KITCHEN_TOKEN)
+    cy.env(['POS_BASE_URL', 'EXT_KITCHEN_TOKEN', 'EXT_KITCHEN_USERNAME', 'EXT_KITCHEN_PASSWORD']).then((e) => {
+      const origin = base(e.POS_BASE_URL);
+      tokenFor(origin, e.EXT_KITCHEN_TOKEN, e.EXT_KITCHEN_USERNAME, e.EXT_KITCHEN_PASSWORD)
+        .then((token) => {
+          if (!token) {
+            return note('PF-03 PENDING: Kitchen JWT or local QA credentials not configured')
+              .then(() => this.skip());
+          }
+          return get(origin, '/api/v1/kitchen/queue', token);
+        })
         .then((response) => {
           expect(response.status, 'GET Kitchen Queue status').eq(200);
           const entries = rows(response.body, ['entries', 'queue', 'items', 'results']);
@@ -71,15 +96,23 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   });
 
   it('PF-04 | isolated QA order contains a SERVED item for Refire', function () {
-    cy.env(['POS_BASE_URL', 'EXT_REFIRE_SUPERVISOR_TOKEN', 'EXT_REFIRE_ORDER_ID'])
+    cy.env(['POS_BASE_URL', 'EXT_REFIRE_SUPERVISOR_TOKEN', 'EXT_REFIRE_SUPERVISOR_USERNAME',
+      'EXT_REFIRE_SUPERVISOR_PASSWORD', 'EXT_REFIRE_ORDER_ID'])
       .then((e) => {
-        if (!e.EXT_REFIRE_SUPERVISOR_TOKEN || !e.EXT_REFIRE_ORDER_ID) {
-          return note('PF-04 PENDING: isolated QA Order ID and/or supervisor JWT not configured')
+        if (!e.EXT_REFIRE_ORDER_ID) {
+          return note('PF-04 PENDING: isolated QA Order ID not configured')
             .then(() => this.skip());
         }
         expect(e.EXT_REFIRE_ORDER_ID, 'QA order UUID').to.match(uuid);
-        get(base(e.POS_BASE_URL), '/api/v1/orders/' + e.EXT_REFIRE_ORDER_ID,
-          e.EXT_REFIRE_SUPERVISOR_TOKEN).then((response) => {
+        const origin = base(e.POS_BASE_URL);
+        tokenFor(origin, e.EXT_REFIRE_SUPERVISOR_TOKEN, e.EXT_REFIRE_SUPERVISOR_USERNAME,
+          e.EXT_REFIRE_SUPERVISOR_PASSWORD).then((token) => {
+          if (!token) {
+            return note('PF-04 PENDING: supervisor JWT or local QA credentials not configured')
+              .then(() => this.skip());
+          }
+          return get(origin, '/api/v1/orders/' + e.EXT_REFIRE_ORDER_ID, token);
+        }).then((response) => {
           expect(response.status, 'GET QA order status').eq(200);
           const order = response.body?.order || response.body?.data?.order || response.body?.data || response.body;
           expect(order?.items, 'QA order items').to.be.an('array');
