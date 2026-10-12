@@ -301,3 +301,89 @@ def test_refired_item_can_be_cooked_and_served_again_without_extra_charge(client
     assert detail["subtotal"] == subtotal_before
     assert len(detail["items"]) == 1
     assert client.get("/api/v1/kitchen/queue", headers=kitchen).json() == []
+
+
+def test_request_billing_moves_table_to_billing_and_locks_ordering(
+    client, seed, db_session_factory
+):
+    """PO chốt 12/10 (B1 = A, B2 = A): yêu cầu thanh toán thì bàn sang BILLING và
+    khóa gọi thêm; thanh toán xong bàn sang thẳng CLEANING."""
+    table_session_id, order_id, _ = _open_order_and_send_to_kitchen(
+        client, seed["table_id"], seed["menu_item_id"], "bill-lock"
+    )
+    cashier = login(client, "cashier_test")
+    resp = client.post(
+        f"/api/v1/orders/{order_id}/request-billing",
+        headers={**cashier, "Idempotency-Key": "bill-lock-billing"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    session = db_session_factory()
+    assert session.get(RestaurantTable, seed["table_id"]).status == "BILLING"
+    session.close()
+    dashboard = client.get("/api/v1/tables", headers=cashier).json()
+    assert dashboard[0]["status"] == "BILLING"
+
+    new_order = client.post(
+        "/api/v1/orders",
+        json={"table_session_id": table_session_id},
+        headers={**cashier, "Idempotency-Key": "bill-lock-new-order"},
+    )
+    assert new_order.status_code == 409
+
+    pay = client.post(
+        f"/api/v1/orders/{order_id}/pay",
+        headers={**cashier, "Idempotency-Key": "bill-lock-pay"},
+    )
+    assert pay.status_code == 200, pay.text
+    session = db_session_factory()
+    assert session.get(RestaurantTable, seed["table_id"]).status == "CLEANING"
+    session.close()
+
+
+def test_other_order_on_billing_table_cannot_add_items(client, seed):
+    table_session_id, order_id, _ = _open_order_and_send_to_kitchen(
+        client, seed["table_id"], seed["menu_item_id"], "bill-other"
+    )
+    cashier = login(client, "cashier_test")
+    second_order = client.post(
+        "/api/v1/orders",
+        json={"table_session_id": table_session_id},
+        headers={**cashier, "Idempotency-Key": "bill-other-order2"},
+    ).json()["id"]
+    client.post(
+        f"/api/v1/orders/{order_id}/request-billing",
+        headers={**cashier, "Idempotency-Key": "bill-other-billing"},
+    )
+    resp = client.post(
+        f"/api/v1/orders/{second_order}/items",
+        json={"items": [{"menu_item_id": str(seed["menu_item_id"]), "quantity": 1}]},
+        headers={**cashier, "Idempotency-Key": "bill-other-items"},
+    )
+    assert resp.status_code == 409
+
+
+def test_served_order_goes_back_to_sent_when_more_items_are_sent(client, seed):
+    _, order_id, item_id = _open_order_and_send_to_kitchen(
+        client, seed["table_id"], seed["menu_item_id"], "reorder"
+    )
+    kitchen = login(client, "kitchen_test")
+    waiter = login(client, "waiter_test")
+    served = _kitchen_cycle(client, order_id, item_id, kitchen, waiter, "reorder-1")
+    assert served.json()["status"] == "SERVED"
+
+    more = client.post(
+        f"/api/v1/orders/{order_id}/items",
+        json={"items": [{"menu_item_id": str(seed["menu_item_id"]), "quantity": 1}]},
+        headers={**waiter, "Idempotency-Key": "reorder-more"},
+    )
+    assert more.status_code == 201, more.text
+    sent = client.post(
+        f"/api/v1/orders/{order_id}/send-to-kitchen",
+        headers={**waiter, "Idempotency-Key": "reorder-send-2"},
+    )
+    assert sent.json()["order"]["status"] == "SENT"
+
+    new_item_id = next(i["id"] for i in sent.json()["order"]["items"] if i["id"] != item_id)
+    again = _kitchen_cycle(client, order_id, new_item_id, kitchen, waiter, "reorder-2")
+    assert again.json()["status"] == "SERVED"

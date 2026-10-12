@@ -1211,7 +1211,7 @@
           "orders"
         ],
         "summary": "Request Billing",
-        "description": "SENT/SERVED -> BILLING. Khách yêu cầu thanh toán — chưa nhận tiền, chỉ khóa\norder lại để không ai thêm/sửa món trong lúc tính tiền.",
+        "description": "SENT/SERVED -> BILLING. Khách yêu cầu thanh toán — chưa nhận tiền, chỉ khóa\norder lại để không ai thêm/sửa món trong lúc tính tiền. PO chốt 12/10 (B1 = A):\nbàn cũng chuyển OCCUPIED -> BILLING để sơ đồ bàn thấy ngay bàn sắp trống và\nkhóa gọi thêm/gộp bàn; thanh toán xong bàn sang thẳng CLEANING (B2 = A).",
         "operationId": "request_billing_api_v1_orders__order_id__request_billing_post",
         "security": [
           {

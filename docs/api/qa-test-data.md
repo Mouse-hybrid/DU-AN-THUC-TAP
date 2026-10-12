@@ -91,9 +91,9 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 | Thêm món đang hết | món `is_available=false` | `409` |
 | Sửa món body rỗng / `quantity: null` | `{}` | `422` |
 | Sửa/bỏ món **đã gửi bếp** | món SENT trở đi | `409` (phải dùng void) |
-| Thêm/sửa/bỏ món khi order đã gửi bếp, role CASHIER hoặc WAITER | món mới thêm sau khi gửi | `403` (chỉ SUPERVISOR) |
+| Gọi thêm món sau khi order đã gửi bếp (CASHIER/WAITER) | thêm món → sửa/bỏ món mới → gửi bếp đợt 2 | `201` / `200` (PO chốt 12/10); sửa món **đã gửi** vẫn `409` |
 | KITCHEN mở bàn / tạo order / thêm-sửa-bỏ món / gửi bếp | bất kỳ | `403` |
-| Thêm/sửa món khi order BILLING/PAID/CLOSED | — | `409` |
+| Thêm/sửa món, tạo order mới, gửi bếp khi order BILLING/PAID/CLOSED hoặc **bàn đang BILLING** | — | `409` |
 | Thiếu `Idempotency-Key` | — | `400` |
 
 ## 5. Bếp, thanh toán, dọn bàn
@@ -105,8 +105,8 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 | Nấu xong | `POST .../items/{item_id}/mark-ready` | KITCHEN, SUPERVISOR | món PREPARING | `200` → READY |
 | Lấy món | `POST .../items/{item_id}/pickup` | WAITER, SUPERVISOR | món READY | `200` → PICKED_UP |
 | Mang ra bàn | `POST .../items/{item_id}/served` | WAITER, SUPERVISOR | món PICKED_UP | `200` → SERVED |
-| Yêu cầu thanh toán | `POST /api/v1/orders/{id}/request-billing` | CASHIER, WAITER, SUPERVISOR | order SENT/SERVED | `200` → BILLING |
-| Thanh toán | `POST /api/v1/orders/{id}/pay` | CASHIER, SUPERVISOR (WAITER → `403`) | order BILLING | `200` → PAID, bàn → CLEANING |
+| Yêu cầu thanh toán | `POST /api/v1/orders/{id}/request-billing` | CASHIER, WAITER, SUPERVISOR | order SENT/SERVED | `200` → order BILLING, **bàn BILLING** (khóa gọi thêm) |
+| Thanh toán | `POST /api/v1/orders/{id}/pay` | CASHIER, SUPERVISOR (WAITER → `403`) | order BILLING | `200` → PAID, bàn BILLING → CLEANING |
 | Đóng order | `POST /api/v1/orders/{id}/close` | CASHIER, SUPERVISOR | order PAID | `200` → CLOSED |
 | Dọn bàn xong | `POST /api/v1/tables/{id}/mark-clean` | WAITER, SUPERVISOR | bàn CLEANING | `200` → AVAILABLE |
 
