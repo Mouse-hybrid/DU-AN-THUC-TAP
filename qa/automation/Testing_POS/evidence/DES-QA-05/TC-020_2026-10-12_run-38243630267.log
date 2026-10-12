@@ -1,0 +1,25 @@
+DES-QA-05 / TC-020 guarded CI execution evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: 0f89873efaea05e35bb2585b0ec930135904af0c
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38243630267
+Job ID: 114792030923
+Artifact ID: 11744237219 (des-qa-05-preflight-evidence; includes TC-020_CI.log and Cypress video; retention 14 days)
+Guard: CYPRESS_DES05_TC020_RUN and CYPRESS_DES05_TC020_CLEANUP_CONFIRMED empty in CI.
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+  DES-QA-05 | TC-020 Refire retry on isolated QA order
+[DES-QA-05] TC-020 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally
+    - TC-020 | same key returns the first result without a second queue ticket or version
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_020_refire_retry_isolated.cy.js                                     │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_020_refire_retry_isolated.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+Interpretation: 0 Passed, 0 Failed, 1 Pending. Guard skipped before login or Refire requests. Workflow success is not TC-020 functional success; no same-key retry, duplicate queue or version assertions were executed.
