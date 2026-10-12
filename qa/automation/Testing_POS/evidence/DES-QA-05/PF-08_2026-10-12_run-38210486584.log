@@ -1,0 +1,27 @@
+DES-QA-05 / PF-08 | CI execution evidence
+Date: 2026-10-12 (Asia/Saigon)
+Source: GitHub Actions run 38210486584, job 114683300565
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38210486584
+Commit tested: ddcc8c036d28d4b4d15ddcef9a9e13ff03cd5a3d (ONLY_TESTING)
+Runner/browser: ubuntu-latest / Cypress Electron headless
+Artifact (CI log and video; retention 14 days): https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38210486584/artifacts/11728558038
+
+PF-08 Cypress output (selected lines, ANSI and CI timestamps removed):
+  Running:  des_qa_05_tc_018_expeditor_rbac_contract_preflight.cy.js                        (1 of 1)
+  DES-QA-05 | TC-018 Expeditor RBAC contract preflight
+[DES-QA-05] PF-08 PENDING: OpenAPI has no documented Expeditor action; TC-018 endpoint remains TBD
+    - PF-08 | OpenAPI documents an Expeditor action for RBAC testing
+  0 passing (4s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_018_expeditor_rbac_contract_preflight.cy.js                         │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_018_expeditor_rbac_contract_preflight.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+QA interpretation: PF-08 Pending. Staging OpenAPI did not document an Expeditor action for TC-018. No Cashier/Customer denial or no-mutation assertion ran. TC-018 remains Blocked/Not Executed; workflow success is not testcase Passed.
