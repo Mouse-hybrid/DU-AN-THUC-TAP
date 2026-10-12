@@ -117,6 +117,8 @@ _PICKUP_SERVE_ROLES = ("WAITER", "SUPERVISOR")  # = "Serve Food"
 _CLOSED_ORDER_STATUSES = ("BILLING", "PAID", "CLOSED")
 _VOIDABLE_ITEM_STATUSES = ("CREATED", "SENT", "ACCEPTED", "PREPARING")
 _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
+# Món refire có phiếu bếp mới (QUEUED) và đi lại vòng nấu như món mới gửi bếp.
+_STARTABLE_ITEM_STATUSES = ("SENT", "REFIRED")
 
 
 def _load_order_or_404(session: Session, order_id: uuid.UUID, outlet_id: uuid.UUID) -> Order:
@@ -1000,7 +1002,7 @@ def start_cooking_order_item(
     current: CurrentStaff = Depends(require_role(*_KITCHEN_ACTION_ROLES)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
-    """SENT -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
+    """SENT/REFIRED -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
     (ACCEPTED) vào action này — BRD chỉ định nghĩa 1 action "Start Cooking",
     không tách riêng bước "accept". Nếu sau này cần tách, thêm action mới và
     dùng ACCEPTED làm bước trung gian (schema đã có sẵn giá trị này)."""
@@ -1016,10 +1018,13 @@ def start_cooking_order_item(
         return OrderOut.model_validate_json(existing.response_body)
 
     order, item = _load_order_item_or_404(session, order_id, item_id, current.outlet_id)
-    if item.status != "SENT":
+    if item.status not in _STARTABLE_ITEM_STATUSES:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"Món đang ở trạng thái '{item.status}', phải ở SENT mới start-cooking được",
+            detail=(
+                f"Món đang ở trạng thái '{item.status}', "
+                "phải ở SENT hoặc REFIRED mới start-cooking được"
+            ),
         )
 
     queue_entry = _load_active_kitchen_queue_entry(session, item.id)

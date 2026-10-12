@@ -250,3 +250,54 @@ def test_refire_served_item_requires_supervisor_and_creates_new_kitchen_queue_en
     entries = session.query(KitchenQueue).filter(KitchenQueue.order_item_id == item_id).all()
     assert len(entries) == 2  # 1 tu send-to-kitchen ban dau + 1 tu refire
     session.close()
+
+
+def _kitchen_cycle(client, order_id, item_id, kitchen, waiter, prefix):
+    """Bếp nấu xong rồi phục vụ mang ra bàn: start -> ready -> pickup -> served."""
+    for action, headers in (
+        ("start-cooking", kitchen),
+        ("mark-ready", kitchen),
+        ("pickup", waiter),
+        ("served", waiter),
+    ):
+        resp = client.post(
+            f"/api/v1/orders/{order_id}/items/{item_id}/{action}",
+            headers={**headers, "Idempotency-Key": f"{prefix}-{action}"},
+        )
+        assert resp.status_code == 200, f"{action}: {resp.text}"
+    return resp
+
+
+def test_refired_item_can_be_cooked_and_served_again_without_extra_charge(client, seed):
+    """Refire xong bếp phải thấy phiếu mới, nấu lại và phục vụ lại được; món
+    không bị tính tiền thêm (subtotal giữ nguyên)."""
+    _, order_id, item_id = _open_order_and_send_to_kitchen(
+        client, seed["table_id"], seed["menu_item_id"], "refire-cycle"
+    )
+    kitchen = login(client, "kitchen_test")
+    waiter = login(client, "waiter_test")
+    supervisor = login(client, "supervisor_test")
+
+    _kitchen_cycle(client, order_id, item_id, kitchen, waiter, "refire-cycle-1")
+    subtotal_before = client.get(f"/api/v1/orders/{order_id}", headers=supervisor).json()[
+        "subtotal"
+    ]
+
+    refire_resp = client.post(
+        f"/api/v1/orders/{order_id}/items/{item_id}/refire",
+        headers={**supervisor, "Idempotency-Key": "refire-cycle-refire"},
+    )
+    assert refire_resp.status_code == 200, refire_resp.text
+
+    queue = client.get("/api/v1/kitchen/queue", headers=kitchen).json()
+    assert [e["status"] for e in queue if e["order_item_id"] == item_id] == ["QUEUED"]
+
+    served = _kitchen_cycle(client, order_id, item_id, kitchen, waiter, "refire-cycle-2")
+    item = next(i for i in served.json()["items"] if i["id"] == item_id)
+    assert item["status"] == "SERVED"
+    assert served.json()["status"] == "SERVED"
+
+    detail = client.get(f"/api/v1/orders/{order_id}", headers=supervisor).json()
+    assert detail["subtotal"] == subtotal_before
+    assert len(detail["items"]) == 1
+    assert client.get("/api/v1/kitchen/queue", headers=kitchen).json() == []
