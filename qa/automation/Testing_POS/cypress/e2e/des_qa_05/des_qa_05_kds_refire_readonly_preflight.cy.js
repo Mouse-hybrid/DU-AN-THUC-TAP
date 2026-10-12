@@ -21,12 +21,12 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
     log: false,
     timeout: 20000,
   });
-  const tokenFor = (origin, token, username, password) => {
+  const tokenFor = (origin, token, username, password, label) => {
     if (token) return cy.wrap(token, { log: false });
     const account = String(username ?? '');
     const secret = String(password ?? '');
     if (!account && !secret) return cy.wrap(null, { log: false });
-    if (!account || !secret) throw new Error('QA login credentials incomplete');
+    if (!account || !secret) throw new Error(`${label} login credentials incomplete`);
     return cy.request({
       method: 'POST',
       url: origin + '/api/v1/auth/login',
@@ -35,9 +35,9 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
       log: false,
       timeout: 20000,
     }).then((response) => {
-      expect(response.status, 'QA login status').eq(200);
+      expect(response.status, `${label} login HTTP (check local credentials)`).eq(200);
       const accessToken = response.body?.access_token || response.body?.data?.access_token;
-      expect(accessToken, 'QA access token').to.be.a('string').and.not.be.empty;
+      expect(accessToken, `${label} access token`).to.be.a('string').and.not.be.empty;
       return accessToken;
     });
   };
@@ -54,11 +54,11 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   it('PF-02 | available menu exposes station fixture candidates', function () {
     cy.env(['POS_BASE_URL', 'DES05_MENU_TOKEN', 'POS_USERNAME', 'POS_PASSWORD']).then((e) => {
       const origin = base(e.POS_BASE_URL);
-      tokenFor(origin, e.DES05_MENU_TOKEN, e.POS_USERNAME, e.POS_PASSWORD).then((token) =>
+      tokenFor(origin, e.DES05_MENU_TOKEN, e.POS_USERNAME, e.POS_PASSWORD, 'Menu user').then((token) =>
         get(origin, '/api/v1/menu?available_only=true', token)
         .then((response) => {
           if (!token && [401, 403].includes(response.status)) {
-            return note(`PF-02 PENDING: Menu HTTP ${response.status}; QA token required`)
+            return note(`PF-02 PENDING: Menu HTTP ${response.status}; seeded user JWT required`)
               .then(() => this.skip());
           }
           expect(response.status, 'GET available menu status').eq(200);
@@ -66,12 +66,8 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
           expect(items, 'menu collection').to.be.an('array');
           const candidates = items.filter((item) => item.is_available !== false && item.station_id);
           const stations = new Set(candidates.map((item) => String(item.station_id)));
-          if (stations.size < 6) {
-            return note(`PF-02 PENDING: Menu HTTP 200; station candidates ${candidates.length}; distinct station IDs ${stations.size}; need six mapped fixtures`)
-              .then(() => this.skip());
-          }
-          note(`PF-02: Menu HTTP 200; station candidates ${candidates.length}; distinct station IDs ${stations.size}`);
-          cy.log('PREFLIGHT ONLY: six station IDs observed; routing and station mapping are untested');
+          expect(candidates.length, 'available menu items with station_id').to.be.greaterThan(0);
+          return note(`PF-02: Menu HTTP 200; mapped items ${candidates.length}; distinct station IDs ${stations.size}; six-station coverage untested`);
         }));
     });
   });
@@ -79,10 +75,10 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
   it('PF-03 | Kitchen JWT can read the queue', function () {
     cy.env(['POS_BASE_URL', 'EXT_KITCHEN_TOKEN', 'EXT_KITCHEN_USERNAME', 'EXT_KITCHEN_PASSWORD']).then((e) => {
       const origin = base(e.POS_BASE_URL);
-      tokenFor(origin, e.EXT_KITCHEN_TOKEN, e.EXT_KITCHEN_USERNAME, e.EXT_KITCHEN_PASSWORD)
+      tokenFor(origin, e.EXT_KITCHEN_TOKEN, e.EXT_KITCHEN_USERNAME, e.EXT_KITCHEN_PASSWORD, 'Kitchen')
         .then((token) => {
           if (!token) {
-            return note('PF-03 PENDING: Kitchen JWT or local QA credentials not configured')
+            return note('PF-03 PENDING: Kitchen JWT or seeded Kitchen credentials not configured')
               .then(() => this.skip());
           }
           return get(origin, '/api/v1/kitchen/queue', token);
@@ -107,9 +103,9 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
         expect(e.EXT_REFIRE_ORDER_ID, 'QA order UUID').to.match(uuid);
         const origin = base(e.POS_BASE_URL);
         tokenFor(origin, e.EXT_REFIRE_SUPERVISOR_TOKEN, e.EXT_REFIRE_SUPERVISOR_USERNAME,
-          e.EXT_REFIRE_SUPERVISOR_PASSWORD).then((token) => {
+          e.EXT_REFIRE_SUPERVISOR_PASSWORD, 'Supervisor').then((token) => {
           if (!token) {
-            return note('PF-04 PENDING: supervisor JWT or local QA credentials not configured')
+            return note('PF-04 PENDING: Supervisor JWT or seeded admin credentials not configured')
               .then(() => this.skip());
           }
           return get(origin, '/api/v1/orders/' + e.EXT_REFIRE_ORDER_ID, token);

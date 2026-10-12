@@ -26,7 +26,7 @@ describe('DES-QA-05 | GET orders list runtime preflight', () => {
   it('PF-12 | authenticated GET /orders returns summary records', function () {
     cy.env(['POS_BASE_URL', 'POS_USERNAME', 'POS_PASSWORD']).then((e) => {
       if (!e.POS_USERNAME || !e.POS_PASSWORD) {
-        return pending('PF-12 PENDING: local QA login absent; authenticated GET /orders not executed', this);
+        return pending('PF-12 PENDING: seeded account login absent; authenticated GET /orders not executed', this);
       }
       const base = origin(e.POS_BASE_URL);
       return cy.request({
@@ -40,8 +40,8 @@ describe('DES-QA-05 | GET orders list runtime preflight', () => {
         log: false,
         timeout: 20000,
       }).then((login) => {
-        expect(login.status, 'QA login HTTP').eq(200);
-        const token = login.body?.access_token;
+        expect(login.status, 'Seeded user login HTTP (check local credentials)').eq(200);
+        const token = login.body?.access_token || login.body?.data?.access_token;
         expect(token, 'access token').to.be.a('string').and.not.be.empty;
         return getOrders(base, token).then((list) => {
           expect(list.status, 'GET /orders with JWT').eq(200);

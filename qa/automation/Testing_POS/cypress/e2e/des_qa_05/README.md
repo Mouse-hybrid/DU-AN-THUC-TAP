@@ -1,6 +1,6 @@
 # DES-QA-05 read-only Preflight
 
-This spec sends only `GET` requests. PF-01 checks `/health`; PF-02 inspects available menu station fixture candidates; PF-03 reads Kitchen Queue; PF-04 reads an isolated QA order with a `SERVED` item. A Passed Preflight is not a Passed result for any of the 25 DES05 functional testcases.
+The checks read business data with `GET`; login uses `POST /auth/login` only to obtain a JWT. PF-01 checks `/health`; PF-02 reads available menu items and counts station IDs; PF-03 reads Kitchen Queue; PF-04 reads an isolated QA order with a `SERVED` item. PF-11/12 check the orders list route. A Passed Preflight is not a Passed result for any of the 25 DES05 functional testcases. Staging currently seeds two stations; PF-02 can Pass with mapped items without claiming six-station routing works.
 
 ## Run from PowerShell
 
@@ -10,19 +10,22 @@ git switch ONLY_TESTING
 git pull --ff-only origin ONLY_TESTING
 cd qa\automation\Testing_POS
 npm ci
-$env:CYPRESS_POS_BASE_URL = 'http://160.191.47.17'
-npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js'
+.\scripts\des05_run_authenticated_preflight.ps1
 ```
 
-For protected checks, configure the following variables only in your local PowerShell session or GitHub Actions secrets/variables. Never commit JWTs or passwords:
+The script prompts separately for the seeded `admin` and `kitchen` accounts. Enter the current **staging** passwords provided by BE; the old locally assumed `123456` is not evidence of a valid staging password. It runs PF-01–04 and PF-11–12 in one Cypress invocation, then clears the environment variables it used even if Cypress fails. `PF-04` stays Pending until an isolated QA order ID exists. If you have one, run `.\scripts\des05_run_authenticated_preflight.ps1 -OrderId '<QA_ORDER_UUID>'` to read it with the seeded admin account. The script does not reset staging or mutate order data.
+
+For CI or manual runs, configure the following variables only in the runner or local PowerShell session. Never commit JWTs or passwords:
 
 | Cypress environment variable | Purpose |
 | --- | --- |
 | `CYPRESS_DES05_MENU_TOKEN` | Optional token when Menu requires authentication |
+| `CYPRESS_POS_USERNAME`, `CYPRESS_POS_PASSWORD` | Seeded admin login for PF-02 and PF-12 |
 | `CYPRESS_EXT_KITCHEN_TOKEN` | Kitchen JWT for PF-03 |
+| `CYPRESS_EXT_KITCHEN_USERNAME`, `CYPRESS_EXT_KITCHEN_PASSWORD` | Seeded kitchen login for PF-03 |
 | `CYPRESS_EXT_REFIRE_SUPERVISOR_TOKEN` | Supervisor JWT for PF-04 |
 | `CYPRESS_EXT_REFIRE_ORDER_ID` | Isolated QA Order UUID for PF-04 |
 
 Missing credentials or fixtures produce `Pending` for the affected check. HTTP 401/403 with a configured token or an unexpected response shape produces `Failing` for Preflight investigation. Connection errors indicate reachability from the runner and do not, by themselves, establish a backend defect.
 
-Record the run date, environment, PF-01..04 results, HTTP codes, and link to the Actions run in `Preflight Audit` and `Execution Start`. Keep the 25 business testcases `Not Executed` until their own steps and assertions run with approved isolated data and cleanup. Confirm station names/IDs and menu mapping with BE/BA before routing execution; PF-02 only counts candidate station IDs.
+Record the run date, environment, PF-01–04/PF-11–12 results, HTTP codes, and evidence link in `Preflight Audit` and `Execution Start`. Keep the 25 business testcases `Blocked` until their own steps and assertions run with isolated data and cleanup. Confirm station names/IDs and menu mapping with BE/BA before routing execution; PF-02 only counts candidate station IDs.
