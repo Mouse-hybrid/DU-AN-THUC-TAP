@@ -4,6 +4,9 @@
 describe('DES-QA-05 | TC-015 backward transition on isolated QA order', () => {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const note = (message) => cy.task('des05Note', message, { log: false });
+  const pending = (message, context) => note(message)
+    .then(() => cy.log(`${message} (video evidence pause: 3 seconds)`).wait(3000, { log: false }))
+    .then(() => context.skip());
   const request = (origin, path, token, method = 'GET', key) => cy.request({
     method,
     url: origin + path,
@@ -51,14 +54,12 @@ describe('DES-QA-05 | TC-015 backward transition on isolated QA order', () => {
     ]).then((e) => {
       if (e.DES05_TC015_RUN !== 'TRY_START_COOKING_ON_SERVED_QA_ITEM' ||
           e.DES05_TC015_CLEANUP_CONFIRMED !== 'YES') {
-        return note('TC-015 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally')
-          .then(() => this.skip());
+        return pending('TC-015 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally', this);
       }
       if (!e.DES05_TC015_ORDER_ID || !e.DES05_TC015_ITEM_ID ||
           !e.DES05_TC015_IDEMPOTENCY_KEY || !e.EXT_KITCHEN_USERNAME ||
           !e.EXT_KITCHEN_PASSWORD) {
-        return note('TC-015 PENDING: QA Order/Item IDs, fresh idempotency key, or Kitchen login missing')
-          .then(() => this.skip());
+        return pending('TC-015 PENDING: QA Order/Item IDs, fresh idempotency key, or Kitchen login missing', this);
       }
 
       const orderId = String(e.DES05_TC015_ORDER_ID);
