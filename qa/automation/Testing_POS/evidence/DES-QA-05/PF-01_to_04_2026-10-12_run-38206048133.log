@@ -1,0 +1,30 @@
+DES-QA-05 | PF-01 to PF-04 | GitHub Actions execution log
+Date: 2026-10-12 12:00-12:01 ICT (05:00-05:01 UTC)
+Source: GitHub Actions run 38206048133, job 114669669595
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38206048133
+Commit tested: 9b38fcce9332ca6bcbc285f6b559674c597ae027 (ONLY_TESTING)
+Runner/browser: ubuntu-latest / Cypress Electron headless
+Artifact (CI logs and videos, retention 14 days): https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38206048133/artifacts/11727680954
+
+Cypress output (selected lines; CI timestamps and ANSI removed):
+  Running:  des_qa_05_kds_refire_readonly_preflight.cy.js                                   (1 of 1)
+  DES-QA-05 | KDS routing and Refire read-only preflight
+    ✓ PF-01 | /health responds and reports ok (467ms)
+[DES-QA-05] PF-02 PENDING: Menu HTTP 401; QA token required
+    - PF-02 | available menu exposes station fixture candidates
+[DES-QA-05] PF-03 PENDING: Kitchen JWT or local QA credentials not configured
+    - PF-03 | Kitchen JWT can read the queue
+[DES-QA-05] PF-04 PENDING: isolated QA Order ID not configured
+    - PF-04 | isolated QA order contains a SERVED item for Refire
+  1 passing (820ms)
+  3 pending
+  │ Tests:        4                                                                                │
+  │ Passing:      1                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      3                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_kds_refire_readonly_preflight.cy.js                                    │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_kds_refire_readonly_preflight.cy.js.mp4
+
+QA interpretation: PF-01 passed health check. PF-02, PF-03, PF-04 pending. No DES05 functional routing/refire testcase passed.
