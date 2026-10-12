@@ -75,6 +75,12 @@ KDS_SLA_WARNING_MINUTES = int(os.getenv("KDS_SLA_WARNING_MINUTES", "8"))
 KDS_SLA_DELAYED_MINUTES = int(os.getenv("KDS_SLA_DELAYED_MINUTES", "12"))
 KDS_SLA_CRITICAL_MINUTES = int(os.getenv("KDS_SLA_CRITICAL_MINUTES", "15"))
 
+# --- Bản đang chạy (GET /version) ---------------------------------------------
+# Gắn lúc build image (Dockerfile ARG GIT_COMMIT/BUILT_AT, deploy-staging.sh truyền
+# vào) để QA/mentor biết staging đang chạy đúng commit nào.
+GIT_COMMIT = os.getenv("GIT_COMMIT", "unknown")
+BUILT_AT = os.getenv("BUILT_AT", "unknown")
+
 if APP_ENV != "development" and JWT_SECRET_KEY == "dev-only-insecure-secret-change-me":
     raise RuntimeError(
         "JWT_SECRET_KEY chưa được set cho môi trường "

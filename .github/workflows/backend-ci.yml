@@ -56,6 +56,8 @@ jobs:
           push: false
           load: true
           tags: pos-backend:ci
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
       - name: Smoke test - container khoi dong duoc va /health tra 200
         run: |
           docker run -d --name smoke -p 8000:8000 pos-backend:ci
@@ -104,6 +106,7 @@ jobs:
           [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/tables)" = "401" ] || fail "/api/v1/tables phai vao backend (401)"
           curl -sf http://localhost:8080/docs | grep -q 'swagger' || fail "/docs phai vao backend"
           curl -sf http://localhost:8080/health | grep -q '"ok"' || fail "/health phai vao backend khi da co FE"
+          curl -sf http://localhost:8080/version | grep -q "${GITHUB_SHA}" || fail "/version phai vao backend va tra dung commit"
           docker logs nginx 2>&1 | grep -q 'token=' && fail "JWT bi ghi vao access log"
           echo "nginx smoke OK"
 

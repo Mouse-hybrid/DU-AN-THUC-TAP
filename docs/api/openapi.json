@@ -654,14 +654,14 @@
         }
       }
     },
-    "/api/v1/orders/{order_id}": {
+    "/api/v1/orders": {
       "get": {
         "tags": [
           "orders"
         ],
-        "summary": "Get Order",
-        "description": "Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE\ntải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem\norder không bị hạn chế trong Permission Matrix — mọi role đã login.",
-        "operationId": "get_order_api_v1_orders__order_id__get",
+        "summary": "List Orders",
+        "description": "Danh sách order của outlet, mới nhất trước. Dùng để tìm order (QA fixture,\nmàn tra cứu); chi tiết từng món lấy qua GET /orders/{id}. Như GET /orders/{id},\nmọi role đã login đều xem được.",
+        "operationId": "list_orders_api_v1_orders_get",
         "security": [
           {
             "HTTPBearer": []
@@ -669,13 +669,104 @@
         ],
         "parameters": [
           {
-            "name": "order_id",
-            "in": "path",
-            "required": true,
+            "name": "status",
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Order Id"
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lọc theo trạng thái, lặp lại được: ?status=SENT&status=SERVED",
+              "title": "Status"
+            },
+            "description": "Lọc theo trạng thái, lặp lại được: ?status=SENT&status=SERVED"
+          },
+          {
+            "name": "table_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Chỉ order của 1 bàn",
+              "title": "Table Id"
+            },
+            "description": "Chỉ order của 1 bàn"
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at >= (ISO 8601)",
+              "title": "Created From"
+            },
+            "description": "created_at >= (ISO 8601)"
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at < (ISO 8601)",
+              "title": "Created To"
+            },
+            "description": "created_at < (ISO 8601)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
             }
           }
         ],
@@ -685,7 +776,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrderDetailOut"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderSummaryOut"
+                  },
+                  "title": "Response List Orders Api V1 Orders Get"
                 }
               }
             }
@@ -701,9 +796,7 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/orders": {
+      },
       "post": {
         "tags": [
           "orders"
@@ -750,6 +843,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Get Order",
+        "description": "Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE\ntải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem\norder không bị hạn chế trong Permission Matrix — mọi role đã login.",
+        "operationId": "get_order_api_v1_orders__order_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailOut"
                 }
               }
             }
@@ -1861,6 +2003,29 @@
         }
       }
     },
+    "/version": {
+      "get": {
+        "summary": "Version",
+        "description": "Commit và thời điểm build của bản đang chạy — đối chiếu với lịch sử `main`.",
+        "operationId": "version_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Version Version Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ready": {
       "get": {
         "summary": "Readiness",
@@ -2628,6 +2793,65 @@
           "created_at"
         ],
         "title": "OrderOut"
+      },
+      "OrderSummaryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "table_session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Session Id"
+          },
+          "table_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Id"
+          },
+          "table_code": {
+            "type": "string",
+            "title": "Table Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_version": {
+            "type": "integer",
+            "title": "Current Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "subtotal": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "table_session_id",
+          "table_id",
+          "table_code",
+          "status",
+          "current_version",
+          "created_at",
+          "item_count",
+          "subtotal"
+        ],
+        "title": "OrderSummaryOut",
+        "description": "1 dòng trong danh sách order (GET /orders) — đủ để chọn order rồi gọi\nGET /orders/{id} lấy chi tiết. `item_count`/`subtotal` không tính món VOIDED."
       },
       "SendToKitchenResponse": {
         "properties": {

@@ -21,7 +21,7 @@ Dành cho QA. Mọi payload dưới đây đã được chạy thử trên DB v�
 
 | Header | Khi nào | Giá trị |
 |---|---|---|
-| `Authorization` | Mọi API trừ `/auth/login`, `/health`, `/ready` | `Bearer <access_token>` từ `POST /api/v1/auth/login` |
+| `Authorization` | Mọi API trừ `/auth/login`, `/health`, `/ready`, `/version` | `Bearer <access_token>` từ `POST /api/v1/auth/login` |
 | `Idempotency-Key` | Mọi `POST` tạo mới/đổi trạng thái và `PATCH`/`DELETE` món trong order | UUID mới cho mỗi lần bấm. Gửi lại **cùng key + cùng body** → trả lại kết quả cũ, không tạo trùng. **Cùng key + khác body** → `409` |
 | `Content-Type` | Request có body | `application/json` |
 
@@ -77,6 +77,7 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 | **Sửa món** (chưa gửi bếp) | `PATCH /api/v1/orders/{order_id}/items/{item_id}` | CASHIER, WAITER, SUPERVISOR | `{"quantity": 3, "note": "không đá"}` · chỉ ghi chú: `{"note": "thêm chanh"}` · xóa ghi chú: `{"note": null}` | `200` |
 | **Bỏ món** (chưa gửi bếp) | `DELETE /api/v1/orders/{order_id}/items/{item_id}` | CASHIER, WAITER, SUPERVISOR | — | `200`, món → VOIDED (vẫn hiện trong order, không tính tiền) |
 | Xem order | `GET /api/v1/orders/{order_id}` | mọi role | — | `200`, có `menu_item_name`, `line_total`, `subtotal` |
+| Danh sách order | `GET /api/v1/orders?status=SENT&status=SERVED&table_id=&created_from=&created_to=&limit=50&offset=0` | mọi role | — | `200`, mới nhất trước, mỗi dòng có `table_code`, `item_count`, `subtotal` (không tính món VOIDED); `status` sai → `422` |
 | Gửi bếp | `POST /api/v1/orders/{order_id}/send-to-kitchen` | CASHIER, WAITER, SUPERVISOR | — | `200`, món CREATED → SENT |
 | Hủy món đã gửi bếp | `POST /api/v1/orders/{order_id}/items/{item_id}/void` | SUPERVISOR | `{"reason": "khách đổi ý"}` | `200`, món → VOIDED |
 | Làm lại món đã phục vụ | `POST /api/v1/orders/{order_id}/items/{item_id}/refire` | SUPERVISOR | — | `200` |

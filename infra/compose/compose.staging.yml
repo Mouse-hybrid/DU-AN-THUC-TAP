@@ -2,6 +2,10 @@ services:
   api:
     build:
       context: ../../backend
+      args:
+        # deploy-staging.sh export 2 biến này trước khi build (GET /version).
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILT_AT: ${BUILT_AT:-unknown}
     restart: unless-stopped
     environment:
       APP_ENV: staging

@@ -1,6 +1,7 @@
 """Vertical slice bước 2+3: Tạo order → Gửi bếp, + vòng đời thanh toán và
 void/refire món.
 
+GET  /api/v1/orders                             — danh sách order (lọc status/bàn/thời gian).
 GET  /api/v1/orders/{order_id}                  — chi tiết order (tên món, thành tiền, bàn).
 POST /api/v1/orders                             — tạo order mới cho 1 table_session đang OPEN.
 POST /api/v1/orders/{order_id}/items             — thêm món vào order (snapshot giá tại thời
@@ -32,7 +33,7 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -48,6 +49,7 @@ from app.core.deps import (
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
+    ORDER_STATUS,
     IdempotencyKey,
     KitchenQueue,
     MenuItem,
@@ -63,6 +65,7 @@ from app.schemas.orders import (
     OrderDetailOut,
     OrderItemDetailOut,
     OrderOut,
+    OrderSummaryOut,
     SendToKitchenResponse,
     UpdateOrderItemRequest,
     VoidItemRequest,
@@ -201,6 +204,70 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         items=items,
         subtotal=sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0")),
     )
+
+
+@router.get("", response_model=list[OrderSummaryOut])
+def list_orders(
+    order_status: list[str] | None = Query(
+        default=None,
+        alias="status",
+        description="Lọc theo trạng thái, lặp lại được: ?status=SENT&status=SERVED",
+    ),
+    table_id: uuid.UUID | None = Query(default=None, description="Chỉ order của 1 bàn"),
+    created_from: datetime | None = Query(default=None, description="created_at >= (ISO 8601)"),
+    created_to: datetime | None = Query(default=None, description="created_at < (ISO 8601)"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    current: CurrentStaff = Depends(get_current_staff),
+    session: Session = Depends(get_session),
+) -> list[OrderSummaryOut]:
+    """Danh sách order của outlet, mới nhất trước. Dùng để tìm order (QA fixture,
+    màn tra cứu); chi tiết từng món lấy qua GET /orders/{id}. Như GET /orders/{id},
+    mọi role đã login đều xem được."""
+    invalid = sorted(set(order_status or ()) - set(ORDER_STATUS))
+    if invalid:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"status không hợp lệ: {', '.join(invalid)}. "
+            f"Chỉ nhận: {', '.join(ORDER_STATUS)}",
+        )
+
+    stmt = (
+        select(Order, RestaurantTable)
+        .join(TableSession, Order.table_session_id == TableSession.id)
+        .join(RestaurantTable, TableSession.table_id == RestaurantTable.id)
+        .where(RestaurantTable.outlet_id == current.outlet_id)
+        .options(selectinload(Order.items))
+        .order_by(Order.created_at.desc(), Order.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    if order_status:
+        stmt = stmt.where(Order.status.in_(order_status))
+    if table_id is not None:
+        stmt = stmt.where(RestaurantTable.id == table_id)
+    if created_from is not None:
+        stmt = stmt.where(Order.created_at >= created_from)
+    if created_to is not None:
+        stmt = stmt.where(Order.created_at < created_to)
+
+    summaries = []
+    for order, table in session.execute(stmt).all():
+        active = [item for item in order.items if item.status != "VOIDED"]
+        summaries.append(
+            OrderSummaryOut(
+                id=order.id,
+                table_session_id=order.table_session_id,
+                table_id=table.id,
+                table_code=table.code,
+                status=order.status,
+                current_version=order.current_version,
+                created_at=order.created_at,
+                item_count=len(active),
+                subtotal=sum((i.unit_price * i.quantity for i in active), Decimal("0")),
+            )
+        )
+    return summaries
 
 
 @router.get("/{order_id}", response_model=OrderDetailOut)
