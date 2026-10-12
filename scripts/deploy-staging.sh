@@ -14,6 +14,10 @@ cd "${REPO_DIR}"
 COMPOSE=(docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}")
 
 "${COMPOSE[@]}" config --quiet
+# Gắn commit đang deploy vào image để GET /version trả đúng bản đang chạy.
+GIT_COMMIT=$(git -C "${REPO_DIR}" rev-parse HEAD)
+BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+export GIT_COMMIT BUILT_AT
 "${COMPOSE[@]}" build
 
 echo "Starting db and waiting for its healthcheck before running migrations..."

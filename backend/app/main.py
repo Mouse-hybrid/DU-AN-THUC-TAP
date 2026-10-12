@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 # DATABASE_URL/APP_ENV va engine dung chung voi Alembic (migrations/env.py) qua
 # app/core/config.py va app/db/base.py - khong duplicate logic o day nua.
 from app.api.v1 import api_v1_router
-from app.core.config import APP_ENV, CORS_ALLOW_ORIGINS
+from app.core.config import APP_ENV, BUILT_AT, CORS_ALLOW_ORIGINS, GIT_COMMIT
 from app.core.error_handlers import register_exception_handlers
 from app.db.base import engine as database_engine
 
@@ -123,6 +123,18 @@ def admin_page(request: Request) -> HTMLResponse:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/version")
+def version() -> dict[str, str]:
+    """Commit và thời điểm build của bản đang chạy — đối chiếu với lịch sử `main`."""
+    return {
+        "commit": GIT_COMMIT,
+        "short_commit": GIT_COMMIT[:7],
+        "built_at": BUILT_AT,
+        "environment": APP_ENV,
+        "api_version": app.version,
+    }
 
 
 @app.get("/ready", response_model=None)
