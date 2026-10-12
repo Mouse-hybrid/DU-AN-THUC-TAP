@@ -1,0 +1,81 @@
+DES-QA-05 | TC-011 to TC-015 guard/preflight | GitHub Actions execution log
+Date: 2026-10-12 12:00-12:01 ICT (05:00-05:01 UTC)
+Source: GitHub Actions run 38206048133, job 114669669595
+Run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38206048133
+Commit tested: 9b38fcce9332ca6bcbc285f6b559674c597ae027 (ONLY_TESTING)
+Runner/browser: ubuntu-latest / Cypress Electron headless
+Artifact (CI logs and videos, retention 14 days): https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38206048133/artifacts/11727680954
+
+Cypress output (selected lines; CI timestamps and ANSI removed):
+  Running:  des_qa_05_tc_011_modifier_contract_preflight.cy.js                              (1 of 5)
+  DES-QA-05 | TC-011 invalid modifier contract preflight
+[DES-QA-05] PF-05 PENDING: add-item API has no modifier field; TC-011 cannot run against this contract
+    - PF-05 | add-item API documents modifier input
+  0 passing (755ms)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_011_modifier_contract_preflight.cy.js                               │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_011_modifier_contract_preflight.cy.js.mp4
+  Running:  des_qa_05_tc_012_start_cooking_isolated.cy.js                                   (2 of 5)
+  DES-QA-05 | TC-012 Start Cooking on isolated QA order
+[DES-QA-05] TC-012 PENDING: isolated QA fixture and cleanup plan must be explicitly approved locally
+    - TC-012 | SENT to PREPARING; queue becomes IN_PROGRESS
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_012_start_cooking_isolated.cy.js                                    │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_012_start_cooking_isolated.cy.js.mp4
+  Running:  des_qa_05_tc_013_mark_ready_isolated.cy.js                                      (3 of 5)
+  DES-QA-05 | TC-013 Mark Ready on isolated QA order
+[DES-QA-05] TC-013 PENDING: isolated QA fixture and cleanup plan must be explicitly approved locally
+    - TC-013 | PREPARING to READY; queue becomes DONE
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_013_mark_ready_isolated.cy.js                                       │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_013_mark_ready_isolated.cy.js.mp4
+  Running:  des_qa_05_tc_014_pickup_served_isolated.cy.js                                   (4 of 5)
+  DES-QA-05 | TC-014 Pickup then Served on isolated QA order
+[DES-QA-05] TC-014 PENDING: isolated QA fixture and cleanup plan must be explicitly approved locally
+    - TC-014 | READY to PICKED_UP to SERVED
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_014_pickup_served_isolated.cy.js                                    │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_014_pickup_served_isolated.cy.js.mp4
+  Running:  des_qa_05_tc_015_backward_transition_isolated.cy.js                             (5 of 5)
+  DES-QA-05 | TC-015 backward transition on isolated QA order
+[DES-QA-05] TC-015 PENDING: isolated SERVED fixture and cleanup plan must be explicitly approved locally
+    - TC-015 | Start Cooking from SERVED returns 409 with no new queue entry
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_015_backward_transition_isolated.cy.js                              │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_015_backward_transition_isolated.cy.js.mp4
+
+QA interpretation: PF-05 and TC-012..015 all pending. TC-012..015 guard variables were explicitly unset for this CI step; no business mutation executed. No DES05 functional testcase passed.
