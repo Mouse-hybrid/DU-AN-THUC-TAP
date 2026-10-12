@@ -1,0 +1,25 @@
+DES-QA-05 / TC-024 guarded CI execution evidence
+Date (UTC): 2026-10-12
+Branch: ONLY_TESTING
+Commit: c793ac919d79875c712bed86df05e37acad5d0de
+Workflow run: https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/38249853305
+Job ID: 114813020171
+Artifact ID: 11746797755 (des-qa-05-preflight-evidence; includes TC-024_CI.log and Cypress video; retention 14 days)
+Guard: CYPRESS_DES05_TC024_RUN and CYPRESS_DES05_TC024_CLEANUP_CONFIRMED empty in CI.
+
+Selected exact Cypress job-log lines (timestamps and ANSI colors removed):
+  DES-QA-05 | TC-024 second deliberate Refire on isolated QA order
+[DES-QA-05] TC-024 PENDING: isolated re-served fixture and cleanup plan must be explicitly approved locally
+    - TC-024 | new key creates a distinct third ticket, not an idempotent replay
+  0 passing (3s)
+  1 pending
+  │ Tests:        1                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      1                                                                                │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     des_qa_05_tc_024_second_refire_isolated.cy.js                                    │
+  -  Video output: /home/runner/work/DU-AN-THUC-TAP/DU-AN-THUC-TAP/qa/automation/Testing_POS/cypress/videos/des_qa_05_tc_024_second_refire_isolated.cy.js.mp4
+    ✔  All specs passed!                        00:03        1        -        -        1        -  
+
+Interpretation: 0 Passed, 0 Failed, 1 Pending. Guard skipped before login or second Refire request. Workflow success is not TC-024 functional success; no third ticket or version assertions were executed. The -R2 display label is outside the documented API response and requires separate UI evidence.
