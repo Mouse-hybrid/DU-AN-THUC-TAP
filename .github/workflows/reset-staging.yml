@@ -1,0 +1,42 @@
+name: Reset staging data
+# Bam tay tren GitHub: Actions -> Reset staging data -> Run workflow.
+# Xoa phien ban/don/phieu bep da tao khi test, dua moi ban ve AVAILABLE; giu
+# menu, tai khoan, audit log. Xem backend/scripts/reset_staging_data.py.
+
+on:
+  workflow_dispatch:
+    inputs:
+      with_fixtures:
+        description: "Tao san du lieu mau cho QA (B6: order SERVED de test refire; B5: mon cho bep + SLA WARNING/CRITICAL)"
+        type: boolean
+        default: true
+      dry_run:
+        description: "Chi xem truoc se xoa gi, khong ghi"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Dung chung nhom voi deploy-staging: khong reset trong luc dang deploy va nguoc lai.
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: [self-hosted, staging]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Khoi phuc .env.staging (khong nam trong git, luu ben ngoai checkout)
+        run: cp ~/secrets/pos-staging/.env.staging .env.staging
+      - name: Reset du lieu staging
+        env:
+          WITH_FIXTURES: ${{ inputs.with_fixtures }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          [ "$DRY_RUN" = "true" ] || args+=(--yes)
+          [ "$WITH_FIXTURES" = "true" ] && args+=(--with-fixtures)
+          docker compose --env-file .env.staging -f infra/compose/compose.staging.yml \
+            run --rm -T api python scripts/reset_staging_data.py "${args[@]}"
