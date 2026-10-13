@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$seedCredential = Get-Credential -UserName 'admin' -Message 'Mật khẩu chung của admin/kitchen trên STAGING do BE cấp'
+$seedCredential = Get-Credential -UserName 'supervisor' -Message 'Mật khẩu chung của supervisor/kitchen trên STAGING do BE cấp'
 $exitCode = 1
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-05'
 $evidenceLog = Join-Path $evidenceDir ("PF-02_03_12_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
@@ -32,13 +32,13 @@ try {
     ForEach-Object { Remove-Item "Env:$_" -ErrorAction SilentlyContinue }
 
   $seedPassword = $seedCredential.GetNetworkCredential().Password
-  $adminStatus = Get-SeedLoginStatus -Username 'admin' -Password $seedPassword
+  $supervisorStatus = Get-SeedLoginStatus -Username 'supervisor' -Password $seedPassword
   $kitchenStatus = Get-SeedLoginStatus -Username 'kitchen' -Password $seedPassword
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 
-  if ($adminStatus -ne '200' -or $kitchenStatus -ne '200') {
+  if ($supervisorStatus -ne '200' -or $kitchenStatus -ne '200') {
     $report = @(
-      "[DES-QA-05] Login admin HTTP $adminStatus; kitchen HTTP $kitchenStatus"
+      "[DES-QA-05] Login supervisor HTTP $supervisorStatus; kitchen HTTP $kitchenStatus"
       '[DES-QA-05] Auth precheck failed; Cypress and business GET requests were not run.'
       '[DES-QA-05] No password, token or response body was logged.'
     )
@@ -47,14 +47,14 @@ try {
     $exitCode = 2
   } else {
     $env:CYPRESS_POS_BASE_URL = $BaseUrl
-    $env:CYPRESS_POS_USERNAME = 'admin'
+    $env:CYPRESS_POS_USERNAME = 'supervisor'
     $env:CYPRESS_POS_PASSWORD = $seedPassword
     $env:CYPRESS_EXT_KITCHEN_USERNAME = 'kitchen'
     $env:CYPRESS_EXT_KITCHEN_PASSWORD = $seedPassword
 
     if ($OrderId) {
       $env:CYPRESS_EXT_REFIRE_ORDER_ID = $OrderId
-      $env:CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME = 'admin'
+      $env:CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME = 'supervisor'
       $env:CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD = $seedPassword
     }
 

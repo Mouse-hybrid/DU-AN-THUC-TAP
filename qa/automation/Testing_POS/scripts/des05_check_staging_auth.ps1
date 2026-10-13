@@ -24,7 +24,7 @@ function Get-LoginStatus {
   }
 }
 
-$credential = Get-Credential -UserName 'admin' -Message 'Nhập mật khẩu chung của tài khoản seed trên STAGING do BE cấp'
+$credential = Get-Credential -UserName 'supervisor' -Message 'Nhập mật khẩu chung của tài khoản seed trên STAGING do BE cấp'
 if (-not $credential) { throw 'Credential prompt was cancelled.' }
 
 try {
@@ -37,13 +37,14 @@ try {
   }
 
   $password = $credential.GetNetworkCredential().Password
-  $adminStatus = Get-LoginStatus -Username 'admin' -Password $password
-  $kitchenStatus = Get-LoginStatus -Username 'kitchen' -Password $password
+  $statuses = [ordered]@{}
+  foreach ($username in @('supervisor', 'kitchen', 'cashier', 'waiter')) {
+    $statuses[$username] = Get-LoginStatus -Username $username -Password $password
+  }
 
   $report = @(
     "[DES-QA-05] Staging version: $version"
-    "[DES-QA-05] POST /api/v1/auth/login username=admin HTTP $adminStatus"
-    "[DES-QA-05] POST /api/v1/auth/login username=kitchen HTTP $kitchenStatus"
+    $(foreach ($username in $statuses.Keys) { "[DES-QA-05] POST /api/v1/auth/login username=$username HTTP $($statuses[$username])" })
     '[DES-QA-05] Credentials and tokens are excluded from this log.'
   )
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
@@ -51,8 +52,8 @@ try {
   $report | ForEach-Object { Write-Host $_ }
   Write-Host "[DES-QA-05] Evidence: $evidenceLog"
 
-  if ($adminStatus -eq '200' -and $kitchenStatus -eq '200') {
-    Write-Host '[DES-QA-05] Both seeded logins accepted. Run des05_run_authenticated_preflight.ps1 next.'
+  if (@($statuses.Values | Where-Object { $_ -ne '200' }).Count -eq 0) {
+    Write-Host '[DES-QA-05] All four role logins accepted. Run des05_run_authenticated_preflight.ps1 next.'
     $exitCode = 0
   } else {
     Write-Host '[DES-QA-05] Authentication unresolved; no menu, queue or order checks were executed.'
