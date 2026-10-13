@@ -310,21 +310,31 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
       const path = `/api/v1/orders/${fixture.orderId}/send-to-kitchen`;
       return cy.task('des05ParallelSend', {
         url: base + path, token: tokens.waiter, keys: [key(), key()],
-      }, { log: false }).then((statuses) => {
-        return note(`DES05-TC-007 diagnostic: order ${fixture.orderId}; concurrent Send HTTP ${statuses.join('/')}; checking contract and ticket count`)
-          .then(() => {
-            expect(statuses, 'two simultaneous HTTP results').to.have.length(2);
-            expect(statuses, 'one successful Send').to.include(200);
-            expect(statuses.every((status) => [200, 409].includes(status)),
-              `both Send statuses ${statuses.join('/')} match 200/409 contract`).eq(true);
-            return req('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter).then((order) => {
-              expect(order.status, 'GET own order after concurrent Send').eq(200);
-              expect(order.body.items.find((item) => item.id === fixture.itemId)?.status,
-                'item is SENT exactly once').eq('SENT');
-              return ownTickets().then((ticket) =>
-                note(`DES05-TC-007 assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP ${statuses.join('/')}; one ticket ${ticket.id}`));
-            });
-          });
+      }, { log: false }).then((results) => {
+        const statuses = results.map((result) => result.status);
+        const responseInfo = results.map((result) =>
+          `${result.status}(server=${result.server || '-'},via=${result.via || '-'},requestId=${result.requestId || '-'})`).join('/');
+        return req('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter).then((order) =>
+          req('GET', '/api/v1/kitchen/queue', tokens.kitchen).then((queue) => {
+            const itemStatus = order.body?.items?.find((item) => item.id === fixture.itemId)?.status;
+            const tickets = Array.isArray(queue.body) ? queue.body.filter((entry) =>
+              entry.order_id === fixture.orderId && entry.order_item_id === fixture.itemId) : [];
+            return note(`DES05-TC-007 diagnostic: order ${fixture.orderId}; concurrent Send HTTP ${statuses.join('/')}; ` +
+              `responses ${responseInfo}; GET order ${order.status} item ${itemStatus || '-'}; ` +
+              `GET queue ${queue.status} own tickets ${tickets.length} IDs ${tickets.map((ticket) => ticket.id).join(',') || '-'}`)
+              .then(() => {
+                expect(results, 'two simultaneous HTTP results').to.have.length(2);
+                expect(order.status, 'GET own order after concurrent Send').eq(200);
+                expect(queue.status, 'GET queue after concurrent Send').eq(200);
+                expect(itemStatus, 'item is SENT exactly once').eq('SENT');
+                expect(tickets, 'exactly one ticket for own item').to.have.length(1);
+                expect(tickets[0].status, 'ticket state').eq('QUEUED');
+                expect(statuses, 'one successful Send').to.include(200);
+                expect(statuses.every((status) => [200, 409].includes(status)),
+                  `both Send statuses ${statuses.join('/')} match 200/409 contract`).eq(true);
+                return note(`DES05-TC-007 assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP ${statuses.join('/')}; one ticket ${tickets[0].id}`);
+              });
+          }));
       });
     });
   });
