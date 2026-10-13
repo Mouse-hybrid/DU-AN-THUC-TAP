@@ -44,6 +44,14 @@ jobs:
           mkdir -p evidence/DES-QA-05
           set -o pipefail
           npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_orders_list_readonly_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-11_to_12_CI.log
+      - name: Run PF-13 and PF-14 Kitchen stations read-only preflight
+        if: always()
+        env:
+          CYPRESS_POS_BASE_URL: http://160.191.47.17
+        run: |
+          mkdir -p evidence/DES-QA-05
+          set -o pipefail
+          npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_stations_readonly_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-13_to_14_CI.log
       - name: Run read-only Preflight
         env:
           CYPRESS_POS_BASE_URL: http://160.191.47.17
