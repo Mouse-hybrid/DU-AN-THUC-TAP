@@ -14,21 +14,21 @@ cd qa\automation\Testing_POS
 .\scripts\des05_check_staging_auth.ps1
 ```
 
-This asks for the one shared staging seed password, sends the documented login payload for `supervisor`, `kitchen`, `cashier`, and `waiter`, and writes only the four HTTP statuses and `/version` short commit to `evidence/DES-QA-05/AUTH_<timestamp>.log`. It does not print the password, JWT or response body. HTTP 401 for all four accounts does not establish an API defect; BE should verify the effective `SEED_PASSWORD` and whether both accounts exist in staging. If all four return 200, run the preflight below using the same password.
+This asks for the one shared staging seed password, sends the documented login payload for `supervisor`, `kitchen`, `cashier`, and `waiter`, and writes only the four HTTP statuses and `/version` short commit to `evidence/DES-QA-05/AUTH_<timestamp>.log`. It does not print the password, JWT or response body. HTTP 401 for all four accounts does not establish an API defect; BE should verify the effective `SEED_PASSWORD` and whether both accounts exist in staging. If `cashier` and `kitchen` return 200, run the preflight below using the same password. A 401 for `supervisor` is recorded separately and does not block PF-02, PF-03 or PF-12.
 
 ```powershell
 npm ci
 .\scripts\des05_run_authenticated_preflight.ps1
 ```
 
-The script prompts once for the common seeded password and checks `supervisor` and `kitchen` login first. If either login is not HTTP 200, it records only the HTTP statuses and does not start Cypress. With valid staging credentials it runs PF-01–04 and PF-11–12 in one Cypress invocation, writes the Terminal output to `evidence/DES-QA-05/PF-02_03_12_<timestamp>.log`, then clears the environment variables it used even if Cypress fails. `PF-04` stays Pending until an isolated QA order ID exists. If you have one, run `.\scripts\des05_run_authenticated_preflight.ps1 -OrderId '<QA_ORDER_UUID>'` to read it with the seeded supervisor account. The script does not reset staging or mutate order data. Check the log for sensitive data before committing it to GitHub. The catalog and Postman collection do not contain the staging password; obtain the current value from BE through a private channel.
+The script prompts once for the common seeded password and checks `cashier` and `kitchen` login first. If either required login is not HTTP 200, it records only the HTTP statuses and does not start Cypress. With valid staging credentials it runs PF-01–04 and PF-11–12 in one Cypress invocation, writes the Terminal output to `evidence/DES-QA-05/PF-02_03_12_<timestamp>.log`, then clears the environment variables it used even if Cypress fails. `PF-04` stays Pending until an isolated QA order ID exists. If you have an isolated QA order, `-OrderId '<QA_ORDER_UUID>'` can supply its ID, but PF-04 remains Pending until a valid Supervisor JWT is configured in a separate authorized run; the script never substitutes Cashier for Supervisor. The script does not reset staging or mutate order data. Check the log for sensitive data before committing it to GitHub. The catalog and Postman collection do not contain the staging password; obtain the current value from BE through a private channel.
 
 For CI or manual runs, configure the following variables only in the runner or local PowerShell session. Never commit JWTs or passwords:
 
 | Cypress environment variable | Purpose |
 | --- | --- |
 | `CYPRESS_DES05_MENU_TOKEN` | Optional token when Menu requires authentication |
-| `CYPRESS_POS_USERNAME`, `CYPRESS_POS_PASSWORD` | Seeded supervisor login for PF-02 and PF-12 |
+| `CYPRESS_POS_USERNAME`, `CYPRESS_POS_PASSWORD` | Seeded cashier login for PF-02 and PF-12 |
 | `CYPRESS_EXT_KITCHEN_TOKEN` | Kitchen JWT for PF-03 |
 | `CYPRESS_EXT_KITCHEN_USERNAME`, `CYPRESS_EXT_KITCHEN_PASSWORD` | Seeded kitchen login for PF-03 |
 | `CYPRESS_EXT_REFIRE_SUPERVISOR_TOKEN` | Supervisor JWT for PF-04 |

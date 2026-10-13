@@ -52,8 +52,12 @@ try {
   $report | ForEach-Object { Write-Host $_ }
   Write-Host "[DES-QA-05] Evidence: $evidenceLog"
 
-  if (@($statuses.Values | Where-Object { $_ -ne '200' }).Count -eq 0) {
-    Write-Host '[DES-QA-05] All four role logins accepted. Run des05_run_authenticated_preflight.ps1 next.'
+  if ($statuses['cashier'] -eq '200' -and $statuses['kitchen'] -eq '200') {
+    Write-Host '[DES-QA-05] Cashier and Kitchen logins accepted; read-only PF-02, PF-03 and PF-12 can run.'
+    if ($statuses['supervisor'] -ne '200') {
+      Write-Host '[DES-QA-05] Supervisor login unresolved; PF-04 requires an isolated order and authorized Supervisor login.'
+    }
+    Write-Host '[DES-QA-05] Run des05_run_authenticated_preflight.ps1 next.'
     $exitCode = 0
   } else {
     Write-Host '[DES-QA-05] Authentication unresolved; no menu, queue or order checks were executed.'
