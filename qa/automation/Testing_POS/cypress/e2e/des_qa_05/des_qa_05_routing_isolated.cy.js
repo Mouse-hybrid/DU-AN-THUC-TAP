@@ -98,7 +98,7 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
                 expect(match[0].quantity, 'ticket quantity').eq(sourceIndex + 1);
                 expect(match[0].status, 'ticket status').eq('QUEUED');
               });
-              return note(`${caseId} PASS: order ${fixture.orderId}; item IDs ${ids.join(',')}; ` +
+              return note(`${caseId} assertions OK (cleanup follows): order ${fixture.orderId}; item IDs ${ids.join(',')}; ` +
                 `stations ${menuItems.map((item) => item.station_id).join(',')}; ` +
                 `${entries.length} QUEUED ticket(s), no duplicate/unintended station`);
             });
