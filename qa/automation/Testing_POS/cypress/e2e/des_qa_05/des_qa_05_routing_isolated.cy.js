@@ -311,17 +311,20 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
       return cy.task('des05ParallelSend', {
         url: base + path, token: tokens.waiter, keys: [key(), key()],
       }, { log: false }).then((statuses) => {
-        expect(statuses, 'two simultaneous HTTP results').to.have.length(2);
-        expect(statuses, 'one successful Send').to.include(200);
-        expect(statuses.every((status) => [200, 409].includes(status)),
-          'other Send is accepted or rejected as a conflict').eq(true);
-        return req('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter).then((order) => {
-          expect(order.status, 'GET own order after concurrent Send').eq(200);
-          expect(order.body.items.find((item) => item.id === fixture.itemId)?.status,
-            'item is SENT exactly once').eq('SENT');
-          return ownTickets().then((ticket) =>
-            note(`DES05-TC-007 assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP ${statuses.join('/')}; one ticket ${ticket.id}`));
-        });
+        return note(`DES05-TC-007 diagnostic: order ${fixture.orderId}; concurrent Send HTTP ${statuses.join('/')}; checking contract and ticket count`)
+          .then(() => {
+            expect(statuses, 'two simultaneous HTTP results').to.have.length(2);
+            expect(statuses, 'one successful Send').to.include(200);
+            expect(statuses.every((status) => [200, 409].includes(status)),
+              `both Send statuses ${statuses.join('/')} match 200/409 contract`).eq(true);
+            return req('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter).then((order) => {
+              expect(order.status, 'GET own order after concurrent Send').eq(200);
+              expect(order.body.items.find((item) => item.id === fixture.itemId)?.status,
+                'item is SENT exactly once').eq('SENT');
+              return ownTickets().then((ticket) =>
+                note(`DES05-TC-007 assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP ${statuses.join('/')}; one ticket ${ticket.id}`));
+            });
+          });
       });
     });
   });
