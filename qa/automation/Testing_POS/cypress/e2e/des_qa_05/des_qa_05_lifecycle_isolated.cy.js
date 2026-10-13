@@ -111,6 +111,19 @@ describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
       return itemStatus(status);
     });
 
+  const queueSnapshot = () => {
+    const found = [];
+    return cy.wrap(['QUEUED', 'IN_PROGRESS', 'DONE', 'CANCELLED'], { log: false })
+      .each((status) => request('GET', `/api/v1/kitchen/queue?status=${status}`, tokens.kitchen)
+        .then((response) => {
+          expect(response.status, `queue ${status} HTTP`).eq(200);
+          found.push(...response.body.filter((entry) =>
+            entry.order_id === fixture.orderId && entry.order_item_id === fixture.itemId)
+            .map((entry) => ({ id: entry.id, status: entry.status, station_id: entry.station_id })));
+        }))
+      .then(() => found.sort((a, b) => a.id.localeCompare(b.id)));
+  };
+
   beforeEach(function () {
     fixture = null;
     return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD']).then((env) => {
@@ -176,5 +189,26 @@ describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
       .then(() => transition('pickup', tokens.waiter, 'PICKED_UP'))
       .then(() => transition('served', tokens.waiter, 'SERVED'))
       .then(() => note(`DES05-TC-014 assertions OK: order ${fixture.orderId}; item ${fixture.itemId}; PICKED_UP -> SERVED; cleanup follows`));
+  });
+
+  it('DES05-TC-015 | SERVED cannot go backward to PREPARING', () => {
+    return transition('start-cooking', tokens.kitchen, 'PREPARING')
+      .then(() => transition('mark-ready', tokens.kitchen, 'READY'))
+      .then(() => transition('pickup', tokens.waiter, 'PICKED_UP'))
+      .then(() => transition('served', tokens.waiter, 'SERVED'))
+      .then(() => queueSnapshot()).then((before) => {
+        expect(before, 'original completed ticket').to.have.length(1);
+        expect(before[0].status, 'completed status').eq('DONE');
+        return request('POST',
+          `/api/v1/orders/${fixture.orderId}/items/${fixture.itemId}/start-cooking`,
+          tokens.kitchen).then((rejected) => {
+          expect(rejected.status, 'invalid backward transition').eq(409);
+          expect(String(rejected.body?.detail), 'conflict identifies SERVED').to.include('SERVED');
+          return itemStatus('SERVED').then(() => queueSnapshot()).then((after) => {
+            expect(after, 'queue unchanged after rejected transition').to.deep.eq(before);
+            return note(`DES05-TC-015 assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP 409 and queue unchanged`);
+          });
+        });
+      });
   });
 });
