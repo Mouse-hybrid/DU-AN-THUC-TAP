@@ -69,6 +69,16 @@ jobs:
           mkdir -p evidence/DES-QA-05
           set -o pipefail
           npx cypress run --browser electron --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-01_to_04_CI.log
+      - name: Run PF-15 and PF-16 authenticated station preflight
+        if: always()
+        env:
+          CYPRESS_POS_BASE_URL: http://160.191.47.17
+          CYPRESS_EXT_KITCHEN_USERNAME: ${{ secrets.EXT_KITCHEN_USERNAME }}
+          CYPRESS_EXT_KITCHEN_PASSWORD: ${{ secrets.EXT_KITCHEN_PASSWORD }}
+        run: |
+          mkdir -p evidence/DES-QA-05
+          set -o pipefail
+          npx cypress run --browser electron --headless --config trashAssetsBeforeRuns=false --spec 'cypress/e2e/des_qa_05/des_qa_05_stations_authenticated_preflight.cy.js' 2>&1 | tee evidence/DES-QA-05/PF-15_to_16_CI.log
       - name: Run TC-011 to TC-015 safe guards
         if: always()
         env:

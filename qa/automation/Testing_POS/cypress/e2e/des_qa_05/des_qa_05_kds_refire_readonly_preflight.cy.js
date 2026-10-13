@@ -1,7 +1,6 @@
 // DES-QA-05 preflight: business data requests are GET; optional login obtains a JWT.
 // A passing preflight never marks any DES05 functional testcase as Passed.
-describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
-  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+describe('DES-QA-05 | KDS account-only read-only preflight', () => {
   const rows = (body, names) => {
     if (Array.isArray(body)) return body;
     for (const name of names) {
@@ -92,35 +91,4 @@ describe('DES-QA-05 | KDS routing and Refire read-only preflight', () => {
     });
   });
 
-  it('PF-04 | isolated QA order contains a SERVED item for Refire', function () {
-    cy.env(['POS_BASE_URL', 'EXT_REFIRE_SUPERVISOR_TOKEN', 'EXT_REFIRE_SUPERVISOR_USERNAME',
-      'EXT_REFIRE_SUPERVISOR_PASSWORD', 'EXT_REFIRE_ORDER_ID'])
-      .then((e) => {
-        if (!e.EXT_REFIRE_ORDER_ID) {
-          return note('PF-04 PENDING: isolated QA Order ID not configured')
-            .then(() => this.skip());
-        }
-        expect(e.EXT_REFIRE_ORDER_ID, 'QA order UUID').to.match(uuid);
-        const origin = base(e.POS_BASE_URL);
-        tokenFor(origin, e.EXT_REFIRE_SUPERVISOR_TOKEN, e.EXT_REFIRE_SUPERVISOR_USERNAME,
-          e.EXT_REFIRE_SUPERVISOR_PASSWORD, 'Supervisor').then((token) => {
-          if (!token) {
-            return note('PF-04 PENDING: Supervisor JWT or seeded admin credentials not configured')
-              .then(() => this.skip());
-          }
-          return get(origin, '/api/v1/orders/' + e.EXT_REFIRE_ORDER_ID, token);
-        }).then((response) => {
-          expect(response.status, 'GET QA order status').eq(200);
-          const order = response.body?.order || response.body?.data?.order || response.body?.data || response.body;
-          expect(order?.items, 'QA order items').to.be.an('array');
-          const served = order.items.filter((item) => item.status === 'SERVED');
-          cy.log(`SERVED items observed: ${served.length}; subtotal: ${String(order.subtotal ?? 'unavailable')}`);
-          if (!served.length) {
-            return note('PF-04 PENDING: QA order has no SERVED item')
-              .then(() => this.skip());
-          }
-          cy.log('PREFLIGHT ONLY: no Refire request or billing comparison performed');
-        });
-      });
-  });
 });

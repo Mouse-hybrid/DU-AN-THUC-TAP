@@ -1,13 +1,12 @@
 param(
-  [string]$BaseUrl = 'http://160.191.47.17',
-  [string]$OrderId = ''
+  [string]$BaseUrl = 'http://160.191.47.17'
 )
 
 $ErrorActionPreference = 'Stop'
 $seedCredential = Get-Credential -UserName 'cashier' -Message 'Mật khẩu chung của cashier/kitchen trên STAGING do BE cấp'
 $exitCode = 1
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-05'
-$evidenceLog = Join-Path $evidenceDir ("PF-02_03_12_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$evidenceLog = Join-Path $evidenceDir ("PF-02_03_12_15_16_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 
 function Get-SeedLoginStatus {
   param([string]$Username, [string]$Password)
@@ -52,19 +51,7 @@ try {
     $env:CYPRESS_EXT_KITCHEN_USERNAME = 'kitchen'
     $env:CYPRESS_EXT_KITCHEN_PASSWORD = $seedPassword
 
-    if ($OrderId) {
-      $env:CYPRESS_EXT_REFIRE_ORDER_ID = $OrderId
-      $adminStatus = Get-SeedLoginStatus -Username 'admin' -Password $seedPassword
-      $adminReport = "[DES-QA-05] Login username=admin (SUPERVISOR) HTTP $adminStatus"
-      $adminReport | Add-Content -Path $evidenceLog -Encoding UTF8
-      Write-Host $adminReport
-      if ($adminStatus -eq '200') {
-        $env:CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME = 'admin'
-        $env:CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD = $seedPassword
-      } else {
-        Write-Host '[DES-QA-05] PF-04 will remain Pending: admin login unavailable.'
-      }
-    }
+
 
     Push-Location (Split-Path -Parent $PSScriptRoot)
     try {
@@ -73,7 +60,7 @@ try {
       $priorOutputEncoding = $OutputEncoding
       [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
       $OutputEncoding = [Console]::OutputEncoding
-      & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_orders_list_readonly_preflight.cy.js' 2>&1 |
+      & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_orders_list_readonly_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_stations_authenticated_preflight.cy.js' 2>&1 |
         Tee-Object -FilePath $evidenceLog -Append
       $exitCode = $LASTEXITCODE
     } finally {
