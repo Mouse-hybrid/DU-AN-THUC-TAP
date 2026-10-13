@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $credential = Get-Credential -UserName 'waiter' -Message 'Shared staging password for waiter/kitchen/cashier (used only for this run)'
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-05'
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
-$evidenceLog = Join-Path $evidenceDir ("TC-001_003_004_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$evidenceLog = Join-Path $evidenceDir ("TC-001_to_007_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 $exitCode = 1
 
 try {
