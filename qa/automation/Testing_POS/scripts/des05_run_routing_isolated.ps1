@@ -1,7 +1,7 @@
 param([string]$BaseUrl = 'http://160.191.47.17')
 
 $ErrorActionPreference = 'Stop'
-$credential = Get-Credential -UserName 'waiter' -Message 'Mật khẩu staging dùng chung của waiter/kitchen/cashier (chỉ lưu trong phiên chạy)'
+$credential = Get-Credential -UserName 'waiter' -Message 'Shared staging password for waiter/kitchen/cashier (used only for this run)'
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-05'
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 $evidenceLog = Join-Path $evidenceDir ("TC-001_003_004_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
@@ -32,6 +32,6 @@ try {
 
 Write-Host "DES-QA-05 Terminal evidence: $evidenceLog"
 if ($exitCode -ne 0) {
-  Write-Warning 'Kiểm tra CLEANUP REQUIRED trong log. Không reset staging tự động.'
+  Write-Warning 'Check CLEANUP REQUIRED in the log. Staging is not reset automatically.'
 }
 exit $exitCode
