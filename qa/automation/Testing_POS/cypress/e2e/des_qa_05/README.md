@@ -4,11 +4,19 @@ The checks read business data with `GET`; login uses `POST /auth/login` only to 
 
 ## Run from PowerShell
 
+First verify the staging seed password without running the business preflight:
+
 ```powershell
 cd D:\POS_SYSTEM_QA
 git switch ONLY_TESTING
 git pull --ff-only origin ONLY_TESTING
 cd qa\automation\Testing_POS
+.\scripts\des05_check_staging_auth.ps1
+```
+
+This asks for the one shared staging seed password, sends the documented login payload for `admin` and `kitchen`, and writes only the two HTTP statuses and `/version` short commit to `evidence/DES-QA-05/AUTH_<timestamp>.log`. It does not print the password, JWT or response body. HTTP 401 for both accounts does not establish an API defect; BE should verify the effective `SEED_PASSWORD` and whether both accounts exist in staging. If both return 200, run the preflight below using the same password.
+
+```powershell
 npm ci
 .\scripts\des05_run_authenticated_preflight.ps1
 ```
