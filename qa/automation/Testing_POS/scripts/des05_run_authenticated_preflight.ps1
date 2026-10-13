@@ -54,7 +54,16 @@ try {
 
     if ($OrderId) {
       $env:CYPRESS_EXT_REFIRE_ORDER_ID = $OrderId
-      Write-Host '[DES-QA-05] PF-04 will remain Pending until a Supervisor JWT is provided in a separate authorized run.'
+      $adminStatus = Get-SeedLoginStatus -Username 'admin' -Password $seedPassword
+      $adminReport = "[DES-QA-05] Login username=admin (SUPERVISOR) HTTP $adminStatus"
+      $adminReport | Add-Content -Path $evidenceLog -Encoding UTF8
+      Write-Host $adminReport
+      if ($adminStatus -eq '200') {
+        $env:CYPRESS_EXT_REFIRE_SUPERVISOR_USERNAME = 'admin'
+        $env:CYPRESS_EXT_REFIRE_SUPERVISOR_PASSWORD = $seedPassword
+      } else {
+        Write-Host '[DES-QA-05] PF-04 will remain Pending: admin login unavailable.'
+      }
     }
 
     Push-Location (Split-Path -Parent $PSScriptRoot)
@@ -65,7 +74,7 @@ try {
       [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
       $OutputEncoding = [Console]::OutputEncoding
       & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_kds_refire_readonly_preflight.cy.js,cypress/e2e/des_qa_05/des_qa_05_orders_list_readonly_preflight.cy.js' 2>&1 |
-        Tee-Object -FilePath $evidenceLog
+        Tee-Object -FilePath $evidenceLog -Append
       $exitCode = $LASTEXITCODE
     } finally {
       [Console]::OutputEncoding = $priorConsoleEncoding

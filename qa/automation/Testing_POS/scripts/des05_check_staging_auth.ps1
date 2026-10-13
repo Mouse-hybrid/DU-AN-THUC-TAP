@@ -24,7 +24,7 @@ function Get-LoginStatus {
   }
 }
 
-$credential = Get-Credential -UserName 'supervisor' -Message 'Nhập mật khẩu chung của tài khoản seed trên STAGING do BE cấp'
+$credential = Get-Credential -UserName 'admin' -Message 'Nhập mật khẩu chung của tài khoản seed trên STAGING do BE cấp'
 if (-not $credential) { throw 'Credential prompt was cancelled.' }
 
 try {
@@ -38,7 +38,7 @@ try {
 
   $password = $credential.GetNetworkCredential().Password
   $statuses = [ordered]@{}
-  foreach ($username in @('supervisor', 'kitchen', 'cashier', 'waiter')) {
+  foreach ($username in @('admin', 'kitchen', 'cashier', 'waiter')) {
     $statuses[$username] = Get-LoginStatus -Username $username -Password $password
   }
 
@@ -54,8 +54,8 @@ try {
 
   if ($statuses['cashier'] -eq '200' -and $statuses['kitchen'] -eq '200') {
     Write-Host '[DES-QA-05] Cashier and Kitchen logins accepted; read-only PF-02, PF-03 and PF-12 can run.'
-    if ($statuses['supervisor'] -ne '200') {
-      Write-Host '[DES-QA-05] Supervisor login unresolved; PF-04 requires an isolated order and authorized Supervisor login.'
+    if ($statuses['admin'] -ne '200') {
+      Write-Host '[DES-QA-05] Supervisor account (username=admin) login unresolved; PF-04 requires an isolated order and authorized Supervisor login.'
     }
     Write-Host '[DES-QA-05] Run des05_run_authenticated_preflight.ps1 next.'
     $exitCode = 0
