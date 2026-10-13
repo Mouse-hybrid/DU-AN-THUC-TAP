@@ -15,14 +15,19 @@ export default defineConfig({
               keys.length !== 2 || keys[0] === keys[1]) {
             throw new Error('DES05 concurrent Send inputs invalid');
           }
-          // Launch both requests before awaiting either response. Return statuses only.
+          // Launch both requests before awaiting either response. Never return credentials or body.
           return Promise.all(keys.map(async (key) => {
             const response = await fetch(url, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': key },
               signal: AbortSignal.timeout(20000),
             });
-            return response.status;
+            return {
+              status: response.status,
+              server: response.headers.get('server'),
+              via: response.headers.get('via'),
+              requestId: response.headers.get('x-request-id'),
+            };
           }));
         },
       });
