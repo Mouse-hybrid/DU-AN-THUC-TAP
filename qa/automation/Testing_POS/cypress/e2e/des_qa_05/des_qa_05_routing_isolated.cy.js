@@ -2,8 +2,8 @@
 // Billing/pay/close/mark-clean restore the table after a successful Send.
 // An interrupted run can leave QA data behind: inspect the printed IDs before resetting staging.
 describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
-  const base = String(Cypress.env('POS_BASE_URL') || 'http://160.191.47.17').replace(/\/+$/, '');
-  const password = Cypress.env('DES05_SEED_PASSWORD');
+  let base;
+  let password;
   let fixture;
   let tokens;
 
@@ -109,13 +109,17 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
 
   beforeEach(function () {
     fixture = null;
-    if (!password) {
-      return note('DES05 PENDING: local seed password absent; no mutation')
-        .then(() => this.skip());
-    }
-    tokens = {};
-    return login('waiter').then((token) => { tokens.waiter = token; })
-      .then(() => login('kitchen')).then((token) => { tokens.kitchen = token; });
+    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD']).then((env) => {
+      base = String(env.POS_BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
+      password = env.DES05_SEED_PASSWORD;
+      if (!password) {
+        return note('DES05 PENDING: local seed password absent; no mutation')
+          .then(() => this.skip());
+      }
+      tokens = {};
+      return login('waiter').then((token) => { tokens.waiter = token; })
+        .then(() => login('kitchen')).then((token) => { tokens.kitchen = token; });
+    });
   });
 
   afterEach(() => {
