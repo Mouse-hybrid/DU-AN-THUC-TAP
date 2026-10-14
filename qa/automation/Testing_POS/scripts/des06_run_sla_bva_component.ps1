@@ -8,8 +8,12 @@ $testScript = Join-Path $PSScriptRoot 'des06_verify_sla_bva.py'
 $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
 $python = Get-Command python -ErrorAction SilentlyContinue
 
+if ($python -and $python.Source -match '[\\/]Microsoft[\\/]WindowsApps[\\/]python\.exe$') {
+  $python = $null
+}
+
 if (-not $pyLauncher -and -not $python) {
-  throw 'Python 3.10+ is required to execute the backend compute_sla function'
+  throw 'Python 3.10+ not found. The Windows Store python.exe alias is not Python. Install from https://www.python.org/downloads/windows/, reopen PowerShell, then run py -3 --version or python --version.'
 }
 
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
