@@ -40,7 +40,7 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
       });
   };
 
-  const setupFixture = (context) => request('GET', '/api/v1/tables', tokens.waiter)
+  const setupFixture = (context, multiple = false) => request('GET', '/api/v1/tables', tokens.waiter)
     .then((tables) => {
       expect(tables.status, 'GET tables').eq(200);
       expect(tables.body, 'table list').to.be.an('array');
@@ -54,6 +54,11 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
           expect(menu.body, 'menu list').to.be.an('array');
           const item = menu.body.find((entry) => entry.is_available && entry.station_id);
           expect(item, 'mapped menu item').to.exist;
+          const other = multiple && menu.body.find((entry) =>
+            entry.is_available && entry.station_id && entry.station_id !== item.station_id);
+          if (multiple && !other) return note('DES06-TC-015 PENDING: fewer than two mapped stations; no data changed')
+            .then(() => context.skip());
+          const menuItems = multiple ? [item, other] : [item];
           return reserve(available).then((table) => {
             if (!table) return note('DES06 lifecycle PENDING: no table could be reserved')
               .then(() => context.skip());
@@ -63,52 +68,57 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
                 fixture.orderId = order.body?.id;
                 expect(fixture.orderId, 'created order ID').to.be.a('string').and.not.be.empty;
                 return request('POST', `/api/v1/orders/${fixture.orderId}/items`, tokens.waiter, {
-                  items: [{ menu_item_id: item.id, quantity: 1, note: 'DES06 SLA isolated' }],
+                  items: menuItems.map((entry) => ({
+                    menu_item_id: entry.id, quantity: 1, note: 'DES06 SLA isolated',
+                  })),
                 });
               }).then((added) => {
                 expect(added.status, 'add isolated item').eq(201);
-                fixture.itemId = added.body?.items?.[0]?.id;
+                fixture.itemIds = menuItems.map((entry) =>
+                  added.body?.items?.find((addedItem) => addedItem.menu_item_id === entry.id)?.id);
+                fixture.stationIds = menuItems.map((entry) => entry.station_id);
+                fixture.itemId = fixture.itemIds[0];
                 fixture.stationId = item.station_id;
-                expect(fixture.itemId, 'created item ID').to.be.a('string').and.not.be.empty;
+                fixture.itemIds.forEach((id) => expect(id, 'created item ID').to.be.a('string').and.not.be.empty);
                 return request('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`, tokens.waiter);
               }).then((sent) => {
                 expect(sent.status, 'Send to Kitchen').eq(200);
-                expect(sent.body?.kitchen_queue_entries_created, 'one ticket created').eq(1);
-                return note(`DES06 lifecycle fixture: table ${fixture.tableCode}; order ${fixture.orderId}; item ${fixture.itemId}; station ${fixture.stationId}`);
+                expect(sent.body?.kitchen_queue_entries_created, 'ticket count').eq(menuItems.length);
+                return note(`DES06 lifecycle fixture: table ${fixture.tableCode}; order ${fixture.orderId}; items ${fixture.itemIds.join(',')}; stations ${fixture.stationIds.join(',')}`);
               });
           });
         });
     });
 
-  const itemStatus = (expected) => request('GET', `/api/v1/orders/${fixture.orderId}`, tokens.kitchen)
+  const itemStatus = (expected, itemId = fixture.itemId) => request('GET', `/api/v1/orders/${fixture.orderId}`, tokens.kitchen)
     .then((response) => {
       expect(response.status, 'GET own order').eq(200);
       expect(response.body?.id, 'own order ID').eq(fixture.orderId);
-      const item = response.body?.items?.find((entry) => entry.id === fixture.itemId);
+      const item = response.body?.items?.find((entry) => entry.id === itemId);
       expect(item, 'own item').to.exist;
       expect(item.status, 'item status').eq(expected);
       return item;
     });
 
-  const queueStatus = (expected) => request('GET',
+  const queueStatus = (expected, itemId = fixture.itemId, stationId = fixture.stationId) => request('GET',
     `/api/v1/kitchen/queue?status=${encodeURIComponent(expected)}`, tokens.kitchen)
     .then((response) => {
       expect(response.status, `queue ${expected}`).eq(200);
       const matches = response.body.filter((entry) =>
-        entry.order_id === fixture.orderId && entry.order_item_id === fixture.itemId);
+        entry.order_id === fixture.orderId && entry.order_item_id === itemId);
       expect(matches, `exactly one ${expected} ticket for own item`).to.have.length(1);
       expect(matches[0].status, 'ticket status').eq(expected);
-      expect(matches[0].station_id, 'menu station').eq(fixture.stationId);
+      expect(matches[0].station_id, 'menu station').eq(stationId);
       return matches[0];
     });
 
-  const transition = (action, token, status) => request('POST',
-    `/api/v1/orders/${fixture.orderId}/items/${fixture.itemId}/${action}`, token)
+  const transition = (action, token, status, itemId = fixture.itemId) => request('POST',
+    `/api/v1/orders/${fixture.orderId}/items/${itemId}/${action}`, token)
     .then((response) => {
       expect(response.status, `POST ${action}`).eq(200);
-      expect(response.body?.items?.find((item) => item.id === fixture.itemId)?.status,
+      expect(response.body?.items?.find((item) => item.id === itemId)?.status,
         `${action} response status`).eq(status);
-      return itemStatus(status);
+      return itemStatus(status, itemId);
     });
 
   beforeEach(function () {
@@ -122,7 +132,7 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
       return login('waiter').then((token) => { tokens.waiter = token; })
         .then(() => login('kitchen')).then((token) => { tokens.kitchen = token; })
         .then(() => login('cashier')).then((token) => { tokens.cashier = token; })
-        .then(() => setupFixture(this));
+        .then(() => setupFixture(this, this.currentTest.title.includes('DES06-TC-015')));
     });
   });
 
@@ -187,6 +197,40 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
               return note(`DES06-TC-013 assertions OK: order ${fixture.orderId}; ticket ${done.id}; READY/DONE timer null, active Queue excludes ticket; cleanup follows`);
             });
           });
+      });
+  });
+
+  it('DES06-TC-015 | one READY item does not stop another station ticket timer', () => {
+    const [first, second] = fixture.itemIds;
+    const [, secondStation] = fixture.stationIds;
+    return queueStatus('QUEUED', first).then((firstQueued) => {
+      expect(firstQueued.started_at, 'first timer not started').to.be.null;
+      return queueStatus('QUEUED', second, secondStation);
+    }).then((secondQueued) => {
+      expect(secondQueued.started_at, 'second timer not started').to.be.null;
+      return transition('start-cooking', tokens.kitchen, 'PREPARING', first);
+    }).then(() => transition('start-cooking', tokens.kitchen, 'PREPARING', second))
+      .then(() => queueStatus('IN_PROGRESS', first)).then((firstCooking) => {
+        expect(firstCooking.started_at, 'first started_at').to.be.a('string').and.not.be.empty;
+        return queueStatus('IN_PROGRESS', second, secondStation);
+      }).then((secondCooking) => {
+        expect(secondCooking.started_at, 'second started_at').to.be.a('string').and.not.be.empty;
+        expect(secondCooking.elapsed_minutes, 'second timer running').to.be.a('number');
+        return transition('mark-ready', tokens.kitchen, 'READY', first).then(() =>
+          queueStatus('DONE', first)).then((firstDone) => {
+          expect(firstDone.elapsed_minutes, 'READY timer stopped').to.be.null;
+          return queueStatus('IN_PROGRESS', second, secondStation);
+        }).then((stillCooking) => {
+          expect(stillCooking.id, 'second ticket unchanged').eq(secondCooking.id);
+          expect(stillCooking.started_at, 'second timer start retained').eq(secondCooking.started_at);
+          expect(stillCooking.elapsed_minutes, 'second timer still running').to.be.a('number');
+          return request('GET', '/api/v1/kitchen/queue', tokens.kitchen);
+        }).then((active) => {
+          expect(active.status, 'active queue').eq(200);
+          const own = active.body.filter((entry) => entry.order_id === fixture.orderId);
+          expect(own.map((entry) => entry.order_item_id), 'only second ticket remains active').deep.eq([second]);
+          return note(`DES06-TC-015 assertions OK: order ${fixture.orderId}; READY ${first} timer stopped; IN_PROGRESS ${second} on station ${secondStation} timer running; cleanup follows`);
+        });
       });
   });
 });
