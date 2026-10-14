@@ -34,7 +34,7 @@ describe('DES-QA-06 | SLA and Menu read-only preflight', () => {
           expect(response.body?.staff?.role === role, `${role} account role`).eq(true);
           const token = response.body?.access_token || response.body?.data?.access_token;
           expect(typeof token === 'string' && token.length > 0, `${role} JWT present`).eq(true);
-          return { origin, token };
+          return { origin, token, expiresInMinutes: response.body?.expires_in_minutes };
         });
       });
   };
@@ -165,6 +165,39 @@ describe('DES-QA-06 | SLA and Menu read-only preflight', () => {
           expect(response.status, `GET ${path} without JWT`).eq(401);
         }))
         .then(() => note('PF-06: Menu/Categories/Queue GET without JWT returned 401; no business mutation executed'));
+    });
+  });
+
+  it('PF-17 | inventory live SLA alert API contract', () => {
+    cy.env(['POS_BASE_URL'], { log: false }).then(({ POS_BASE_URL }) =>
+      get(originFor(POS_BASE_URL), '/openapi.json').then((response) => {
+        expect(response.status, 'GET live OpenAPI').eq(200);
+        expect(response.body?.paths?.['/api/v1/kitchen/queue']?.get,
+          'Kitchen Queue operation').to.exist;
+        const alertPaths = Object.keys(response.body.paths || {})
+          .filter((path) => /alert|notification/i.test(path));
+        const summary = alertPaths.length ? alertPaths.join(',') : 'none documented';
+        return note(`PF-17 readiness: SLA alert/notification REST paths ${summary}; event dedup and UI alerts not tested; TC-012 remains open`);
+      })
+    );
+  });
+
+  it('PF-18 | login response and JWT expiry claim agree', function () {
+    withRole('CASHIER', this).then((auth) => {
+      if (!auth) return;
+      const parts = auth.token.split('.');
+      expect(parts, 'JWT segments').to.have.length(3);
+      const encoded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '=')));
+      expect(auth.expiresInMinutes, 'login expiry minutes').to.be.a('number').and.greaterThan(0);
+      expect(payload.iat, 'JWT issued-at').to.be.a('number');
+      expect(payload.exp, 'JWT expiry').to.be.a('number');
+      expect(payload.exp - payload.iat, 'JWT lifetime in seconds').eq(auth.expiresInMinutes * 60);
+      expect(payload.exp * 1000 > Date.now(), 'issued JWT has not expired').eq(true);
+      return get(auth.origin, '/api/v1/menu', auth.token).then((menu) => {
+        expect(menu.status, 'valid JWT can read Menu').eq(200);
+        return note(`PF-18: login TTL ${auth.expiresInMinutes} minute(s); JWT exp matches iat + TTL; valid JWT GET Menu 200; expired JWT rejection untested; TC-033 remains Pending`);
+      });
     });
   });
 });

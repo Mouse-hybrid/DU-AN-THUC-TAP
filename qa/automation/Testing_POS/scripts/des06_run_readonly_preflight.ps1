@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $exitCode = 1
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-06'
-$evidenceLog = Join-Path $evidenceDir ("PREFLIGHT_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$evidenceLog = Join-Path $evidenceDir ("PREFLIGHT_PF-17_18_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 $credential = $null
 $seedPassword = $null
 
