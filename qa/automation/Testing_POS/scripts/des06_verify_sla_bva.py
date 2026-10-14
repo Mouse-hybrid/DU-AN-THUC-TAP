@@ -116,6 +116,12 @@ def main() -> int:
     assert compute_sla("QUEUED", None, now) == (None, "NORMAL")
     assert compute_sla("DONE", now - timedelta(minutes=20), now) == (None, "NORMAL")
     print("[DES-QA-06] PF-13 9/9 component boundaries PASS; QUEUED/DONE control checks PASS")
+    missing = compute_sla("IN_PROGRESS", None, now)
+    future = compute_sla("IN_PROGRESS", now + timedelta(minutes=5), now)
+    assert missing == (None, "NORMAL"), f"Missing started_at fallback changed: {missing}"
+    assert future == (0.0, "NORMAL"), f"Future started_at clamp changed: {future}"
+    print("[DES-QA-06] PF-15 observed: IN_PROGRESS with missing started_at -> elapsed null, NORMAL; future started_at -> 0.0, NORMAL")
+    print("[DES-QA-06] PF-15 backend fallback only; visible KDS error and controlled malformed Queue fixture untested; TC-016 remains Pending")
     print("[DES-QA-06] Staging Queue and UI boundaries NOT executed; TC-001..009 remain Not Executed")
     return 0
 
