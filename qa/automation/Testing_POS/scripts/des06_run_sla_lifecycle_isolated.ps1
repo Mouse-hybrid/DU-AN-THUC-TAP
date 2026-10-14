@@ -3,7 +3,7 @@ param([string]$BaseUrl = 'http://160.191.47.17')
 $ErrorActionPreference = 'Stop'
 $exitCode = 1
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-06'
-$evidenceLog = Join-Path $evidenceDir ("TC-010_013_015_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$evidenceLog = Join-Path $evidenceDir ("TC-010_013_015_PF-14_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 $credential = $null
 $seedPassword = $null
 

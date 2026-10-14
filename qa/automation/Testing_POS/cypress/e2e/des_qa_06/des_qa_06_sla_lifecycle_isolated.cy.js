@@ -121,6 +121,24 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
       return itemStatus(status, itemId);
     });
 
+  const connectKitchen = () => cy.then({ log: false }, () => new Cypress.Promise((resolve, reject) => {
+    const wsBase = base.replace(/^http/, 'ws');
+    const socket = new WebSocket(`${wsBase}/api/v1/ws?token=${encodeURIComponent(tokens.kitchen)}&channel=kitchen`);
+    const timeout = setTimeout(() => {
+      socket.close();
+      reject(new Error('Kitchen WebSocket handshake timed out'));
+    }, 10000);
+    socket.onopen = () => { clearTimeout(timeout); resolve(socket); };
+    socket.onerror = () => { clearTimeout(timeout); reject(new Error('Kitchen WebSocket handshake failed')); };
+  }));
+
+  const closeKitchen = (socket) => cy.then({ log: false }, () => new Cypress.Promise((resolve) => {
+    if (socket.readyState === WebSocket.CLOSED) return resolve();
+    const timeout = setTimeout(resolve, 4000);
+    socket.addEventListener('close', () => { clearTimeout(timeout); resolve(); }, { once: true });
+    socket.close();
+  }));
+
   beforeEach(function () {
     fixture = null;
     return cy.env(['POS_BASE_URL', 'DES06_SEED_PASSWORD'], { log: false }).then((env) => {
@@ -138,6 +156,7 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
 
   afterEach(() => {
     if (!fixture) return;
+    if (fixture.socket && fixture.socket.readyState !== WebSocket.CLOSED) fixture.socket.close();
     const { orderId, tableId, tableCode } = fixture;
     if (!orderId) throw new Error(`CLEANUP REQUIRED: ${tableCode} (${tableId}) has a session but no order`);
     return request('POST', `/api/v1/orders/${orderId}/request-billing`, tokens.waiter)
@@ -231,6 +250,27 @@ describe('DES-QA-06 | isolated SLA timer lifecycle', () => {
           expect(own.map((entry) => entry.order_item_id), 'only second ticket remains active').deep.eq([second]);
           return note(`DES06-TC-015 assertions OK: order ${fixture.orderId}; READY ${first} timer stopped; IN_PROGRESS ${second} on station ${secondStation} timer running; cleanup follows`);
         });
+      });
+  });
+
+  it('PF-14 | Kitchen WebSocket reconnect resyncs the running ticket via REST', () => {
+    return transition('start-cooking', tokens.kitchen, 'PREPARING')
+      .then(() => queueStatus('IN_PROGRESS')).then((before) => {
+        expect(before.started_at, 'ticket timer started').to.be.a('string').and.not.be.empty;
+        return connectKitchen().then((socket) => {
+          fixture.socket = socket;
+          return closeKitchen(socket);
+        }).then(() => cy.wait(7000, { log: false }))
+          .then(() => connectKitchen()).then((socket) => {
+            fixture.socket = socket;
+            return queueStatus('IN_PROGRESS').then((after) => {
+              expect(after.id, 'same ticket after reconnect').eq(before.id);
+              expect(after.started_at, 'server start timestamp preserved').eq(before.started_at);
+              expect(after.elapsed_minutes, 'server timer continues while client disconnected')
+                .to.be.greaterThan(before.elapsed_minutes);
+              return closeKitchen(socket).then(() => note(`PF-14 API assertions OK: order ${fixture.orderId}; ticket ${after.id}; WebSocket reconnected; REST timer ${before.elapsed_minutes} -> ${after.elapsed_minutes}; alert dedup and KDS UI untested; cleanup follows`));
+            });
+          });
       });
   });
 });
