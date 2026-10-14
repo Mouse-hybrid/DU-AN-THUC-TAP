@@ -8,6 +8,10 @@ export default defineConfig({
           console.log(`[DES-QA-05] ${message}`);
           return null;
         },
+        des06Note(message) {
+          console.log(`[DES-QA-06] ${message}`);
+          return null;
+        },
         async des05ParallelSend({ url, token, keys }) {
           const target = new URL(url);
           if (!/^\/api\/v1\/orders\/[0-9a-f-]{36}\/send-to-kitchen$/i.test(target.pathname) ||
