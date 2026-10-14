@@ -122,6 +122,17 @@ def main() -> int:
     assert future == (0.0, "NORMAL"), f"Future started_at clamp changed: {future}"
     print("[DES-QA-06] PF-15 observed: IN_PROGRESS with missing started_at -> elapsed null, NORMAL; future started_at -> 0.0, NORMAL")
     print("[DES-QA-06] PF-15 backend fallback only; visible KDS error and controlled malformed Queue fixture untested; TC-016 remains Pending")
+    start_utc = now - timedelta(minutes=8)
+    start_vn = start_utc.astimezone(timezone(timedelta(hours=7)))
+    start_naive = start_utc.replace(tzinfo=None)
+    utc_result = compute_sla("IN_PROGRESS", start_utc, now)
+    vn_result = compute_sla("IN_PROGRESS", start_vn, now)
+    naive_result = compute_sla("IN_PROGRESS", start_naive, now)
+    assert utc_result == vn_result == naive_result == (8.0, "WARNING"), (
+        f"Equivalent instants produced different SLA classifications: {utc_result}, {vn_result}, {naive_result}"
+    )
+    print("[DES-QA-06] PF-16 component PASS: same 08:00 instant in UTC, UTC+7 and naive UTC -> 8.0, WARNING")
+    print("[DES-QA-06] PF-16 client clock skew and KDS rendering untested; TC-014 remains Not Executed")
     print("[DES-QA-06] Staging Queue and UI boundaries NOT executed; TC-001..009 remain Not Executed")
     return 0
 
