@@ -38,7 +38,7 @@ CASES = (
 
 def git(*args: str) -> str:
     completed = subprocess.run(
-        ["git", "-C", str(ROOT), *args], text=True, capture_output=True, check=False
+        ["git", "-C", str(ROOT), *args], text=True, encoding="utf-8", capture_output=True, check=False
     )
     if completed.returncode:
         raise RuntimeError(f"Git command failed: git {args[0]} (exit {completed.returncode})")
