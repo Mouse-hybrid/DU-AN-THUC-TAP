@@ -10,9 +10,12 @@ on:
 permissions:
   contents: read
 
+# Ghim ubuntu-24.04 thay vi ubuntu-latest: GitHub chuyen ubuntu-latest sang Ubuntu 26
+# tu 19/10/2026, trung tuan feature freeze truoc demo 23/10. Nang cap sau demo.
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
@@ -50,7 +53,7 @@ jobs:
 
   docker-build:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -118,7 +121,7 @@ jobs:
   frontend:
     # Lint + kiem tra kieu + build cho frontend/ (React + Vite + TypeScript).
     # Chua co frontend/package.json thi bo qua (job van xanh) de PR backend khong bi chan.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
