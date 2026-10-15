@@ -294,7 +294,9 @@ export interface paths {
         /**
          * Request Billing
          * @description SENT/SERVED -> BILLING. Khách yêu cầu thanh toán — chưa nhận tiền, chỉ khóa
-         *     order lại để không ai thêm/sửa món trong lúc tính tiền.
+         *     order lại để không ai thêm/sửa món trong lúc tính tiền. PO chốt 12/10 (B1 = A):
+         *     bàn cũng chuyển OCCUPIED -> BILLING để sơ đồ bàn thấy ngay bàn sắp trống và
+         *     khóa gọi thêm/gộp bàn; thanh toán xong bàn sang thẳng CLEANING (B2 = A).
          */
         post: operations["request_billing_api_v1_orders__order_id__request_billing_post"];
         delete?: never;
@@ -512,6 +514,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Logs
+         * @description Nhật ký thao tác của outlet, cũ nhất trước (đọc theo đúng trình tự xảy ra).
+         */
+        get: operations["list_audit_logs_api_v1_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Order Versions
+         * @description Các snapshot order_version đã lưu, kèm nhân viên tạo ra từng version. Không
+         *     phải số version nào cũng có snapshot: thêm món chỉ tăng current_version, còn gửi
+         *     bếp, sửa/bỏ món, void, refire mới lưu snapshot.
+         */
+        get: operations["list_order_versions_api_v1_orders__order_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -591,6 +635,33 @@ export interface components {
         AddItemsRequest: {
             /** Items */
             items: components["schemas"]["OrderItemCreate"][];
+        };
+        /** AuditLogOut */
+        AuditLogOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Action */
+            action: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Staff Id */
+            staff_id: string | null;
+            /** Staff Username */
+            staff_username: string | null;
+            /** Staff Role */
+            staff_role: string | null;
+            /** Payload */
+            payload: unknown | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** CreateOrderRequest */
         CreateOrderRequest: {
@@ -939,6 +1010,24 @@ export interface components {
             item_count: number;
             /** Subtotal */
             subtotal: string;
+        };
+        /** OrderVersionOut */
+        OrderVersionOut: {
+            /** Version Number */
+            version_number: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Staff Id */
+            created_by_staff_id: string | null;
+            /** Created By Username */
+            created_by_username: string | null;
+            /** Created By Role */
+            created_by_role: string | null;
+            /** Snapshot */
+            snapshot: unknown;
         };
         /** SendToKitchenResponse */
         SendToKitchenResponse: {
@@ -2062,6 +2151,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KitchenStationOut"][];
+                };
+            };
+        };
+    };
+    list_audit_logs_api_v1_audit_logs_get: {
+        parameters: {
+            query?: {
+                /** @description Thao tác trên order này và trên mọi món của nó */
+                order_id?: string | null;
+                /** @description Lặp lại được */
+                entity_id?: string[] | null;
+                /** @description vd order, order_item, table */
+                entity_type?: string | null;
+                /** @description Lặp lại được, vd ORDER_ITEM_REFIRED */
+                action?: string[] | null;
+                staff_id?: string | null;
+                /** @description created_at >= (ISO 8601) */
+                created_from?: string | null;
+                /** @description created_at < (ISO 8601) */
+                created_to?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_order_versions_api_v1_orders__order_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderVersionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

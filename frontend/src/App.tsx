@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { KitchenPage } from "./pages/KitchenPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
+import { OrderPage } from "./pages/OrderPage";
 import { TablesPage } from "./pages/TablesPage";
 
 function HomeRedirect() {
@@ -26,6 +27,10 @@ export default function App() {
         <Route
           path="/tables/:id/open"
           element={<ProtectedRoute area="pos"><OpenTablePage /></ProtectedRoute>}
+        />
+        <Route
+          path="/tables/:id/order"
+          element={<ProtectedRoute area="pos"><OrderPage /></ProtectedRoute>}
         />
         <Route
           path="/kitchen"

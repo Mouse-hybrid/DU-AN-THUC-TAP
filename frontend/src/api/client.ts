@@ -35,6 +35,10 @@ function fieldLabel(field: string): string {
     password: "Mã PIN",
     guest_count: "Số khách",
     table_id: "Bàn",
+    items: "Danh sách món",
+    menu_item_id: "Món",
+    quantity: "Số lượng",
+    note: "Ghi chú",
   };
   return labels[field] ?? field;
 }
