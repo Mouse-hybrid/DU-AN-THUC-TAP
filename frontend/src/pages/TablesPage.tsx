@@ -129,6 +129,10 @@ export function TablesPage() {
       navigate(`/tables/${encodeURIComponent(table.id)}/open`);
       return;
     }
+    if (table.status === "OCCUPIED") {
+      navigate(`/tables/${encodeURIComponent(table.id)}/order`);
+      return;
+    }
     setToast({ message: "Chi tiết bàn sắp có.", type: "info" });
   }
 

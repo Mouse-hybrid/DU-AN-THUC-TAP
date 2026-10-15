@@ -7,6 +7,16 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   RESERVED: { label: "Đã đặt", className: "reserved" },
   DELAYED: { label: "Chậm phục vụ", className: "delayed" },
   MERGED: { label: "Đã gộp", className: "merged" },
+  NEW: { label: "Đơn mới", className: "new" },
+  CREATED: { label: "Chưa gửi bếp", className: "new" },
+  SENT: { label: "Đã gửi bếp", className: "sent" },
+  ACCEPTED: { label: "Bếp đã nhận", className: "sent" },
+  PREPARING: { label: "Đang chế biến", className: "preparing" },
+  READY: { label: "Sẵn sàng", className: "ready" },
+  PICKED_UP: { label: "Đã lấy món", className: "ready" },
+  SERVED: { label: "Đã phục vụ", className: "served" },
+  VOIDED: { label: "Đã hủy", className: "voided" },
+  UNAVAILABLE: { label: "Hết món", className: "unavailable" },
 };
 
 export function getStatusMeta(status: string) {
