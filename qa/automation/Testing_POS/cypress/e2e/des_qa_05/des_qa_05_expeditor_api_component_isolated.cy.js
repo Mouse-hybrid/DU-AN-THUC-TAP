@@ -1,5 +1,5 @@
-// Partial API coverage for DES05-TC-016/017 on two seeded stations.
-// No Expeditor endpoint or UI is asserted; business cases remain Blocked.
+// Partial API coverage for DES05-TC-016/017/025 on two seeded stations.
+// No Expeditor endpoint, UI, modifier or six-station behavior is asserted.
 describe('DES-QA-05 | mixed-station readiness API component', () => {
   let base;
   let password;
@@ -119,6 +119,7 @@ describe('DES-QA-05 | mixed-station readiness API component', () => {
       expect(own[0].order_item_id, 'correct station item').eq(item.id);
       expect(own[0].station_id, 'menu routing').eq(item.stationId);
       expect(own[0].status, 'queue ticket status').eq(status);
+      return own[0];
     });
 
   beforeEach(function () {
@@ -185,5 +186,60 @@ describe('DES-QA-05 | mixed-station readiness API component', () => {
       .then(() => orderStatuses(['PICKED_UP', 'PICKED_UP']))
       .then(() => note(`API-COMP-017 PASS: order ${fixture.orderId}; ` +
         `two station tickets DONE, both items PICKED_UP; Expeditor UI untested`));
+  });
+
+  it('API-COMP-025 | two stations complete lifecycle and one served item is refired', () => {
+    const [first, second] = fixture.items;
+    let originalTicketId;
+    let refireTicketId;
+    let versionBefore;
+    return action(first, 'start-cooking', tokens.kitchen, 'PREPARING')
+      .then(() => action(second, 'start-cooking', tokens.kitchen, 'PREPARING'))
+      .then(() => action(first, 'mark-ready', tokens.kitchen, 'READY'))
+      .then(() => action(second, 'mark-ready', tokens.kitchen, 'READY'))
+      .then(() => queueEntry(first, 'DONE')).then((ticket) => { originalTicketId = ticket.id; })
+      .then(() => queueEntry(second, 'DONE'))
+      .then(() => action(first, 'pickup', tokens.waiter, 'PICKED_UP'))
+      .then(() => action(second, 'pickup', tokens.waiter, 'PICKED_UP'))
+      .then(() => action(first, 'served', tokens.waiter, 'SERVED'))
+      .then(() => action(second, 'served', tokens.waiter, 'SERVED'))
+      .then(() => orderStatuses(['SERVED', 'SERVED']))
+      .then(() => req('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter))
+      .then((before) => {
+        expect(before.status, 'GET before Refire').eq(200);
+        versionBefore = before.body?.current_version;
+        expect(versionBefore, 'version before Refire').to.be.a('number');
+        return login('admin');
+      }).then((admin) => req('POST',
+        `/api/v1/orders/${fixture.orderId}/items/${first.id}/refire`, admin))
+      .then((refired) => {
+        expect(refired.status, 'Refire HTTP').eq(200);
+        expect(refired.body?.current_version, 'Refire version +1').eq(versionBefore + 1);
+        expect(refired.body?.items, 'same two order items').to.have.length(2);
+        expect(refired.body.items.find((item) => item.id === first.id)?.status,
+          'refired item status').eq('REFIRED');
+        return queueEntry(first, 'QUEUED');
+      }).then((ticket) => {
+        refireTicketId = ticket.id;
+        expect(refireTicketId, 'new ticket differs from completed ticket').not.eq(originalTicketId);
+        return queueEntry(second, 'DONE');
+      }).then(() => action(first, 'start-cooking', tokens.kitchen, 'PREPARING'))
+      .then(() => queueEntry(first, 'IN_PROGRESS'))
+      .then(() => action(first, 'mark-ready', tokens.kitchen, 'READY'))
+      .then(() => action(first, 'pickup', tokens.waiter, 'PICKED_UP'))
+      .then(() => action(first, 'served', tokens.waiter, 'SERVED'))
+      .then(() => orderStatuses(['SERVED', 'SERVED']))
+      .then(() => req('GET',
+        `/api/v1/kitchen/queue?station_id=${first.stationId}&status=DONE`, tokens.kitchen))
+      .then((queue) => {
+        expect(queue.status, 'DONE queue HTTP').eq(200);
+        const own = queue.body.filter((entry) =>
+          entry.order_id === fixture.orderId && entry.order_item_id === first.id);
+        expect(own.map((entry) => entry.id).sort(), 'original and Refire tickets DONE')
+          .to.deep.eq([originalTicketId, refireTicketId].sort());
+        return note(`API-COMP-025 PASS: order ${fixture.orderId}; two stations ${first.stationId},${second.stationId}; ` +
+          `both items served; Refire ${originalTicketId} -> ${refireTicketId} cooked and served; ` +
+          `version ${versionBefore} -> ${versionBefore + 1}; modifier and six-station E2E untested`);
+      });
   });
 });
