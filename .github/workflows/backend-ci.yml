@@ -42,6 +42,11 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://pos_ci:pos_ci@localhost:5432/pos_ci
         run: alembic upgrade head
+      - name: Test ghi dong thoi tren Postgres that (khoa dong, Idempotency-Key)
+        # SQLite trong pytest khong co khoa dong; test nay tu bo qua neu thieu bien.
+        env:
+          TEST_POSTGRES_URL: postgresql+psycopg://pos_ci:pos_ci@localhost:5432/pos_ci
+        run: pytest -q tests/test_concurrency_postgres.py
 
   docker-build:
     needs: test
