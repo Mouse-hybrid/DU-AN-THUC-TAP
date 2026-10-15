@@ -6,14 +6,14 @@ $ErrorActionPreference = 'Stop'
 $credential = Get-Credential -UserName 'waiter' -Message 'Shared staging password for waiter/kitchen/cashier (this run only)'
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-05'
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
-$evidenceLog = Join-Path $evidenceDir ("API_COMP_TC-016_017_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$evidenceLog = Join-Path $evidenceDir ("API_COMP_TC-016_017_025_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 $exitCode = 1
 
 try {
   $version = Invoke-RestMethod -Uri ($BaseUrl.TrimEnd('/') + '/version') -TimeoutSec 10
   $commit = [string]$version.commit
   if (-not $commit) { $commit = [string]$version.short_commit }
-  "[DES-QA-05] API component staging commit $commit; two-station fixture; Expeditor UI not tested" |
+  "[DES-QA-05] API component staging commit $commit; two-station fixture; Expeditor UI/modifiers/six-station E2E not tested" |
     Tee-Object -FilePath $evidenceLog
   $env:CYPRESS_POS_BASE_URL = $BaseUrl
   $env:CYPRESS_DES05_SEED_PASSWORD = $credential.GetNetworkCredential().Password
