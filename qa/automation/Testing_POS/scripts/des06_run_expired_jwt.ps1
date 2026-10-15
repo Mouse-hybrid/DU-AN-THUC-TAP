@@ -8,7 +8,7 @@ $credential = $null
 $seedPassword = $null
 
 try {
-  $credential = Get-Credential -UserName 'admin' -Message 'Staging Supervisor PIN for the overnight expired-JWT test'
+  $credential = Get-Credential -UserName 'admin' -Message 'Staging Supervisor PIN for the 15-minute JWT observation'
   if (-not $credential) { throw 'Credential prompt cancelled' }
   $seedPassword = $credential.GetNetworkCredential().Password
   if (-not $seedPassword) { throw 'Staging PIN is empty' }
