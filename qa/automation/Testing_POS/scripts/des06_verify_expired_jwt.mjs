@@ -7,13 +7,13 @@ const password = process.env.DES06_SEED_PASSWORD;
 delete process.env.DES06_SEED_PASSWORD;
 
 if (!password) {
-  console.error('[DES-QA-06] TC-033 PENDING: local staging PIN missing');
+  console.log('[DES-QA-06] TC-033 PENDING: local staging PIN missing');
   process.exitCode = 2;
 } else {
   try {
     await main();
   } catch (error) {
-    console.error(`[DES-QA-06] TC-033 FAILED/INCONCLUSIVE: ${error.message}`);
+    console.log(`[DES-QA-06] TC-033 FAILED/INCONCLUSIVE: ${error.message}`);
     process.exitCode = 1;
   }
 }
@@ -107,7 +107,7 @@ async function main() {
   if (created.length) {
     for (const item of created) {
       const disabled = await request('PATCH', `/api/v1/menu/${item.id}`, freshToken, { is_available: false });
-      if (disabled.status !== 200) console.error(`[DES-QA-06] CLEANUP REQUIRED: Menu item ${item.id}`);
+      if (disabled.status !== 200) console.log(`[DES-QA-06] CLEANUP REQUIRED: Menu item ${item.id}`);
     }
     throw new Error(`expired-token request unexpectedly created ${created.length} Menu item(s)`);
   }
