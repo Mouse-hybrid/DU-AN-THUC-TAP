@@ -1,11 +1,12 @@
-// Historical actor evidence for DES05-TC-012 and TC-019. No business mutation.
+// Read-only actor evidence for DES05-TC-012 and TC-019.
+// Defaults to historical fixtures; the regression runner can supply current IDs.
 // If staging was reset, audit may survive while order/version records are gone.
-describe('DES-QA-05 | historical actor audit, read only', () => {
-  const start = {
+describe('DES-QA-05 | actor audit, read only', () => {
+  let start = {
     order: '6407fcc8-ae62-410d-a9e9-a00e44a57f7f',
     item: 'd6f9ccbd-0637-4c75-b81e-7f059e7afb5e',
   };
-  const refire = {
+  let refire = {
     order: 'a46347fa-6677-4548-8684-fe3641a64012',
     item: '5921a380-111f-4ace-9a89-0e8133c599c6',
     version: 4,
@@ -27,9 +28,30 @@ describe('DES-QA-05 | historical actor audit, read only', () => {
   };
 
   before(function () {
-    return cy.env(['POS_BASE_URL', 'DES05_AUDIT_PASSWORD', 'DES05_EXPECTED_COMMIT'])
+    return cy.env([
+      'POS_BASE_URL', 'DES05_AUDIT_PASSWORD', 'DES05_EXPECTED_COMMIT',
+      'DES05_AUDIT_START_ORDER_ID', 'DES05_AUDIT_START_ITEM_ID',
+      'DES05_AUDIT_REFIRE_ORDER_ID', 'DES05_AUDIT_REFIRE_ITEM_ID',
+      'DES05_AUDIT_REFIRE_VERSION',
+    ])
       .then((env) => {
         base = String(env.POS_BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
+        if (env.DES05_AUDIT_START_ORDER_ID || env.DES05_AUDIT_START_ITEM_ID) {
+          expect(env.DES05_AUDIT_START_ORDER_ID, 'TC-012 regression order ID').to.be.a('string').and.not.be.empty;
+          expect(env.DES05_AUDIT_START_ITEM_ID, 'TC-012 regression item ID').to.be.a('string').and.not.be.empty;
+          start = { order: env.DES05_AUDIT_START_ORDER_ID, item: env.DES05_AUDIT_START_ITEM_ID };
+        }
+        if (env.DES05_AUDIT_REFIRE_ORDER_ID || env.DES05_AUDIT_REFIRE_ITEM_ID) {
+          expect(env.DES05_AUDIT_REFIRE_ORDER_ID, 'TC-019 regression order ID').to.be.a('string').and.not.be.empty;
+          expect(env.DES05_AUDIT_REFIRE_ITEM_ID, 'TC-019 regression item ID').to.be.a('string').and.not.be.empty;
+          const versionNumber = Number(env.DES05_AUDIT_REFIRE_VERSION);
+          expect(Number.isInteger(versionNumber) && versionNumber > 0, 'TC-019 snapshot version').eq(true);
+          refire = {
+            order: env.DES05_AUDIT_REFIRE_ORDER_ID,
+            item: env.DES05_AUDIT_REFIRE_ITEM_ID,
+            version: versionNumber,
+          };
+        }
         if (!env.DES05_AUDIT_PASSWORD) {
           return note('Audit evidence PENDING: admin password not configured locally')
             .then(() => this.skip());
@@ -90,7 +112,7 @@ describe('DES-QA-05 | historical actor audit, read only', () => {
           `action ${row.action}; actor ${row.staff_username}/${row.staff_role}; at ${row.created_at}`);
       }));
 
-  it('VE-019 | Refire snapshot version 4 records Supervisor actor', function () {
+  it('VE-019 | Refire snapshot records Supervisor actor', function () {
     return get(`/api/v1/orders/${refire.order}/versions`).then((response) => {
       if (response.status === 404) {
         return note('VE-019 PENDING: historical order/version absent after possible staging reset; audit evidence remains separate')
