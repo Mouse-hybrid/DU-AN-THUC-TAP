@@ -145,6 +145,29 @@ def _load_order_or_404(
     return order
 
 
+def _publish_order_updated(
+    current: CurrentStaff, order: Order, reason: str, *, item_id: uuid.UUID | None = None
+) -> None:
+    """Báo kênh `tables` (màn POS, chi tiết bàn) rằng 1 order vừa đổi — gọi SAU
+    commit. Event chỉ là tín hiệu: client gọi lại GET /orders/{id} hoặc
+    GET /tables/{id} để lấy dữ liệu mới. Quan trọng nhất là ITEM_READY: phục vụ
+    biết món đã xong để ra bếp lấy mà không phải tải lại trang."""
+    manager.publish(
+        current.outlet_id,
+        "tables",
+        "ORDER_UPDATED",
+        {
+            "order_id": str(order.id),
+            "table_id": str(order.table_session.table_id),
+            "table_session_id": str(order.table_session_id),
+            "status": order.status,
+            "current_version": order.current_version,
+            "reason": reason,
+            "item_id": str(item_id) if item_id else None,
+        },
+    )
+
+
 def _load_order_item_or_404(
     session: Session, order_id: uuid.UUID, item_id: uuid.UUID, outlet_id: uuid.UUID
 ) -> tuple[Order, OrderItem]:
@@ -362,6 +385,7 @@ def create_order(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ORDER_CREATED")
     return result
 
 
@@ -444,6 +468,7 @@ def add_order_items(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEMS_ADDED")
     return result
 
 
@@ -558,6 +583,7 @@ def update_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_UPDATED", item_id=item.id)
     return result
 
 
@@ -606,6 +632,7 @@ def remove_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_REMOVED", item_id=item.id)
     return result
 
 
@@ -696,6 +723,7 @@ def send_order_to_kitchen(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "SENT_TO_KITCHEN")
     manager.publish(
         current.outlet_id,
         "kitchen",
@@ -761,6 +789,7 @@ def request_billing(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "BILLING_REQUESTED")
     manager.publish(
         current.outlet_id,
         "tables",
@@ -836,6 +865,7 @@ def pay_order(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ORDER_PAID")
     manager.publish(
         current.outlet_id,
         "tables",
@@ -897,6 +927,7 @@ def close_order(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ORDER_CLOSED")
     return result
 
 
@@ -969,6 +1000,7 @@ def void_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_VOIDED", item_id=item.id)
     manager.publish(
         current.outlet_id,
         "kitchen",
@@ -1058,6 +1090,7 @@ def refire_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_REFIRED", item_id=item.id)
     manager.publish(
         current.outlet_id,
         "kitchen",
@@ -1161,6 +1194,7 @@ def start_cooking_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_STARTED", item_id=item.id)
     manager.publish(
         current.outlet_id,
         "kitchen",
@@ -1230,6 +1264,7 @@ def mark_ready_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_READY", item_id=item.id)
     manager.publish(
         current.outlet_id,
         "kitchen",
@@ -1290,6 +1325,7 @@ def pickup_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_PICKED_UP", item_id=item.id)
     manager.publish(
         current.outlet_id,
         "kitchen",
@@ -1352,6 +1388,7 @@ def serve_order_item(
         )
     )
     session.commit()
+    _publish_order_updated(current, order, "ITEM_SERVED", item_id=item.id)
     manager.publish(
         current.outlet_id,
         "kitchen",

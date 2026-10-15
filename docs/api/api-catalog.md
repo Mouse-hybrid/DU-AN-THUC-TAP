@@ -101,9 +101,20 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | 36 | GET | `/api/v1/orders/{id}/versions` | S | Lịch sử snapshot order_version + người tạo | ✅ |
 
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
-`TABLE_SESSION_OPENED`, `TABLE_STATUS_CHANGED` (kênh `tables`); `KITCHEN_QUEUE_UPDATED`,
-`ORDER_ITEM_STATUS_CHANGED`, `ORDER_ITEM_VOIDED`, `ORDER_ITEM_REFIRED` (kênh `kitchen`).
-Chưa có event khi tạo order/thêm-sửa-bỏ món — FE gọi lại REST sau thao tác của chính mình.
+Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
+FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát
+lại event đã lỡ).
+
+| Kênh | Event | `data` | Khi nào |
+|---|---|---|---|
+| `tables` | `TABLE_SESSION_OPENED` | `table_id`, `status`, `table_session_id` | Mở bàn |
+| `tables` | `TABLE_STATUS_CHANGED` | `table_id`, `status` | Bàn sang BILLING, CLEANING, AVAILABLE |
+| `tables` | `ORDER_UPDATED` (từ 15/10) | `order_id`, `table_id`, `table_session_id`, `status`, `current_version`, `reason`, `item_id` | **Mọi** thao tác ghi vào order. `reason`: `ORDER_CREATED`, `ITEMS_ADDED`, `ITEM_UPDATED`, `ITEM_REMOVED`, `SENT_TO_KITCHEN`, `ITEM_STARTED`, `ITEM_READY`, `ITEM_PICKED_UP`, `ITEM_SERVED`, `ITEM_VOIDED`, `ITEM_REFIRED`, `BILLING_REQUESTED`, `ORDER_PAID`, `ORDER_CLOSED`; `item_id` có khi thao tác trên 1 món |
+| `kitchen` | `KITCHEN_QUEUE_UPDATED` | `order_id`, `items_sent` | Gửi bếp |
+| `kitchen` | `ORDER_ITEM_STATUS_CHANGED` / `ORDER_ITEM_VOIDED` / `ORDER_ITEM_REFIRED` | `order_id`, `item_id`, `status` | Bếp nấu/xong, phục vụ lấy/mang ra, hủy, làm lại |
+
+Gợi ý cho FE: màn chi tiết bàn (05) nghe `ORDER_UPDATED` có `table_id` trùng bàn đang mở rồi gọi
+lại `GET /tables/{id}`; `reason = ITEM_READY` thì nhắc phục vụ ra lấy món.
 
 ---
 
@@ -127,7 +138,7 @@ Chưa có event khi tạo order/thêm-sửa-bỏ món — FE gọi lại REST sa
 | Đề xuất | Lý do | Ưu tiên |
 |---|---|---|
 | `GET /api/v1/auth/me` | FE tải lại trang vẫn biết role/outlet mà không phải đọc lại localStorage | Thấp — FE đang lưu `staff` từ response login |
-| Event WS `ORDER_UPDATED` trên kênh `tables` | Máy POS khác thấy order đổi mà không cần tải lại | Trung bình — chỉ cần khi demo 2 máy POS cùng lúc |
+| ~~Event WS `ORDER_UPDATED` trên kênh `tables`~~ | **Đã có từ 15/10** (xem bảng event ở mục A) | — |
 | Kiểm tra xung đột version (`expected_version` → 409) | QA hỏi (TC version conflict); SRS chưa rõ có bắt buộc | Chờ QA chỉ mục SRS |
 | CRUD trạm bếp `/api/v1/kitchen/stations` (POST/PATCH) | QA cần 6 trạm; hiện trạm tạo bằng seed | Chờ PO chốt 6 trạm/Expeditor |
 
