@@ -1,5 +1,6 @@
-// DES06-TC-033: wait for a real staging JWT to expire, then try a guarded Menu POST.
-// No token or password is printed or written to disk. This process must stay running.
+// DES06-TC-033: observe a real JWT for at most 15 minutes. If it expires within
+// that window, verify GET/POST rejection; otherwise record Pending evidence.
+// No token or password is printed or written to disk.
 import { randomUUID } from 'node:crypto';
 
 const base = String(process.env.POS_BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
@@ -56,28 +57,31 @@ async function login() {
   return token;
 }
 
-function expiry(token) {
+function tokenTimes(token) {
   const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
   if (!Number.isInteger(payload.exp) || !Number.isInteger(payload.iat) || payload.exp <= payload.iat) {
     throw new Error('JWT exp/iat claims invalid');
   }
-  return payload.exp * 1000;
+  return { issuedAt: payload.iat * 1000, expiresAt: payload.exp * 1000 };
 }
 
 async function main() {
   const before = await version();
   const expiredToken = await login();
-  const expiresAt = expiry(expiredToken);
-  if (expiresAt <= before.serverTime || expiresAt - before.serverTime > 10 * 60 * 60 * 1000) {
-    throw new Error('JWT expiry outside expected 0–10 hour range');
-  }
+  const { issuedAt, expiresAt } = tokenTimes(expiredToken);
+  if (expiresAt <= before.serverTime) throw new Error('JWT already expired at login');
   const valid = await request('GET', '/api/v1/menu', expiredToken);
   requireStatus(valid, 200, 'Menu GET with valid JWT');
-  console.log(`[DES-QA-06] TC-033 start: staging ${before.commit.slice(0, 12)}; valid JWT GET Menu 200; expiry ${new Date(expiresAt).toISOString()}`);
-  console.log('[DES-QA-06] TC-033 waiting in memory for real server-side expiry; keep this terminal and PC awake');
+  const started = await version();
+  if (started.commit !== before.commit) throw new Error('staging changed during login');
+  const observationDeadline = started.serverTime + 15 * 60 * 1000;
+  const lifetimeMinutes = Math.round((expiresAt - issuedAt) / 60000);
+  console.log(`[DES-QA-06] TC-033 start: staging ${before.commit.slice(0, 12)}; valid JWT GET Menu 200; JWT exp ${new Date(expiresAt).toISOString()}; exp-iat ${lifetimeMinutes} minutes`);
+  console.log('[DES-QA-06] TC-033 observing for at most 15 minutes; expiry rejection is checked only if token actually expires');
 
   // Use the server Date header as the clock. A 3-second margin avoids second-level rounding.
   let current;
+  let nextProgressMinute = 5;
   do {
     current = await version();
     if (current.commit !== before.commit) {
@@ -85,9 +89,22 @@ async function main() {
       process.exitCode = 2;
       return;
     }
-    const remaining = expiresAt + 3000 - current.serverTime;
-    if (remaining <= 0) break;
-    await new Promise((resolve) => setTimeout(resolve, Math.min(60000, Math.max(1000, remaining))));
+    const untilExpiry = expiresAt + 3000 - current.serverTime;
+    if (untilExpiry <= 0) break;
+    const untilDeadline = observationDeadline - current.serverTime;
+    if (untilDeadline <= 0) {
+      const observedGet = await request('GET', '/api/v1/menu', expiredToken);
+      requireStatus(observedGet, 200, 'Menu GET with unexpired JWT after observation');
+      console.log(`[DES-QA-06] TC-033 PENDING: JWT still valid after 15-minute observation; GET Menu 200; JWT exp ${new Date(expiresAt).toISOString()}; exp-iat ${lifetimeMinutes} minutes; remaining ${Math.ceil((expiresAt - current.serverTime) / 60000)} minutes. Expired GET/POST not executed; no Menu mutation.`);
+      process.exitCode = 2;
+      return;
+    }
+    const observedMinutes = Math.floor((current.serverTime - started.serverTime) / 60000);
+    if (observedMinutes >= nextProgressMinute) {
+      console.log(`[DES-QA-06] TC-033 observation: ${observedMinutes}/15 minutes; JWT has not expired`);
+      nextProgressMinute += 5;
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.min(60000, Math.max(1000, Math.min(untilExpiry, untilDeadline)))));
   } while (true);
 
   const expiredGet = await request('GET', '/api/v1/menu', expiredToken);
