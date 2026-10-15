@@ -45,6 +45,16 @@ from app.schemas.tables import (
 router = APIRouter(prefix="/tables", tags=["tables"])
 
 _OPENABLE_STATUSES = ("AVAILABLE", "RESERVED")
+
+
+def _lock_table(session: Session, table_id: uuid.UUID) -> RestaurantTable | None:
+    """Khóa dòng bàn tới hết transaction: 2 lần mở cùng 1 bàn đồng thời (khác
+    Idempotency-Key) không được tạo 2 phiên — request sau thấy bàn đã OCCUPIED -> 409."""
+    return session.execute(
+        select(RestaurantTable).where(RestaurantTable.id == table_id).with_for_update()
+    ).scalar_one_or_none()
+
+
 # "Mở bàn" không có trong Permission Matrix của BRD. HLR UC-TABLE-002 ghi actor
 # "Waiter / Cashier"; PO chốt 09/10/2026: Cashier, Waiter, Supervisor.
 _OPEN_SESSION_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
@@ -75,7 +85,7 @@ def open_table_session(
             raise HTTPException(existing.response_status, detail=existing.response_body)
         return TableSessionOut.model_validate_json(existing.response_body)
 
-    table = session.get(RestaurantTable, table_id)
+    table = _lock_table(session, table_id)
     if table is None or table.outlet_id != current.outlet_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy bàn")
     if table.status not in _OPENABLE_STATUSES:
@@ -241,7 +251,7 @@ def mark_table_clean(
             raise HTTPException(existing.response_status, detail=existing.response_body)
         return TableOut.model_validate_json(existing.response_body)
 
-    table = session.get(RestaurantTable, table_id)
+    table = _lock_table(session, table_id)
     if table is None or table.outlet_id != current.outlet_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy bàn")
     if table.status != "CLEANING":

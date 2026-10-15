@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.security import TokenError, decode_access_token
@@ -113,6 +113,15 @@ def get_idempotent_response(
       khác nội dung, đây là lỗi client -> raise 409 ngay tại đây.
     - Nếu chưa tồn tại -> trả None, caller tự tạo record mới sau khi xử lý xong.
     """
+    # Hai request cùng key gửi đồng thời (client bấm 2 lần, retry khi timeout) phải
+    # xếp hàng: không khóa thì cả hai cùng thấy "chưa có", cùng chạy, request sau
+    # đụng unique constraint lúc commit -> 503 (QA TC-007). Khóa advisory theo key
+    # giữ tới hết transaction, nên request sau chờ request đầu commit rồi đọc lại
+    # đúng bản ghi -> trả lại kết quả lần đầu. SQLite (test) không cần/không có.
+    if session.get_bind().dialect.name == "postgresql":
+        session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": key}
+        )
     existing = session.execute(
         select(IdempotencyKey).where(IdempotencyKey.key == key, IdempotencyKey.endpoint == endpoint)
     ).scalar_one_or_none()
