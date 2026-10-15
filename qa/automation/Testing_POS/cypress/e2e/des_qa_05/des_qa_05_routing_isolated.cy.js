@@ -109,7 +109,10 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
 
   beforeEach(function () {
     fixture = null;
-    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD']).then((env) => {
+    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD', 'DES05_TC007_ONLY']).then((env) => {
+      if (env.DES05_TC007_ONLY && !this.currentTest.title.startsWith('DES05-TC-007')) {
+        return this.skip();
+      }
       base = String(env.POS_BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
       password = env.DES05_SEED_PASSWORD;
       if (!password) {
@@ -329,10 +332,45 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
                 expect(itemStatus, 'item is SENT exactly once').eq('SENT');
                 expect(tickets, 'exactly one ticket for own item').to.have.length(1);
                 expect(tickets[0].status, 'ticket state').eq('QUEUED');
-                expect(statuses, 'one successful Send').to.include(200);
-                expect(statuses.every((status) => [200, 409].includes(status)),
-                  `both Send statuses ${statuses.join('/')} match 200/409 contract`).eq(true);
-                return note(`DES05-TC-007 assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP ${statuses.join('/')}; one ticket ${tickets[0].id}`);
+                expect([...statuses].sort((a, b) => a - b),
+                  'different keys yield exactly one 200 and one 409').to.deep.eq([200, 409]);
+                const conflict = results.find((result) => result.status === 409);
+                expect(conflict.body?.detail, 'business conflict response').eq(
+                  'Không có món nào ở trạng thái CREATED để gửi bếp');
+                return note(`DES05-TC-007 different-key assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP ${statuses.join('/')}; one ticket ${tickets[0].id}`);
+              });
+          }));
+      });
+    });
+  });
+
+  it('DES05-TC-007 | same-key concurrent Send replays an identical response', function () {
+    return unsentOrder(this).then(() => {
+      const path = `/api/v1/orders/${fixture.orderId}/send-to-kitchen`;
+      const sameKey = key();
+      return cy.task('des05ParallelSend', {
+        url: base + path, token: tokens.waiter, keys: [sameKey, sameKey],
+      }, { log: false }).then((results) => {
+        const statuses = results.map((result) => result.status);
+        return req('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter).then((order) =>
+          req('GET', '/api/v1/kitchen/queue', tokens.kitchen).then((queue) => {
+            const itemStatus = order.body?.items?.find((item) => item.id === fixture.itemId)?.status;
+            const tickets = Array.isArray(queue.body) ? queue.body.filter((entry) =>
+              entry.order_id === fixture.orderId && entry.order_item_id === fixture.itemId) : [];
+            return note(`DES05-TC-007 same-key diagnostic: order ${fixture.orderId}; HTTP ${statuses.join('/')}; ` +
+              `GET order ${order.status} item ${itemStatus || '-'}; GET queue ${queue.status} ` +
+              `own tickets ${tickets.length} IDs ${tickets.map((ticket) => ticket.id).join(',') || '-'}`)
+              .then(() => {
+                expect(results, 'two simultaneous HTTP results').to.have.length(2);
+                expect(statuses, 'both same-key sends replay 200').to.deep.eq([200, 200]);
+                expect(results[0].body, 'identical replayed response').to.deep.eq(results[1].body);
+                expect(results[0].body?.kitchen_queue_entries_created, 'one created ticket').eq(1);
+                expect(order.status, 'GET own order after concurrent Send').eq(200);
+                expect(queue.status, 'GET queue after concurrent Send').eq(200);
+                expect(itemStatus, 'item is SENT once').eq('SENT');
+                expect(tickets, 'exactly one ticket for own item').to.have.length(1);
+                expect(tickets[0].status, 'ticket state').eq('QUEUED');
+                return note(`DES05-TC-007 same-key assertions OK (cleanup follows): order ${fixture.orderId}; item ${fixture.itemId}; HTTP 200/200 identical; one ticket ${tickets[0].id}`);
               });
           }));
       });
