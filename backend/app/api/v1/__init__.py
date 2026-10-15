@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.kitchen import router as kitchen_router
 from app.api.v1.menu import router as menu_router
@@ -16,3 +17,4 @@ api_v1_router.include_router(menu_router)
 api_v1_router.include_router(orders_router)
 api_v1_router.include_router(kitchen_router)
 api_v1_router.include_router(realtime_router)
+api_v1_router.include_router(audit_router)

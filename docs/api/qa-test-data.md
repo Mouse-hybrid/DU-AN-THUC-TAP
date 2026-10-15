@@ -133,3 +133,15 @@ Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 
 | **B1–B4** trống | Test thủ công mở bàn → gọi món |
 
 Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).
+
+## 7. Tra cứu audit và version (bằng chứng actor)
+
+Đăng nhập `admin` (SUPERVISOR), gọi trên Swagger `/docs`. Role khác → `403`.
+
+| Cần | Request | Ghi chú |
+|---|---|---|
+| Mọi thao tác trên 1 order và các món của nó | `GET /api/v1/audit-logs?order_id=<id>` | Cũ nhất trước; mỗi dòng có `action`, `entity_id`, `staff_username`, `staff_role`, `created_at` |
+| Chỉ 1 loại thao tác | `GET /api/v1/audit-logs?entity_id=<item_id>&action=ORDER_ITEM_REFIRED` | `action`, `entity_id` lặp lại được |
+| Lịch sử version của order | `GET /api/v1/orders/<id>/versions` | `version_number`, `created_by_username`, `created_by_role`, `snapshot`. Không phải số version nào cũng có snapshot (thêm món chỉ tăng `current_version`) |
+
+Lưu ý: **Reset staging data** xóa order và version nhưng giữ audit log.
