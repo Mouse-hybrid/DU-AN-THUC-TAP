@@ -15,7 +15,16 @@ if ($Tc005Only -or $Tc007Only) {
   if (-not $stagingCommit) { $stagingCommit = [string]$version.short_commit }
   Write-Host "[DES-QA-05] Staging commit: $stagingCommit"
   if (-not $stagingCommit.StartsWith($ExpectedCommit, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Staging commit differs from expected $ExpectedCommit. Confirm PR #29 is deployed before TC-007 retest."
+    $compareUrl = "https://api.github.com/repos/Mouse-hybrid/DU-AN-THUC-TAP/compare/${ExpectedCommit}...${stagingCommit}"
+    try {
+      $comparison = Invoke-RestMethod -Uri $compareUrl -Headers @{ 'User-Agent' = 'DES-QA-05-QA' } -TimeoutSec 15
+    } catch {
+      throw "Cannot verify that staging $stagingCommit includes baseline $ExpectedCommit. Check the deployed commit, then pass -ExpectedCommit with that verified staging SHA."
+    }
+    if ($comparison.status -notin @('ahead', 'identical')) {
+      throw "Staging $stagingCommit does not descend from required baseline $ExpectedCommit; no test data created."
+    }
+    Write-Host "[DES-QA-05] Staging descends from $ExpectedCommit (GitHub compare: $($comparison.status); +$($comparison.ahead_by) commits)."
   }
 }
 $credential = Get-Credential -UserName 'waiter' -Message 'Shared staging password for waiter/kitchen/cashier (used only for this run)'
