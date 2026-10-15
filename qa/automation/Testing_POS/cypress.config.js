@@ -16,18 +16,22 @@ export default defineConfig({
           const target = new URL(url);
           if (!/^\/api\/v1\/orders\/[0-9a-f-]{36}\/send-to-kitchen$/i.test(target.pathname) ||
               target.protocol !== 'http:' || !token || !Array.isArray(keys) ||
-              keys.length !== 2 || keys[0] === keys[1]) {
+              keys.length !== 2 || keys.some((key) => typeof key !== 'string' || !key)) {
             throw new Error('DES05 concurrent Send inputs invalid');
           }
-          // Launch both requests before awaiting either response. Never return credentials or body.
+          // Launch both requests before awaiting either response. Never return credentials.
           return Promise.all(keys.map(async (key) => {
             const response = await fetch(url, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': key },
               signal: AbortSignal.timeout(20000),
             });
+            const responseText = await response.text();
+            let body = null;
+            try { body = JSON.parse(responseText); } catch { /* Preserve HTTP status for non-JSON failures. */ }
             return {
               status: response.status,
+              body,
               server: response.headers.get('server'),
               via: response.headers.get('via'),
               requestId: response.headers.get('x-request-id'),
