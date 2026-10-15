@@ -124,7 +124,10 @@ describe('DES-QA-05 | mixed-station readiness API component', () => {
 
   beforeEach(function () {
     fixture = null;
-    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD']).then((env) => {
+    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD', 'DES05_TC025_ONLY']).then((env) => {
+      if (env.DES05_TC025_ONLY && !this.currentTest.title.startsWith('API-COMP-025')) {
+        return this.skip();
+      }
       base = String(env.POS_BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
       password = env.DES05_SEED_PASSWORD;
       if (!password) return note('DES05 API component PENDING: local password absent')
