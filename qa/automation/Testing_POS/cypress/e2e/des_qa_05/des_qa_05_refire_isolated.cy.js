@@ -1,5 +1,5 @@
 // Every test creates its own order and cleans only its own table/order.
-// Refire audit history is not exposed by the public API and needs separate evidence.
+// Actor audit evidence is collected separately from these lifecycle assertions.
 describe('DES-QA-05 | isolated Refire behavior', () => {
   let base;
   let password;
@@ -157,40 +157,51 @@ describe('DES-QA-05 | isolated Refire behavior', () => {
 
   it('DES05-TC-019 | one Refire adds a new QUEUED ticket and version', () =>
     serve().then((original) => order('SERVED').then((before) =>
-      refire(key()).then((response) => {
-        const after = ownItem(response, 'REFIRED', 'Refire once');
-        expect(after.current_version, 'version +1').eq(before.current_version + 1);
-        expect(after.items, 'no new order item').to.have.length(before.items.length);
-        return queue('QUEUED').then((tickets) => {
-          expect(tickets, 'one new ticket').to.have.length(1);
-          expect(tickets[0].id, 'distinct ticket ID').not.eq(original.id);
-          expect(tickets[0].station_id, 'same station').eq(original.station_id);
-          return note(`DES05-TC-019 API assertions OK (audit pending): order ${fixture.orderId}; item ${fixture.itemId}; ticket ${original.id} -> ${tickets[0].id}; version ${before.current_version} -> ${after.current_version}`);
+      summarySubtotal().then((subtotalBefore) => {
+        expect(Number.isFinite(subtotalBefore), 'starting subtotal').eq(true);
+        return refire(key()).then((response) => {
+          const after = ownItem(response, 'REFIRED', 'Refire once');
+          expect(after.current_version, 'version +1').eq(before.current_version + 1);
+          expect(after.items, 'no new order item').to.have.length(before.items.length);
+          return queue('QUEUED').then((tickets) => {
+            expect(tickets, 'one new ticket').to.have.length(1);
+            expect(tickets[0].id, 'distinct ticket ID').not.eq(original.id);
+            expect(tickets[0].station_id, 'same station').eq(original.station_id);
+            return summarySubtotal().then((subtotalAfter) => {
+              expect(subtotalAfter, 'subtotal unchanged').eq(subtotalBefore);
+              return note(`DES05-TC-019 / TC_EXT_012 assertions OK (actor audit separate): order ${fixture.orderId}; item ${fixture.itemId}; ticket ${original.id} -> ${tickets[0].id}; version ${before.current_version} -> ${after.current_version}; subtotal ${subtotalBefore} -> ${subtotalAfter}`);
+            });
+          });
         });
       }))));
 
   it('DES05-TC-020 | same Refire key replays one result and one ticket', () =>
-    serve().then(() => order('SERVED').then((before) => {
-      const replayKey = key();
-      return refire(replayKey).then((first) => {
-        ownItem(first, 'REFIRED', 'first Refire');
-        return queue('QUEUED').then((created) => {
-          expect(created, 'one new ticket').to.have.length(1);
-          return refire(replayKey).then((second) => {
-            expect(second.status, 'retry HTTP').eq(first.status);
-            expect(second.body, 'cached response').to.deep.eq(first.body);
-            return order('REFIRED').then((after) => {
-              expect(after.current_version, 'version increments once').eq(before.current_version + 1);
-              return queue('QUEUED').then((tickets) => {
-                expect(tickets, 'still one new ticket').to.have.length(1);
-                expect(tickets[0].id, 'same ticket').eq(created[0].id);
-                return note(`DES05-TC-020 assertions OK: order ${fixture.orderId}; one Refire ticket ${tickets[0].id}; retry replayed`);
+    serve().then(() => order('SERVED').then((before) =>
+      summarySubtotal().then((subtotalBefore) => {
+        expect(Number.isFinite(subtotalBefore), 'starting subtotal').eq(true);
+        const replayKey = key();
+        return refire(replayKey).then((first) => {
+          ownItem(first, 'REFIRED', 'first Refire');
+          return queue('QUEUED').then((created) => {
+            expect(created, 'one new ticket').to.have.length(1);
+            return refire(replayKey).then((second) => {
+              expect(second.status, 'retry HTTP').eq(first.status);
+              expect(second.body, 'cached response').to.deep.eq(first.body);
+              return order('REFIRED').then((after) => {
+                expect(after.current_version, 'version increments once').eq(before.current_version + 1);
+                return queue('QUEUED').then((tickets) => {
+                  expect(tickets, 'still one new ticket').to.have.length(1);
+                  expect(tickets[0].id, 'same ticket').eq(created[0].id);
+                  return summarySubtotal().then((subtotalAfter) => {
+                    expect(subtotalAfter, 'subtotal unchanged after replay').eq(subtotalBefore);
+                    return note(`DES05-TC-020 / TC_EXT_013 assertions OK: order ${fixture.orderId}; one Refire ticket ${tickets[0].id}; same-key response replayed; version ${before.current_version} -> ${after.current_version}; subtotal ${subtotalBefore} -> ${subtotalAfter}`);
+                  });
+                });
               });
             });
           });
         });
-      });
-    })));
+      }))));
 
   it('DES05-TC-021 | Refire leaves order subtotal unchanged', () =>
     serve().then(() => summarySubtotal().then((before) => {
