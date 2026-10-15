@@ -6,6 +6,7 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
   let password;
   let fixture;
   let tokens;
+  let qaMenuItemId;
 
   const key = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const n = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
@@ -26,6 +27,17 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
     expect(response.body?.access_token, `${username} JWT`).to.be.a('string').and.not.be.empty;
     return response.body.access_token;
   });
+  const archiveQaMenuItem = () => {
+    if (!qaMenuItemId) return cy.wrap(null, { log: false });
+    const itemId = qaMenuItemId;
+    return login('admin').then((admin) => req('PATCH', `/api/v1/menu/${itemId}`,
+      admin, { is_available: false })).then((archived) => {
+      if (archived.status !== 200 || archived.body?.is_available !== false) {
+        throw new Error(`CLEANUP REQUIRED: QA menu item ${itemId} archive HTTP ${archived.status}`);
+      }
+      return note(`DES05 QA menu cleanup: item ${itemId} is_available=false; inactive record remains`);
+    });
+  };
 
   const reserveTable = (available) => {
     if (!available.length) return cy.wrap(null, { log: false });
@@ -109,8 +121,11 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
 
   beforeEach(function () {
     fixture = null;
-    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD', 'DES05_TC007_ONLY']).then((env) => {
-      if (env.DES05_TC007_ONLY && !this.currentTest.title.startsWith('DES05-TC-007')) {
+    qaMenuItemId = null;
+    return cy.env(['POS_BASE_URL', 'DES05_SEED_PASSWORD', 'DES05_TC005_ONLY', 'DES05_TC007_ONLY']).then((env) => {
+      const selectedCase = env.DES05_TC005_ONLY ? 'DES05-TC-005'
+        : (env.DES05_TC007_ONLY ? 'DES05-TC-007' : null);
+      if (selectedCase && !this.currentTest.title.startsWith(selectedCase)) {
         return this.skip();
       }
       base = String(env.POS_BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
@@ -126,9 +141,11 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
   });
 
   afterEach(() => {
-    if (!fixture) return;
-    const { orderId, tableId, tableCode } = fixture;
-    if (!orderId) throw new Error(`CLEANUP REQUIRED: table ${tableCode} (${tableId}) has a session but no order`);
+    if (!fixture && !qaMenuItemId) return;
+    return archiveQaMenuItem().then(() => {
+      if (!fixture) return null;
+      const { orderId, tableId, tableCode } = fixture;
+      if (!orderId) throw new Error(`CLEANUP REQUIRED: table ${tableCode} (${tableId}) has a session but no order`);
     // Only touch IDs created by this test. Never run a global reset from automation.
     const prepareCleanup = () => req('GET', `/api/v1/orders/${orderId}`, tokens.waiter)
       .then((current) => {
@@ -148,7 +165,7 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
             if (sent.status !== 200) throw new Error(`CLEANUP REQUIRED: ${tableCode} order ${orderId} Send HTTP ${sent.status}`);
           });
       });
-    return prepareCleanup().then(() => req('POST', `/api/v1/orders/${orderId}/request-billing`, tokens.waiter))
+      return prepareCleanup().then(() => req('POST', `/api/v1/orders/${orderId}/request-billing`, tokens.waiter))
       .then((billing) => {
         if (billing.status !== 200) throw new Error(`CLEANUP REQUIRED: ${tableCode} order ${orderId} request-billing HTTP ${billing.status}`);
         return login('cashier');
@@ -166,6 +183,7 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
         }
         return note(`DES05 cleanup: ${tableCode} AVAILABLE; order ${orderId} CLOSED`);
       });
+    });
   });
 
   const menu = () => req('GET', '/api/v1/menu?available_only=true', tokens.waiter)
@@ -245,11 +263,25 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
   it('DES05-TC-005 | missing station mapping rejects Send without losing items', function () {
     return req('GET', '/api/v1/menu?available_only=true', tokens.waiter).then((response) => {
       expect(response.status, 'GET menu for missing mapping').eq(200);
-      const unmapped = response.body.find((item) => item.is_available && !item.station_id);
+      const unmappedSeed = response.body.find((item) => item.is_available && !item.station_id);
       const mapped = response.body.find((item) => item.is_available && item.station_id);
-      if (!unmapped || !mapped) return note('DES05-TC-005 PENDING: no available unmapped + mapped menu pair; no mutation')
+      if (!mapped) return note('DES05-TC-005 PENDING: no mapped menu item; no mutation')
         .then(() => this.skip());
-      return createOrder().then((created) => {
+      const ensureUnmapped = () => {
+        if (unmappedSeed) return cy.wrap(unmappedSeed, { log: false });
+        return login('admin').then((admin) => req('POST', '/api/v1/menu', admin, {
+          name: `DES05-QA-UNMAPPED-${key()}`, price: '10000', station_id: null,
+          is_available: true,
+        })).then((created) => {
+          expect(created.status, 'create own unmapped QA menu item').eq(201);
+          qaMenuItemId = created.body?.id;
+          expect(qaMenuItemId, 'new QA menu item ID').to.be.a('string').and.not.be.empty;
+          expect(created.body.station_id, 'QA item station mapping').to.be.null;
+          return note(`DES05-TC-005 QA menu fixture: item ${qaMenuItemId}; station_id null; archive after test`)
+            .then(() => created.body);
+        });
+      };
+      return ensureUnmapped().then((unmapped) => createOrder().then((created) => {
         if (!created) return cy.then(() => this.skip());
         return req('POST', `/api/v1/orders/${fixture.orderId}/items`, tokens.waiter, {
           items: [{ menu_item_id: unmapped.id, quantity: 1 }, { menu_item_id: mapped.id, quantity: 1 }],
@@ -263,6 +295,7 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
           return req('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`, tokens.waiter)
             .then((rejected) => {
               expect(rejected.status, 'unmapped Send rejected').eq(422);
+              expect(String(rejected.body?.detail), 'missing station error').to.include('chưa được gán kitchen_station');
               return req('GET', '/api/v1/kitchen/queue', tokens.kitchen);
             }).then((queue) => {
               expect(queue.status, 'queue after rejected Send').eq(200);
@@ -281,10 +314,19 @@ describe('DES-QA-05 | isolated KDS routing on two seeded stations', () => {
             }).then((sent) => {
               expect(sent.status, 'send remaining mapped item for cleanup').eq(200);
               expect(sent.body?.kitchen_queue_entries_created, 'one valid ticket').eq(1);
-              return note(`DES05-TC-005 assertions OK (cleanup follows): order ${fixture.orderId}; missing station rejected HTTP 422, no partial ticket`);
+              return req('GET', '/api/v1/kitchen/queue', tokens.kitchen);
+            }).then((queue) => {
+              expect(queue.status, 'queue after valid Send').eq(200);
+              const tickets = queue.body.filter((entry) => entry.order_id === fixture.orderId);
+              expect(tickets, 'only mapped item gets a ticket').to.have.length(1);
+              expect(tickets[0].order_item_id, 'mapped order item').eq(valid.id);
+              expect(tickets[0].station_id, 'mapped station').eq(mapped.station_id);
+              return note(`DES05-TC-005 assertions OK (cleanup follows): order ${fixture.orderId}; ` +
+                `unmapped menu ${unmapped.id} rejected HTTP 422 without partial ticket; ` +
+                `mapped item ${valid.id} routed to station ${mapped.station_id} ticket ${tickets[0].id}`);
             });
         });
-      });
+      }));
     });
   });
 
