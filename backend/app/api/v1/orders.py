@@ -125,12 +125,21 @@ _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
 _STARTABLE_ITEM_STATUSES = ("SENT", "REFIRED")
 
 
-def _load_order_or_404(session: Session, order_id: uuid.UUID, outlet_id: uuid.UUID) -> Order:
-    order = session.execute(
+def _load_order_or_404(
+    session: Session, order_id: uuid.UUID, outlet_id: uuid.UUID, *, for_update: bool = True
+) -> Order:
+    """Mặc định KHÓA dòng order (SELECT ... FOR UPDATE) tới hết transaction: mọi API
+    ghi vào cùng 1 order (gửi bếp, thêm món, thanh toán...) chạy lần lượt, request
+    sau đọc trạng thái mới nhất thay vì cùng xử lý trên dữ liệu cũ (QA TC-007: 2
+    lần gửi bếp đồng thời tạo phiếu bếp trùng). Chỉ API đọc mới truyền False."""
+    stmt = (
         select(Order)
         .where(Order.id == order_id)
         .options(selectinload(Order.items), selectinload(Order.table_session))
-    ).scalar_one_or_none()
+    )
+    if for_update:
+        stmt = stmt.with_for_update()
+    order = session.execute(stmt).scalar_one_or_none()
     if order is None or order.table_session.table.outlet_id != outlet_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy order")
     return order
@@ -280,7 +289,8 @@ def get_order(
     """Chi tiết order (Figma screen-09 POS ordering / screen-19 order summary): FE
     tải lại order đang làm dở sau khi refresh hoặc mở từ màn chi tiết bàn. Xem
     order không bị hạn chế trong Permission Matrix — mọi role đã login."""
-    return build_order_detail(session, _load_order_or_404(session, order_id, current.outlet_id))
+    order = _load_order_or_404(session, order_id, current.outlet_id, for_update=False)
+    return build_order_detail(session, order)
 
 
 @router.post("", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
@@ -301,7 +311,11 @@ def create_order(
             raise HTTPException(existing.response_status, detail=existing.response_body)
         return OrderOut.model_validate_json(existing.response_body)
 
-    table_session = session.get(TableSession, payload.table_session_id)
+    # Khóa phiên bàn: tạo order chạy lần lượt với yêu cầu thanh toán/thanh toán
+    # trên cùng bàn, không chen vào giữa lúc bàn đang chuyển BILLING.
+    table_session = session.execute(
+        select(TableSession).where(TableSession.id == payload.table_session_id).with_for_update()
+    ).scalar_one_or_none()
     if table_session is None or table_session.table.outlet_id != current.outlet_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy table_session")
     if table_session.status != "OPEN":
