@@ -1981,6 +1981,259 @@
         ]
       }
     },
+    "/api/v1/audit-logs": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List Audit Logs",
+        "description": "Nhật ký thao tác của outlet, cũ nhất trước (đọc theo đúng trình tự xảy ra).",
+        "operationId": "list_audit_logs_api_v1_audit_logs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Thao tác trên order này và trên mọi món của nó",
+              "title": "Order Id"
+            },
+            "description": "Thao tác trên order này và trên mọi món của nó"
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lặp lại được",
+              "title": "Entity Id"
+            },
+            "description": "Lặp lại được"
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "vd order, order_item, table",
+              "title": "Entity Type"
+            },
+            "description": "vd order, order_item, table"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lặp lại được, vd ORDER_ITEM_REFIRED",
+              "title": "Action"
+            },
+            "description": "Lặp lại được, vd ORDER_ITEM_REFIRED"
+          },
+          {
+            "name": "staff_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Staff Id"
+            }
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at >= (ISO 8601)",
+              "title": "Created From"
+            },
+            "description": "created_at >= (ISO 8601)"
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at < (ISO 8601)",
+              "title": "Created To"
+            },
+            "description": "created_at < (ISO 8601)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogOut"
+                  },
+                  "title": "Response List Audit Logs Api V1 Audit Logs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/versions": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List Order Versions",
+        "description": "Các snapshot order_version đã lưu, kèm nhân viên tạo ra từng version. Không\nphải số version nào cũng có snapshot: thêm món chỉ tăng current_version, còn gửi\nbếp, sửa/bỏ món, void, refire mới lưu snapshot.",
+        "operationId": "list_order_versions_api_v1_orders__order_id__versions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderVersionOut"
+                  },
+                  "title": "Response List Order Versions Api V1 Orders  Order Id  Versions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -2081,6 +2334,88 @@
           "items"
         ],
         "title": "AddItemsRequest"
+      },
+      "AuditLogOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "entity_id": {
+            "type": "string",
+            "title": "Entity Id"
+          },
+          "staff_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Id"
+          },
+          "staff_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Username"
+          },
+          "staff_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Role"
+          },
+          "payload": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "entity_type",
+          "entity_id",
+          "staff_id",
+          "staff_username",
+          "staff_role",
+          "payload",
+          "created_at"
+        ],
+        "title": "AuditLogOut"
       },
       "CreateOrderRequest": {
         "properties": {
@@ -2852,6 +3187,66 @@
         ],
         "title": "OrderSummaryOut",
         "description": "1 dòng trong danh sách order (GET /orders) — đủ để chọn order rồi gọi\nGET /orders/{id} lấy chi tiết. `item_count`/`subtotal` không tính món VOIDED."
+      },
+      "OrderVersionOut": {
+        "properties": {
+          "version_number": {
+            "type": "integer",
+            "title": "Version Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "created_by_staff_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Staff Id"
+          },
+          "created_by_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Username"
+          },
+          "created_by_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Role"
+          },
+          "snapshot": {
+            "title": "Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_number",
+          "created_at",
+          "created_by_staff_id",
+          "created_by_username",
+          "created_by_role",
+          "snapshot"
+        ],
+        "title": "OrderVersionOut"
       },
       "SendToKitchenResponse": {
         "properties": {

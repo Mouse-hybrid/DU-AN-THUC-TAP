@@ -16,7 +16,7 @@ Cập nhật 12/10/2026, staging commit `a92ed34` (`GET /version`). Nguồn: `do
 
 | | Số lượng |
 |---|---|
-| API đã có trên staging | 33 REST + 1 WebSocket |
+| API đã có trên staging | 35 REST + 1 WebSocket (thêm 2 API tra cứu audit/version ngày 15/10) |
 | QA đã gọi trong test | 33/33 REST; WebSocket mới test phần từ chối khi thiếu token (TC_EXT_015) |
 | FE đã nối API thật (trên staging) | **3** (`POST /auth/login`, `GET /tables`, `POST /tables/{id}/open-session`) |
 | API đề xuất cho Pha 1 còn thiếu | 0 bắt buộc; 3 tùy chọn (mục C) |
@@ -93,6 +93,13 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | 33 | POST | `/api/v1/orders/{id}/items/{item_id}/refire` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 34 | GET | `/api/v1/mock/summary` (+ trang `/pos`, `/kitchen`, `/customer`, `/admin`) | công khai | trang mock cũ | ✅ (sẽ bỏ) |
 
+### A7. Tra cứu nhật ký (chỉ Supervisor)
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 35 | GET | `/api/v1/audit-logs?order_id=&entity_id=&entity_type=&action=&staff_id=&created_from=&created_to=&limit=&offset=` | S | QA lấy bằng chứng actor/thời điểm; `order_id` gồm cả thao tác trên các món của order | ✅ |
+| 36 | GET | `/api/v1/orders/{id}/versions` | S | Lịch sử snapshot order_version + người tạo | ✅ |
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 `TABLE_SESSION_OPENED`, `TABLE_STATUS_CHANGED` (kênh `tables`); `KITCHEN_QUEUE_UPDATED`,
 `ORDER_ITEM_STATUS_CHANGED`, `ORDER_ITEM_VOIDED`, `ORDER_ITEM_REFIRED` (kênh `kitchen`).
@@ -138,7 +145,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | **Merge / Split / Transfer bàn** | `POST /tables/{id}/transfer` (chuyển sang bàn khác), `POST /tables/merge`, `POST /orders/{id}/split` | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
 | **Quản lý nhân sự / phân quyền** | `GET/POST /staff`, `PATCH /staff/{id}`, `POST /staff/{id}/lock`, `POST /staff/{id}/unlock`, `POST /staff/{id}/reset-password` | Pha 1 tài khoản tạo bằng seed; cần màn admin (Pha 2) |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
-| **Audit search / report** | `GET /audit-logs?entity_type=&entity_id=&staff_id=&action=&from=&to=` | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
+| **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
 | **QR Ordering** (Key Focus BRD) | `POST /tables/{id}/qr-session` (cấp `qr_session_token`), `GET /public/qr/{token}/menu`, `POST /public/qr/{token}/orders`, `GET /public/qr/{token}/orders/{id}`, `POST /public/qr/{token}/request-bill` | Module mới hoàn toàn, API công khai không đăng nhập → phải rà Permission Matrix và chống lạm dụng trước |
 | **Modifier cơ bản** (cho QR + POS) | `GET /menu/{id}/modifiers`, `POST/PATCH /menu/{id}/modifiers`, field `modifiers[]` trong `POST /orders/{id}/items` | Chưa có schema; QA/PO hỏi về combo/size/topping, chờ PO chốt |
 | **Rewards / CRM** (Key Focus BRD) | `GET /customers?phone=`, `POST /customers`, `GET /customers/{id}/rewards`, `POST /orders/{id}/apply-reward`, `DELETE /orders/{id}/rewards/{reward_id}` | Cần bảng khách hàng/điểm thưởng mới (migration), PO chốt luật tích/đổi điểm |
