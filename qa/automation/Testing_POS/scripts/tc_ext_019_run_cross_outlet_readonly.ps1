@@ -8,8 +8,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $base = $BaseUrl.TrimEnd('/')
 if ($base -ne 'http://160.191.47.17') { throw 'TC_EXT_019 is restricted to approved staging' }
-if (-not $OutletAUser -or -not $OutletBUser -or $OutletBOrderId -notmatch '^[0-9a-fA-F-]{36}$') {
-  throw 'TC_EXT_019 needs -OutletAUser, -OutletBUser and -OutletBOrderId for an isolated QA order in outlet B'
+if ([string]::IsNullOrWhiteSpace($OutletAUser) -or
+    [string]::IsNullOrWhiteSpace($OutletBUser) -or
+    $OutletAUser -match '^<.*>$' -or
+    $OutletBUser -match '^<.*>$' -or
+    $OutletBOrderId -notmatch '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$') {
+  Write-Host '[Phase 1] TC_EXT_019 BLOCKED: supply real QA usernames from two different outlets and a QA order UUID belonging to outlet B.'
+  Write-Host '[Phase 1] Placeholder values are examples. No login or business GET executed; no evidence log created.'
+  return
 }
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\AFG_POS'
 $evidenceLog = Join-Path $evidenceDir ("TC_EXT_019_CROSS_OUTLET_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
