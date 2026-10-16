@@ -57,12 +57,13 @@ describe('Phase 1 | isolated tables and kitchen WebSocket', () => {
     client.ws.addEventListener('close', () => { clearTimeout(timeout); resolve(); }, { once: true });
     client.ws.close();
   }));
-  const reserve = (tables) => {
+  const reserve = (tables, beforeOpen = () => {}) => {
     if (!tables.length) return cy.wrap(null, { log: false });
     const table = tables.shift();
+    beforeOpen();
     return request('POST', `/api/v1/tables/${table.id}/open-session`, tokens.waiter,
       { guest_count: 2 }).then((opened) => {
-      if (opened.status === 409) return reserve(tables);
+      if (opened.status === 409) return reserve(tables, beforeOpen);
       expect(opened.status, `open ${table.code}`).eq(201);
       fixture.tableId = table.id;
       fixture.tableCode = table.code;
@@ -164,10 +165,8 @@ describe('Phase 1 | isolated tables and kitchen WebSocket', () => {
     let sendStarted;
     return connect('tables', tokens.waiter).then((client) => { waiter = client; })
       .then(() => connect('kitchen', tokens.kitchen)).then((client) => { kitchen = client; })
-      .then(() => {
-        openStarted = Date.now();
-        return reserve([...availableTables]);
-      }).then((table) => {
+      .then(() => reserve([...availableTables], () => { openStarted = Date.now(); }))
+      .then((table) => {
         if (!table) return note('TC_EXT_016 PENDING: table reservation lost').then(() => this.skip());
         return createOwnOrder(() => { sendStarted = Date.now(); });
       }).then(() => ownTicket('QUEUED'))
