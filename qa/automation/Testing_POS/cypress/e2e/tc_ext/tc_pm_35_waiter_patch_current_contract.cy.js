@@ -88,7 +88,7 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
     });
   });
 
-  it('PF-PM35 | Waiter may update own CREATED item in current contract', () =>
+  it('PF-PM35 | Waiter may update CREATED but not SENT item', () =>
     request('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter)
       .then((before) => {
         expect(before.status, 'before order GET').eq(200);
@@ -108,13 +108,44 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
         expect(item?.quantity, 'persisted quantity').eq(2);
         expect(after.body.current_version, 'version increment').eq(fixture.previousVersion + 1);
         expect(Number(after.body.subtotal), 'own order subtotal').eq(fixture.unitPrice * 2);
-        return note(`PF-PM35 current-contract PASS: Waiter PATCH own CREATED item HTTP 200, quantity 1 -> 2, version ${fixture.previousVersion} -> ${after.body.current_version}; historical TC_PM_35 expected 403 and needs test-design update; cleanup follows`);
+        fixture.sentVersion = after.body.current_version;
+        fixture.sentSubtotal = Number(after.body.subtotal);
+        return note(`PF-PM35 CREATED PASS: Waiter PATCH HTTP 200, quantity 1 -> 2, version ${fixture.previousVersion} -> ${fixture.sentVersion}; historical TC_PM_35 expected 403 and needs test-design update`);
+      }).then(() => request('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`,
+        tokens.waiter)).then((sent) => {
+        expect(sent.status, 'send own order').eq(200);
+        fixture.sentToKitchen = true;
+        return request('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter);
+      }).then((sentOrder) => {
+        expect(sentOrder.status, 'SENT order GET').eq(200);
+        expect(sentOrder.body?.items.find((entry) => entry.id === fixture.itemId)?.status,
+          'item after Send').eq('SENT');
+        fixture.sentVersion = sentOrder.body.current_version;
+        fixture.sentSubtotal = Number(sentOrder.body.subtotal);
+        return request('PATCH', `/api/v1/orders/${fixture.orderId}/items/${fixture.itemId}`,
+          tokens.waiter, { quantity: 3 });
+      }).then((rejected) => {
+        expect(rejected.status, 'SENT item cannot be edited').eq(409);
+        return request('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter);
+      }).then((unchanged) => {
+        expect(unchanged.status, 'unchanged order GET').eq(200);
+        const item = unchanged.body?.items.find((entry) => entry.id === fixture.itemId);
+        expect(item?.status, 'item remains SENT').eq('SENT');
+        expect(item?.quantity, 'quantity unchanged after 409').eq(2);
+        expect(unchanged.body.current_version, 'version unchanged after 409')
+          .eq(fixture.sentVersion);
+        expect(Number(unchanged.body.subtotal), 'subtotal unchanged after 409')
+          .eq(fixture.sentSubtotal);
+        return note(`PF-PM35 SENT PASS: Waiter PATCH own SENT item HTTP 409; quantity 2, version ${fixture.sentVersion}, subtotal ${fixture.sentSubtotal} unchanged; cleanup follows`);
       }));
 
   afterEach(() => {
     if (!fixture.sessionId) return;
     if (!fixture.orderId) throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} session without order`);
-    return request('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`, tokens.waiter)
+    const send = fixture.sentToKitchen
+      ? cy.wrap({ status: 200 }, { log: false })
+      : request('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`, tokens.waiter);
+    return send
       .then((sent) => {
         if (sent.status !== 200) throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} send HTTP ${sent.status}`);
         return request('POST', `/api/v1/orders/${fixture.orderId}/request-billing`, tokens.waiter);
