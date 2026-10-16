@@ -21,7 +21,7 @@ try {
   "[Phase 1] PF-PM35 staging start $($before.Substring(0, 12))" |
     Tee-Object -FilePath $evidenceLog
 
-  Write-Host "[Phase 1] PF-PM35 tests the current PO-approved Waiter PATCH behavior; it does not pass the historical 403 expectation."
+  Write-Host "[Phase 1] PF-PM35 checks CREATED PATCH 200 then SENT PATCH 409 on one QA order; it does not pass the historical 403 expectation."
   $env:CYPRESS_POS_BASE_URL = $base
   $env:CYPRESS_DES05_SEED_PASSWORD = $seedPassword
   Push-Location (Split-Path -Parent $PSScriptRoot)
