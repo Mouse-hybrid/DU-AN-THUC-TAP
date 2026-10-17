@@ -18,7 +18,7 @@ $resultCode = 0
 try {
   $before = (Invoke-RestMethod -Uri "$base/version" -TimeoutSec 20).commit
   if ($before -notmatch '^[0-9a-f]{40}$') { throw 'GET /version missing full commit' }
-  Record "[Phase 1] Morning audit staging $($before.Substring(0, 12)); GET requests only"
+  Record "[Phase 1] Morning audit staging $($before.Substring(0, 12)); login plus business GET requests only"
 
   $openapi = Invoke-RestMethod -Uri "$base/openapi.json" -TimeoutSec 20
   $paths = @($openapi.paths.PSObject.Properties)
