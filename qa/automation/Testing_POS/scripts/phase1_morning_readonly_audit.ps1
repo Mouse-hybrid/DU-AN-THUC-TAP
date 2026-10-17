@@ -42,25 +42,33 @@ try {
   $headers = @{ Authorization = "Bearer $token" }
   $login = $null
 
-  $tables = @(Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20)
-  $b4 = @($tables | Where-Object { $_.code -eq 'B4' })
-  if ($b4.Count -ne 1) { Record '[Phase 1] B4 INCONCLUSIVE: table absent or duplicated'; $missing++ }
+  $tables = Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20
+  $b4 = $null
+  $b4Matches = 0
+  foreach ($table in $tables) {
+    if ($table.code -eq 'B4') { $b4 = $table; $b4Matches++ }
+  }
+  if ($b4Matches -ne 1) { Record '[Phase 1] B4 INCONCLUSIVE: table absent or duplicated'; $missing++ }
   else {
-    Record "[Phase 1] B4 status=$($b4[0].status); current_session_id=$($b4[0].current_session_id)"
-    if ($b4[0].status -ne 'AVAILABLE' -or $b4[0].current_session_id) { $issues++ }
+    Record "[Phase 1] B4 status=$($b4.status); current_session_id=$($b4.current_session_id)"
+    if ($b4.status -ne 'AVAILABLE' -or $b4.current_session_id) { $issues++ }
   }
 
-  $menu = @(Invoke-RestMethod -Uri "$base/api/v1/menu?available_only=false" -Headers $headers -TimeoutSec 20)
+  $menu = Invoke-RestMethod -Uri "$base/api/v1/menu?available_only=false" -Headers $headers -TimeoutSec 20
   $expectedMenu = [ordered]@{
     'TC_EXT_006' = 'b800c6d9-2c86-4f73-86b7-23a044202de3'
     'TC_EXT_005' = '9bda107f-548e-4a85-b8af-655c35365c6d'
     'TC_PM_20'  = '89372555-ba28-44e4-862c-62f0052c246a'
   }
   foreach ($label in $expectedMenu.Keys) {
-    $item = @($menu | Where-Object { $_.id -eq $expectedMenu[$label] })
-    if ($item.Count -ne 1) { Record "[Phase 1] $label INCONCLUSIVE: historical QA menu item absent"; $missing++; continue }
-    Record "[Phase 1] $label menu_id=$($item[0].id); is_available=$($item[0].is_available)"
-    if ($item[0].is_available -ne $false) { $issues++ }
+    $item = $null
+    $itemMatches = 0
+    foreach ($entry in $menu) {
+      if ($entry.id -eq $expectedMenu[$label]) { $item = $entry; $itemMatches++ }
+    }
+    if ($itemMatches -ne 1) { Record "[Phase 1] $label INCONCLUSIVE: historical QA menu item absent or duplicated"; $missing++; continue }
+    Record "[Phase 1] $label menu_id=$($item.id); is_available=$($item.is_available)"
+    if ($item.is_available -ne $false) { $issues++ }
   }
 
   $expectedOrders = [ordered]@{
