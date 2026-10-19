@@ -2,6 +2,7 @@
 // The test pays/closes only its own order, then marks its own table clean.
 // TC-012 actor audit still requires separate DB/audit evidence.
 describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
+  const otherCase = Cypress.env('TC_API_12_001_ONLY') ? it.skip : it;
   let base;
   let password;
   let tokens;
@@ -161,18 +162,18 @@ describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
       });
   });
 
-  it('DES05-TC-012 | SENT/QUEUED to PREPARING/IN_PROGRESS', () => {
+  it('DES05-TC-012 / TC_API_12_001 | SENT/QUEUED to PREPARING/IN_PROGRESS', () => {
     return itemStatus('SENT').then(() => queueStatus('QUEUED')).then((before) =>
       transition('start-cooking', tokens.kitchen, 'PREPARING')
         .then(() => queueStatus('IN_PROGRESS')).then((after) => {
           expect(after.id, 'same kitchen ticket').eq(before.id);
           expect(after.started_at, 'started_at').to.be.a('string').and.not.be.empty;
           expect(Number.isFinite(Date.parse(after.started_at)), 'valid start time').eq(true);
-          return note(`DES05-TC-012 API assertions OK: order ${fixture.orderId}; item ${fixture.itemId}; actor audit needs separate evidence; cleanup follows`);
+          return note(`DES05-TC-012 / TC_API_12_001 assertions OK: order ${fixture.orderId}; item ${fixture.itemId}; SENT/QUEUED -> PREPARING/IN_PROGRESS; actor audit needs separate evidence; cleanup follows`);
         }));
   });
 
-  it('DES05-TC-013 | PREPARING/IN_PROGRESS to READY/DONE', () => {
+  otherCase('DES05-TC-013 | PREPARING/IN_PROGRESS to READY/DONE', () => {
     return transition('start-cooking', tokens.kitchen, 'PREPARING')
       .then(() => queueStatus('IN_PROGRESS')).then((before) =>
         transition('mark-ready', tokens.kitchen, 'READY')
@@ -182,7 +183,7 @@ describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
           }));
   });
 
-  it('DES05-TC-014 | READY to PICKED_UP to SERVED with Waiter role', () => {
+  otherCase('DES05-TC-014 | READY to PICKED_UP to SERVED with Waiter role', () => {
     return transition('start-cooking', tokens.kitchen, 'PREPARING')
       .then(() => transition('mark-ready', tokens.kitchen, 'READY'))
       .then(() => queueStatus('DONE'))
@@ -191,7 +192,7 @@ describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
       .then(() => note(`DES05-TC-014 assertions OK: order ${fixture.orderId}; item ${fixture.itemId}; PICKED_UP -> SERVED; cleanup follows`));
   });
 
-  it('DES05-TC-015 | SERVED cannot go backward to PREPARING', () => {
+  otherCase('DES05-TC-015 | SERVED cannot go backward to PREPARING', () => {
     return transition('start-cooking', tokens.kitchen, 'PREPARING')
       .then(() => transition('mark-ready', tokens.kitchen, 'READY'))
       .then(() => transition('pickup', tokens.waiter, 'PICKED_UP'))

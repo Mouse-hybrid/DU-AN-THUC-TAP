@@ -1,6 +1,5 @@
-// Phase 1 PF-PM35: verify the current PO-approved Waiter PATCH permission.
-// The historical TC_PM_35 expects 403; this test must not mark that old
-// expectation as passed without revising the testcase requirement.
+// Phase 1 TC_PM_35: the approved rule permits Waiter PATCH on CREATED only.
+// The legacy 403 expectation is superseded; SENT edits must return 409.
 describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
   const base = 'http://160.191.47.17';
   let tokens = {};
@@ -45,7 +44,7 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
       if (String(env.POS_BASE_URL || base).replace(/\/+$/, '') !== base) {
         throw new Error('SAFETY: approved staging only');
       }
-      if (!env.DES05_SEED_PASSWORD) return note('PF-PM35 PENDING: local PIN missing')
+      if (!env.DES05_SEED_PASSWORD) return note('TC_PM_35 PENDING: local PIN missing')
         .then(() => this.skip());
       const password = String(env.DES05_SEED_PASSWORD);
       return login('waiter', password).then((token) => { tokens.waiter = token; })
@@ -55,17 +54,17 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
           expect(tables.status, 'tables GET').eq(200);
           const available = tables.body.filter((table) =>
             /^B[1-4]$/.test(table.code) && table.status === 'AVAILABLE');
-          if (!available.length) return note('PF-PM35 PENDING: no AVAILABLE B1-B4 table')
+          if (!available.length) return note('TC_PM_35 PENDING: no AVAILABLE B1-B4 table')
             .then(() => this.skip());
           return request('GET', '/api/v1/menu?available_only=true', tokens.waiter)
             .then((menu) => {
               expect(menu.status, 'menu GET').eq(200);
               const item = menu.body.find((entry) => entry.is_available && entry.station_id);
-              if (!item) return note('PF-PM35 PENDING: no mapped menu item')
+              if (!item) return note('TC_PM_35 PENDING: no mapped menu item')
                 .then(() => this.skip());
               fixture.menuId = item.id;
               return reserve(available).then((table) => {
-                if (!table) return note('PF-PM35 PENDING: table reservation lost')
+                if (!table) return note('TC_PM_35 PENDING: table reservation lost')
                   .then(() => this.skip());
                 return request('POST', '/api/v1/orders', tokens.waiter,
                   { table_session_id: fixture.sessionId });
@@ -76,19 +75,19 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
               fixture.orderId = created.body?.id;
               return request('POST', `/api/v1/orders/${fixture.orderId}/items`, tokens.waiter,
                 { items: [{ menu_item_id: fixture.menuId, quantity: 1,
-                  note: 'Phase1 PF-PM35' }] });
+                  note: 'Phase1 TC_PM_35' }] });
             }).then((added) => {
               if (!added) return;
               expect(added.status, 'add own item').eq(201);
               fixture.itemId = added.body?.items?.[0]?.id;
               expect(fixture.itemId, 'own item ID').to.be.a('string').and.not.be.empty;
-              return note(`PF-PM35 fixture: ${fixture.tableCode}; order ${fixture.orderId}; own CREATED item ${fixture.itemId}`);
+              return note(`TC_PM_35 fixture: ${fixture.tableCode}; order ${fixture.orderId}; own CREATED item ${fixture.itemId}`);
             });
         });
     });
   });
 
-  it('PF-PM35 | Waiter may update CREATED but not SENT item', () =>
+  it('TC_PM_35 | Waiter may update CREATED but not SENT item', () =>
     request('GET', `/api/v1/orders/${fixture.orderId}`, tokens.waiter)
       .then((before) => {
         expect(before.status, 'before order GET').eq(200);
@@ -110,7 +109,7 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
         expect(Number(after.body.subtotal), 'own order subtotal').eq(fixture.unitPrice * 2);
         fixture.sentVersion = after.body.current_version;
         fixture.sentSubtotal = Number(after.body.subtotal);
-        return note(`PF-PM35 CREATED PASS: Waiter PATCH HTTP 200, quantity 1 -> 2, version ${fixture.previousVersion} -> ${fixture.sentVersion}; historical TC_PM_35 expected 403 and needs test-design update`);
+        return note(`TC_PM_35 CREATED PASS: Waiter PATCH HTTP 200, quantity 1 -> 2, version ${fixture.previousVersion} -> ${fixture.sentVersion}; approved contract replaces historical 403`);
       }).then(() => request('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`,
         tokens.waiter)).then((sent) => {
         expect(sent.status, 'send own order').eq(200);
@@ -136,7 +135,7 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
           .eq(fixture.sentVersion);
         expect(Number(unchanged.body.subtotal), 'subtotal unchanged after 409')
           .eq(fixture.sentSubtotal);
-        return note(`PF-PM35 SENT PASS: Waiter PATCH own SENT item HTTP 409; quantity 2, version ${fixture.sentVersion}, subtotal ${fixture.sentSubtotal} unchanged; cleanup follows`);
+        return note(`TC_PM_35 SENT PASS: Waiter PATCH own SENT item HTTP 409; quantity 2, version ${fixture.sentVersion}, subtotal ${fixture.sentSubtotal} unchanged; cleanup follows`);
       }));
 
   afterEach(() => {
@@ -162,7 +161,7 @@ describe('Phase 1 | TC_PM_35 current Waiter PATCH contract', () => {
         if (cleaned.status !== 200 || cleaned.body?.status !== 'AVAILABLE') {
           throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} mark-clean HTTP ${cleaned.status}`);
         }
-        return note(`PF-PM35 cleanup: ${fixture.tableCode} AVAILABLE; order ${fixture.orderId} CLOSED`);
+        return note(`TC_PM_35 cleanup: ${fixture.tableCode} AVAILABLE; order ${fixture.orderId} CLOSED`);
       });
   });
 });

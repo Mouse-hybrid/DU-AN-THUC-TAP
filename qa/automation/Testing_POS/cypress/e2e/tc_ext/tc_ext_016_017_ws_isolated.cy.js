@@ -1,6 +1,7 @@
 // Phase 1 WebSocket: two authenticated clients, own table/order, REST source of truth.
 // TC_EXT_017 is API/client coverage only; product UI resync needs a separate check.
 describe('Phase 1 | isolated tables and kitchen WebSocket', () => {
+  const reconnectCase = Cypress.env('EXE04_LIVE_SMOKE_ONLY') ? it.skip : it;
   const base = 'http://160.191.47.17';
   let tokens;
   let fixture;
@@ -158,7 +159,7 @@ describe('Phase 1 | isolated tables and kitchen WebSocket', () => {
       });
   });
 
-  it('TC_EXT_016 | tables and kitchen clients receive the own changes', function () {
+  it('TC_EXT_016 / EXE-QA-04 live smoke | tables and kitchen clients receive the own changes', function () {
     let waiter;
     let kitchen;
     let openStarted;
@@ -193,7 +194,7 @@ describe('Phase 1 | isolated tables and kitchen WebSocket', () => {
             expect(tables.status, 'REST tables GET').eq(200);
             expect(tables.body.find((entry) => entry.id === fixture.tableId)?.status,
               'own table occupied').eq('OCCUPIED');
-            return note(`TC_EXT_016 assertions OK: ${fixture.tableCode}; order ${fixture.orderId}; ` +
+            return note(`${Cypress.env('EXE04_LIVE_SMOKE_ONLY') ? 'EXE-QA-04 live smoke / ' : ''}TC_EXT_016 assertions OK: ${fixture.tableCode}; order ${fixture.orderId}; ` +
               `tables TABLE_SESSION_OPENED ${opened.receivedAt - openStarted}ms; ` +
               `kitchen KITCHEN_QUEUE_UPDATED ${queued.receivedAt - sendStarted}ms; ` +
               `own QUEUED ticket ${ticket.id}; two channels separated; cleanup follows`);
@@ -201,7 +202,7 @@ describe('Phase 1 | isolated tables and kitchen WebSocket', () => {
       });
   });
 
-  it('API-COMP-017 | reconnect then REST resync observes an offline kitchen change', () => {
+  reconnectCase('API-COMP-017 | reconnect then REST resync observes an offline kitchen change', () => {
     let waiter;
     let kitchen;
     let ticketId;
