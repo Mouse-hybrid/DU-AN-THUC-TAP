@@ -36,13 +36,18 @@ try {
   try {
     $priorConsoleEncoding = [Console]::OutputEncoding
     $priorOutputEncoding = $OutputEncoding
+    $priorErrorActionPreference = $ErrorActionPreference
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
     $OutputEncoding = [Console]::OutputEncoding
     try {
+      # Windows PowerShell wraps native stderr (including harmless npm notices) as ErrorRecords.
+      # Keep it in the terminal evidence and determine success from Cypress's process exit code.
+      $ErrorActionPreference = 'Continue'
       & npx cypress run --browser chrome --headless --spec 'cypress/e2e/exe_qa_04/exe_qa_04_readonly_smoke.cy.js' 2>&1 |
         Tee-Object -FilePath $evidenceLog -Append
       $exitCode = $LASTEXITCODE
     } finally {
+      $ErrorActionPreference = $priorErrorActionPreference
       [Console]::OutputEncoding = $priorConsoleEncoding
       $OutputEncoding = $priorOutputEncoding
     }
