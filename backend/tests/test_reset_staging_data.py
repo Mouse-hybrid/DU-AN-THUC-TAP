@@ -156,3 +156,35 @@ def test_refuses_non_test_environments(app_env):
 
 def test_allows_staging():
     reset.ensure_env_allowed("staging")
+
+
+_SEED = Path(__file__).resolve().parent.parent / "scripts" / "seed_dev_data.py"
+_seed_spec = importlib.util.spec_from_file_location("seed_dev_data", _SEED)
+seed_script = importlib.util.module_from_spec(_seed_spec)
+sys.modules[_seed_spec.name] = seed_script
+_seed_spec.loader.exec_module(seed_script)
+
+
+def test_qa_second_outlet_has_no_menu_and_is_isolated(client, seed, db_session_factory):
+    """TC_API_03_004 (chi nhánh không có menu) + TC_EXT_019 (truy cập chéo chi nhánh)."""
+    _add_fixture_tables_and_menu(db_session_factory, seed)
+    session = db_session_factory()
+    seed_script._ensure_qa_second_outlet(session, "password123", True)
+    seed_script._ensure_qa_second_outlet(session, "password123", True)  # chạy lại không trùng
+    session.commit()
+    result = reset.run(session, apply=True, with_fixtures=True)
+    session.close()
+    q2_line = next(line for line in result.fixtures if line.startswith("Q2-1"))
+    q2_order_id = q2_line.rsplit("order_id=", 1)[1]
+
+    qa2 = login(client, "qa2_admin")
+    assert client.get("/api/v1/menu", headers=qa2).json() == []
+    assert [o["id"] for o in client.get("/api/v1/orders", headers=qa2).json()] == [q2_order_id]
+    assert [t["code"] for t in client.get("/api/v1/tables", headers=qa2).json()] == ["Q2-1"]
+
+    outlet1 = login(client, "supervisor_test")
+    assert client.get(f"/api/v1/orders/{q2_order_id}", headers=outlet1).status_code == 404
+    assert q2_order_id not in {
+        o["id"] for o in client.get("/api/v1/orders", headers=outlet1).json()
+    }
+    assert login(client, "qa2_cashier")

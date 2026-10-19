@@ -13,6 +13,8 @@ khó dựng tay (refire TC_EXT_012/013, SLA TC_EXT_014):
 - bàn B6: order SERVED, 2 món đã SERVED (dùng để test refire);
 - bàn B5: order SENT, 3 món: 1 món chờ bếp (QUEUED), 1 món đang nấu 9 phút
   (SLA WARNING), 1 món đang nấu 16 phút (SLA CRITICAL).
+- bàn Q2-1 (chi nhánh QA 2, không có menu): order NEW rỗng để test truy cập
+  chéo chi nhánh.
 B1–B4 để trống cho test thủ công.
 
 Không bao giờ chạy với APP_ENV=production. Mặc định chỉ in ra sẽ xóa gì
@@ -69,6 +71,7 @@ _WIPE_ORDER = (
 # Bàn dùng cho fixture; nằm trong 6 bàn B1–B6 của seed_dev_data.py.
 FIXTURE_SERVED_TABLE = "B6"
 FIXTURE_KITCHEN_TABLE = "B5"
+FIXTURE_OTHER_OUTLET_TABLE = "Q2-1"  # bàn của chi nhánh QA 2 (seed_dev_data.py)
 
 
 @dataclass
@@ -260,6 +263,22 @@ def create_fixtures(session: Session) -> list[str]:
         kitchen_items, ("chờ bếp QUEUED", "đang nấu 9' → WARNING", "đang nấu 16' → CRITICAL")
     ):
         lines.append(f"    món {label} item_id={item.id}")
+
+    # Chi nhánh QA 2 (seed_dev_data.py tạo, không có menu): 1 order rỗng trên Q2-1 để
+    # thử truy cập chéo chi nhánh (TC_EXT_019) — tài khoản chi nhánh 1 gọi phải 404.
+    q2_table = session.scalar(
+        select(RestaurantTable).where(RestaurantTable.code == FIXTURE_OTHER_OUTLET_TABLE)
+    )
+    if q2_table is not None:
+        q2_staff = session.scalar(
+            select(Staff.id).where(
+                Staff.outlet_id == q2_table.outlet_id, Staff.role == "SUPERVISOR"
+            )
+        )
+        _, q2_order = _open_fixture_order(session, q2_table, q2_staff, order_status="NEW")
+        lines.append(
+            f"{FIXTURE_OTHER_OUTLET_TABLE} (chi nhánh QA 2): order NEW rỗng order_id={q2_order.id}"
+        )
     return lines
 
 
