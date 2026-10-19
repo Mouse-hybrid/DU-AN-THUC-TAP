@@ -79,7 +79,7 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 | Xem order | `GET /api/v1/orders/{order_id}` | mọi role | — | `200`, có `menu_item_name`, `line_total`, `subtotal` |
 | Danh sách order | `GET /api/v1/orders?status=SENT&status=SERVED&table_id=&created_from=&created_to=&limit=50&offset=0` | mọi role | — | `200`, mới nhất trước, mỗi dòng có `table_code`, `item_count`, `subtotal` (không tính món VOIDED); `status` sai → `422` |
 | Gửi bếp | `POST /api/v1/orders/{order_id}/send-to-kitchen` | CASHIER, WAITER, SUPERVISOR | — | `200`, món CREATED → SENT |
-| Hủy món đã gửi bếp | `POST /api/v1/orders/{order_id}/items/{item_id}/void` | SUPERVISOR | `{"reason": "khách đổi ý"}` | `200`, món → VOIDED |
+| Hủy món đã gửi bếp | `POST /api/v1/orders/{order_id}/items/{item_id}/void` | SUPERVISOR | `{"reason": "khách đổi ý"}` | `200`, món → VOIDED, phiếu bếp đang chờ/đang nấu → **CANCELLED** (biến khỏi hàng đợi bếp) |
 | Làm lại món đã phục vụ | `POST /api/v1/orders/{order_id}/items/{item_id}/refire` | SUPERVISOR | — | `200` |
 
 | Case sai | Body / điều kiện | Kết quả |
