@@ -56,7 +56,7 @@ try {
     "[Phase 1] PF-OUTLET-019 BLOCKED: $outletCount distinct outlet among six QA accounts. TC_EXT_019 cross-outlet GET not executed." |
       Tee-Object -FilePath $evidenceLog -Append
   } else {
-    "[Phase 1] PF-OUTLET-019 READY: $outletCount distinct outlets. TC_EXT_019 can discover a seeded Q2-1 NEW order if present." |
+    "[Phase 1] PF-OUTLET-019 READY: $outletCount distinct outlets. TC_EXT_019 can use an existing outlet B QA order of any status if present." |
       Tee-Object -FilePath $evidenceLog -Append
   }
 } finally {
