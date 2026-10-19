@@ -1921,6 +1921,27 @@
               "title": "Delayed Only"
             },
             "description": "Chỉ trả món đang nấu quá ngưỡng (DELAYED/CRITICAL)"
+          },
+          {
+            "name": "item_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lọc theo trạng thái MÓN, lặp lại được. Màn 34 'chờ lấy': ?item_status=READY. Có item_status mà không có status thì không lọc trạng thái phiếu.",
+              "title": "Item Status"
+            },
+            "description": "Lọc theo trạng thái MÓN, lặp lại được. Màn 34 'chờ lấy': ?item_status=READY. Có item_status mà không có status thì không lọc trạng thái phiếu."
           }
         ],
         "responses": {
@@ -2493,6 +2514,10 @@
             "type": "string",
             "title": "Status"
           },
+          "item_status": {
+            "type": "string",
+            "title": "Item Status"
+          },
           "queued_at": {
             "type": "string",
             "format": "date-time",
@@ -2509,6 +2534,18 @@
               }
             ],
             "title": "Started At"
+          },
+          "done_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done At"
           },
           "elapsed_minutes": {
             "anyOf": [
@@ -2538,6 +2575,7 @@
           "note",
           "station_id",
           "status",
+          "item_status",
           "queued_at",
           "started_at"
         ],
