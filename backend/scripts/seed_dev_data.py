@@ -83,6 +83,13 @@ SEED_STAFF: dict[str, tuple[str, str]] = {
     "waiter": ("WAITER", "Waiter Demo"),
     "kitchen": ("KITCHEN", "Kitchen Demo"),
 }
+# Chi nhánh thứ 2 chỉ để QA kiểm cách ly dữ liệu giữa chi nhánh; cố ý không có menu.
+QA_OUTLET_NAME = "Chi nhánh QA 2 (không menu)"
+QA_OUTLET_TABLES = (("Q2-1", 4),)
+QA_OUTLET_STAFF: dict[str, tuple[str, str]] = {
+    "qa2_admin": ("SUPERVISOR", "Supervisor QA chi nhánh 2"),
+    "qa2_cashier": ("CASHIER", "Cashier QA chi nhánh 2"),
+}
 # CHỈ dùng khi APP_ENV=development (máy local). Môi trường khác bắt buộc env SEED_PASSWORD.
 DEV_SEED_PASSWORD = "password123"
 # Độ dài tối thiểu ngoài development. Tên hằng cố ý không chứa chữ "password":
@@ -105,6 +112,57 @@ def resolve_seed_password() -> tuple[str | None, bool]:
     return None, False
 
 
+def _ensure_staff(session, outlet, username, role, full_name, password, explicit) -> None:
+    """Tạo tài khoản nếu chưa có; có SEED_PASSWORD thì đưa mật khẩu về đúng giá trị đó."""
+    staff = session.execute(select(Staff).where(Staff.username == username)).scalar_one_or_none()
+    if password is None:
+        if staff is None:
+            print(f"- bỏ qua tạo staff {role} (username={username})")
+        return
+    if staff is None:
+        staff = Staff(
+            outlet_id=outlet.id,
+            username=username,
+            password_hash=hash_password(password),
+            full_name=full_name,
+            role=role,
+        )
+        session.add(staff)
+        session.flush()
+        print(f"+ staff {role}: {staff.id} (username={username})")
+    elif explicit and not verify_password(password, staff.password_hash):
+        staff.password_hash = hash_password(password)
+        print(f"~ staff {role}: đặt lại mật khẩu theo SEED_PASSWORD (username={username})")
+    else:
+        print(f"= staff {role} đã tồn tại: {staff.id} (username={username})")
+
+
+def _ensure_qa_second_outlet(session, password, explicit) -> None:
+    """Chi nhánh thứ 2 cho QA: KHÔNG có menu/trạm bếp (TC_API_03_004: GET /menu rỗng)
+    và có tài khoản + bàn riêng để thử truy cập chéo chi nhánh (TC_EXT_019). Order
+    mẫu trên bàn Q2-1 do reset_staging_data.py --with-fixtures tạo."""
+    outlet = session.execute(
+        select(Outlet).where(Outlet.name == QA_OUTLET_NAME)
+    ).scalar_one_or_none()
+    if outlet is None:
+        outlet = Outlet(name=QA_OUTLET_NAME, address="Dữ liệu kiểm thử QA")
+        session.add(outlet)
+        session.flush()
+        print(f"+ outlet QA 2: {outlet.id}")
+    for username, (role, full_name) in QA_OUTLET_STAFF.items():
+        _ensure_staff(session, outlet, username, role, full_name, password, explicit)
+    for code, seats in QA_OUTLET_TABLES:
+        exists = session.execute(
+            select(RestaurantTable).where(
+                RestaurantTable.outlet_id == outlet.id, RestaurantTable.code == code
+            )
+        ).scalar_one_or_none()
+        if exists is None:
+            session.add(RestaurantTable(outlet_id=outlet.id, code=code, seats=seats))
+            session.flush()
+            print(f"+ restaurant_table {code} (outlet QA 2)")
+
+
 def main() -> None:
     if SessionLocal is None:
         raise RuntimeError("DATABASE_URL chưa được set — xem docstring đầu file")
@@ -125,29 +183,7 @@ def main() -> None:
         # (py/clear-text-logging-sensitive-data) — output lọt vào CI log của deploy.
         password, explicit = resolve_seed_password()
         for username, (role, full_name) in SEED_STAFF.items():
-            staff = session.execute(
-                select(Staff).where(Staff.username == username)
-            ).scalar_one_or_none()
-            if password is None:
-                if staff is None:
-                    print(f"- bỏ qua tạo staff {role} (username={username})")
-                continue
-            if staff is None:
-                staff = Staff(
-                    outlet_id=outlet.id,
-                    username=username,
-                    password_hash=hash_password(password),
-                    full_name=full_name,
-                    role=role,
-                )
-                session.add(staff)
-                session.flush()
-                print(f"+ staff {role}: {staff.id} (username={username})")
-            elif explicit and not verify_password(password, staff.password_hash):
-                staff.password_hash = hash_password(password)
-                print(f"~ staff {role}: đặt lại mật khẩu theo SEED_PASSWORD (username={username})")
-            else:
-                print(f"= staff {role} đã tồn tại: {staff.id} (username={username})")
+            _ensure_staff(session, outlet, username, role, full_name, password, explicit)
 
         stations: dict[str, KitchenStation] = {}
         for station_name in SEED_STATIONS:
@@ -212,6 +248,8 @@ def main() -> None:
                 session.flush()
                 print(f"+ restaurant_table {code}: {table.id}")
 
+        _ensure_qa_second_outlet(session, password, explicit)
+
         session.commit()
 
         print("\n--- Dùng để test API ---")
@@ -223,6 +261,8 @@ def main() -> None:
         )
         for username, (role, _) in SEED_STAFF.items():
             print(f'  {role:<10} -> POST /api/v1/auth/login  {{"username": "{username}"}}')
+        for username, (role, _) in QA_OUTLET_STAFF.items():
+            print(f'  {role:<10} (chi nhánh QA 2) -> {{"username": "{username}"}}')
 
 
 if __name__ == "__main__":

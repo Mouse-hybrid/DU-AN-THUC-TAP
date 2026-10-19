@@ -387,3 +387,56 @@ def test_served_order_goes_back_to_sent_when_more_items_are_sent(client, seed):
     new_item_id = next(i["id"] for i in sent.json()["order"]["items"] if i["id"] != item_id)
     again = _kitchen_cycle(client, order_id, new_item_id, kitchen, waiter, "reorder-2")
     assert again.json()["status"] == "SERVED"
+
+
+def _active_queue_for(client, kitchen, item_id):
+    return [
+        e
+        for e in client.get("/api/v1/kitchen/queue", headers=kitchen).json()
+        if e["order_item_id"] == item_id
+    ]
+
+
+def test_void_cancels_queued_kitchen_ticket(client, seed):
+    """QA GAP-14 / TC_API_20_002: món VOIDED thì phiếu bếp QUEUED phải chuyển
+    CANCELLED và biến khỏi hàng đợi bếp đang hoạt động."""
+    _, order_id, item_id = _open_order_and_send_to_kitchen(
+        client, seed["table_id"], seed["menu_item_id"], "void-q"
+    )
+    kitchen = login(client, "kitchen_test")
+    assert [e["status"] for e in _active_queue_for(client, kitchen, item_id)] == ["QUEUED"]
+
+    supervisor = login(client, "supervisor_test")
+    resp = client.post(
+        f"/api/v1/orders/{order_id}/items/{item_id}/void",
+        json={"reason": "khach doi y"},
+        headers={**supervisor, "Idempotency-Key": "void-q-void"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    assert _active_queue_for(client, kitchen, item_id) == []
+    cancelled = client.get("/api/v1/kitchen/queue?status=CANCELLED", headers=kitchen).json()
+    assert [(e["order_item_id"], e["item_status"]) for e in cancelled] == [(item_id, "VOIDED")]
+    assert cancelled[0]["done_at"]
+
+
+def test_void_cancels_in_progress_kitchen_ticket(client, seed):
+    _, order_id, item_id = _open_order_and_send_to_kitchen(
+        client, seed["table_id"], seed["menu_item_id"], "void-p"
+    )
+    kitchen = login(client, "kitchen_test")
+    client.post(
+        f"/api/v1/orders/{order_id}/items/{item_id}/start-cooking",
+        headers={**kitchen, "Idempotency-Key": "void-p-start"},
+    )
+    supervisor = login(client, "supervisor_test")
+    client.post(
+        f"/api/v1/orders/{order_id}/items/{item_id}/void",
+        json={},
+        headers={**supervisor, "Idempotency-Key": "void-p-void"},
+    )
+    assert _active_queue_for(client, kitchen, item_id) == []
+    logs = client.get(
+        f"/api/v1/audit-logs?entity_id={item_id}&action=ORDER_ITEM_VOIDED", headers=supervisor
+    ).json()
+    assert logs[0]["payload"]["kitchen_tickets_cancelled"] == 1

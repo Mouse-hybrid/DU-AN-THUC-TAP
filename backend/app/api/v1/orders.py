@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit_log
@@ -966,6 +966,14 @@ def void_order_item(
         )
 
     item.status = "VOIDED"
+    # Món hủy thì phiếu bếp đang chờ/đang nấu của nó cũng hủy (CANCELLED), để món
+    # biến khỏi màn bếp. QA GAP-14 / TC_API_20_002: trước đây phiếu vẫn QUEUED.
+    cancelled_tickets = session.execute(
+        update(KitchenQueue)
+        .where(KitchenQueue.order_item_id == item.id)
+        .where(KitchenQueue.status.in_(("QUEUED", "IN_PROGRESS")))
+        .values(status="CANCELLED", done_at=datetime.now(timezone.utc))
+    ).rowcount
     order.current_version += 1
     session.flush()
     session.refresh(order)
@@ -986,7 +994,7 @@ def void_order_item(
         action="ORDER_ITEM_VOIDED",
         entity_type="order_item",
         entity_id=item.id,
-        payload={"reason": payload.reason},
+        payload={"reason": payload.reason, "kitchen_tickets_cancelled": cancelled_tickets},
     )
 
     result = OrderOut.model_validate(order)

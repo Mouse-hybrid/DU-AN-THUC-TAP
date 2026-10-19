@@ -11,7 +11,7 @@ Dành cho QA. Mọi payload dưới đây đã được chạy thử trên DB v�
 
 | Loại | Dữ liệu |
 |---|---|
-| Tài khoản | `admin` (SUPERVISOR), `cashier` (CASHIER), `waiter` (WAITER), `kitchen` (KITCHEN). Mật khẩu chung: **staging** — BE nhắn riêng (biến `SEED_PASSWORD` trên server, không nằm trong repo); **máy local** — hằng `DEV_SEED_PASSWORD` trong file seed |
+| Tài khoản | `admin` (SUPERVISOR), `cashier` (CASHIER), `waiter` (WAITER), `kitchen` (KITCHEN). Chi nhánh 2 (không có menu, cho TC_API_03_004 / TC_EXT_019): `qa2_admin` (SUPERVISOR), `qa2_cashier` (CASHIER). Mật khẩu chung: **staging** — BE nhắn riêng (biến `SEED_PASSWORD` trên server, không nằm trong repo); **máy local** — hằng `DEV_SEED_PASSWORD` trong file seed |
 | Trạm bếp | Bếp chính, Quầy bar |
 | Nhóm món | Món khai vị (1), Món chính (2), Đồ uống (3) |
 | Món | Gỏi cuốn 35.000, Chả giò 40.000, Phở bò 45.000, Bún chả 50.000, Cơm tấm sườn 55.000 (Bếp chính); Trà đá 5.000, Cà phê sữa đá 25.000, Nước cam 30.000 (Quầy bar) |
@@ -130,6 +130,7 @@ Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 
 |---|---|
 | **B6**: order `SERVED`, 2 món `SERVED` | Refire (TC_EXT_012/013), thanh toán. Tìm nhanh: `GET /api/v1/orders?status=SERVED` |
 | **B5**: order `SENT`, 1 món chờ bếp (`QUEUED`), 1 món đang nấu 9 phút (`WARNING`), 1 món đang nấu 16 phút (`CRITICAL`) | Hàng đợi bếp, SLA (TC_EXT_014), `?delayed_only=true` |
+| **Q2-1** (chi nhánh "Chi nhánh QA 2 (không menu)"): order NEW rỗng | Truy cập chéo chi nhánh (TC_EXT_019): tài khoản chi nhánh 1 gọi `GET /orders/{id}` → `404` |
 | **B1–B4** trống | Test thủ công mở bàn → gọi món |
 
 Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).
