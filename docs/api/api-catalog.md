@@ -75,7 +75,7 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 
 | # | Method | Endpoint | Quyền | Màn hình dùng | Trạng thái |
 |---|---|---|---|---|---|
-| 23 | GET | `/api/v1/kitchen/queue?station_id=&status=&delayed_only=` | S K | 31 Món mới, 32 Đang nấu, 33 Món trễ (SLA 8/12/15'), 34 Chờ lấy | ✅ 🧪 |
+| 23 | GET | `/api/v1/kitchen/queue?station_id=&status=&delayed_only=&item_status=` | S K | 31 Món mới (`status=QUEUED`), 32 Đang nấu (`status=IN_PROGRESS`), 33 Món trễ (`delayed_only=true`, SLA 8/12/15'), 34 Chờ lấy (**`item_status=READY`**, từ 19/10) | ✅ 🧪 |
 | 24 | GET | `/api/v1/kitchen/stations` | mọi role | 31–34 (lọc theo trạm), 103 (gán trạm) | ✅ 🧪 |
 | 25 | POST | `/api/v1/orders/{id}/items/{item_id}/start-cooking` | S K | 31 | ✅ 🧪 |
 | 26 | POST | `/api/v1/orders/{id}/items/{item_id}/mark-ready` | S K | 32, 33 | ✅ 🧪 |
