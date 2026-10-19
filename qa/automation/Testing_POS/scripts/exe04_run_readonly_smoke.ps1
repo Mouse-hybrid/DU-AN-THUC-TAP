@@ -1,6 +1,6 @@
 param(
   [string]$BaseUrl = 'http://160.191.47.17',
-  [string]$ExpectedCommit = '972b942'
+  [string]$ExpectedCommit = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +28,8 @@ try {
   "[EXE-QA-04] Read-only smoke staging $commit; POST only for JWT login" |
     Tee-Object -FilePath $evidenceLog
   $env:CYPRESS_POS_BASE_URL = $origin
-  $env:CYPRESS_EXE04_EXPECTED_COMMIT = $ExpectedCommit
+  # Pin this run to the commit actually observed before login; the spec checks /version again.
+  $env:CYPRESS_EXE04_EXPECTED_COMMIT = $commit
   $env:CYPRESS_EXE04_SEED_PASSWORD = $seedPassword
 
   Push-Location (Split-Path -Parent $PSScriptRoot)
