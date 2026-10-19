@@ -10,14 +10,14 @@ $seedPassword = $null
 $exitCode = 1
 
 try {
-  $credential = Get-Credential -UserName 'cashier' -Message 'Shared staging PIN for read-only Menu inspection'
+  $credential = Get-Credential -UserName 'qa2_cashier' -Message 'Shared staging PIN for QA 2 empty Menu inspection'
   if (-not $credential) { throw 'Credential prompt cancelled' }
   $seedPassword = $credential.GetNetworkCredential().Password
   if (-not $seedPassword) { throw 'Staging PIN is empty' }
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
   $before = (Invoke-RestMethod -Method Get -Uri "$base/version" -TimeoutSec 20).commit
   if ($before -notmatch '^[0-9a-f]{40}$') { throw 'GET /version missing full commit' }
-  "[Phase 1] TC_API_03_004 staging start $($before.Substring(0, 12)); read-only Menu audit" |
+  "[Phase 1] TC_API_03_004 staging start $($before.Substring(0, 12)); QA 2 read-only Menu audit" |
     Tee-Object -FilePath $evidenceLog
 
   $env:CYPRESS_POS_BASE_URL = $base
@@ -26,13 +26,16 @@ try {
   try {
     $priorConsole = [Console]::OutputEncoding
     $priorOutput = $OutputEncoding
+    $priorErrorActionPreference = $ErrorActionPreference
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
     $OutputEncoding = [Console]::OutputEncoding
     try {
+      $ErrorActionPreference = 'Continue'
       & npx cypress run --browser chrome --headless --spec 'cypress/e2e/tc_ext/tc_api_03_004_empty_menu_readiness.cy.js' 2>&1 |
         Tee-Object -FilePath $evidenceLog -Append
       $exitCode = $LASTEXITCODE
     } finally {
+      $ErrorActionPreference = $priorErrorActionPreference
       [Console]::OutputEncoding = $priorConsole
       $OutputEncoding = $priorOutput
     }
@@ -51,5 +54,5 @@ try {
 }
 
 Write-Host "Phase 1 Terminal evidence: $evidenceLog"
-Write-Host '[Phase 1] Filtered empty response is preflight; original testcase needs an unfiltered empty outlet.'
+Write-Host '[Phase 1] Original testcase is based on unfiltered GET Menu from the verified QA 2 outlet.'
 exit $exitCode

@@ -1,5 +1,5 @@
-// Phase 1 TC_EXT_019: two distinct authorized QA outlets and an order owned
-// by outlet B are required. This test never creates or changes an order.
+// Phase 1 TC_EXT_019: discover the seeded Q2-1 order within outlet B, then
+// verify ownership before attempting an outlet A GET. No business mutation.
 describe('Phase 1 | TC_EXT_019 cross-outlet Order isolation', () => {
   const base = 'http://160.191.47.17';
   const note = (message) => cy.task('des05Note', `[Phase 1] ${message}`, { log: false });
@@ -29,14 +29,14 @@ describe('Phase 1 | TC_EXT_019 cross-outlet Order isolation', () => {
           throw new Error('SAFETY: approved staging only');
         }
         const required = ['PHASE1_OUTLET_A_USERNAME', 'PHASE1_OUTLET_A_PASSWORD',
-          'PHASE1_OUTLET_B_USERNAME', 'PHASE1_OUTLET_B_PASSWORD',
-          'PHASE1_OUTLET_B_ORDER_ID'];
+          'PHASE1_OUTLET_B_USERNAME', 'PHASE1_OUTLET_B_PASSWORD'];
         if (required.some((name) => !env[name])) {
-          return note('TC_EXT_019 PENDING: two outlet credentials and an isolated outlet B order ID are required')
+          return note('TC_EXT_019 PENDING: two outlet credentials are required')
             .then(() => this.skip());
         }
-        const orderId = String(env.PHASE1_OUTLET_B_ORDER_ID);
-        expect(orderId, 'known QA order ID').to.match(/^[0-9a-fA-F-]{36}$/);
+        const specifiedOrderId = String(env.PHASE1_OUTLET_B_ORDER_ID || '');
+        if (specifiedOrderId) expect(specifiedOrderId, 'known QA order ID')
+          .to.match(/^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/);
         return login(String(env.PHASE1_OUTLET_B_USERNAME),
           String(env.PHASE1_OUTLET_B_PASSWORD)).then((b) =>
           login(String(env.PHASE1_OUTLET_A_USERNAME),
@@ -46,7 +46,23 @@ describe('Phase 1 | TC_EXT_019 cross-outlet Order isolation', () => {
               return note(`TC_EXT_019 PENDING: both accounts belong to outlet ${a.staff.outlet_id}; no cross-outlet request made`)
                 .then(() => this.skip());
             }
-            return getOrder(orderId, b.access_token).then((owned) => {
+            const resolveOrderId = specifiedOrderId ? cy.wrap(specifiedOrderId, { log: false }) :
+              cy.request({
+                method: 'GET', url: `${base}/api/v1/orders?limit=50`,
+                headers: { Authorization: `Bearer ${b.access_token}` },
+                failOnStatusCode: false, log: false, timeout: 20000,
+              }).then((list) => {
+                expect(list.status, 'outlet B order list').eq(200);
+                expect(list.body, 'outlet B order summaries').to.be.an('array');
+                const fixture = list.body.find((entry) =>
+                  entry.table_code === 'Q2-1' && entry.status === 'NEW');
+                return fixture?.id || null;
+              });
+            return resolveOrderId.then((orderId) => {
+              if (!orderId) return note('TC_EXT_019 PENDING: Q2-1 NEW order absent; with_fixtures reset not confirmed; no cross-outlet GET')
+                .then(() => this.skip());
+              return getOrder(orderId, b.access_token).then((owned) => ({ orderId, owned }));
+            }).then(({ orderId, owned }) => {
               expect(owned.status, 'B can GET its own QA order').eq(200);
               expect(owned.body?.id, 'verified B order ID').eq(orderId);
               return getOrder(orderId, a.access_token).then((foreign) => {

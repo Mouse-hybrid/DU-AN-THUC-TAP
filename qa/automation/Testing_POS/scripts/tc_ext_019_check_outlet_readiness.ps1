@@ -10,7 +10,7 @@ $credential = $null
 $pin = $null
 
 try {
-  $credential = Get-Credential -UserName 'admin' -Message 'Shared staging QA PIN for four read-only login checks'
+  $credential = Get-Credential -UserName 'admin' -Message 'Shared staging QA PIN for six read-only login checks'
   if (-not $credential) { throw 'Credential prompt cancelled' }
   $pin = $credential.GetNetworkCredential().Password
   if (-not $pin) { throw 'Staging QA PIN is empty' }
@@ -21,7 +21,7 @@ try {
   "[Phase 1] PF-OUTLET-019 staging $($before.Substring(0, 12)); account/outlet inventory only" |
     Tee-Object -FilePath $evidenceLog
 
-  $accounts = @('admin', 'kitchen', 'cashier', 'waiter')
+  $accounts = @('admin', 'kitchen', 'cashier', 'waiter', 'qa2_admin', 'qa2_cashier')
   $found = @()
   foreach ($account in $accounts) {
     $body = @{ username = $account; password = $pin } | ConvertTo-Json -Compress
@@ -53,10 +53,10 @@ try {
   }
   $outletCount = @($found | Select-Object -ExpandProperty OutletId -Unique).Count
   if ($outletCount -lt 2) {
-    "[Phase 1] PF-OUTLET-019 BLOCKED: $outletCount distinct outlet among four QA accounts. TC_EXT_019 cross-outlet GET not executed." |
+    "[Phase 1] PF-OUTLET-019 BLOCKED: $outletCount distinct outlet among six QA accounts. TC_EXT_019 cross-outlet GET not executed." |
       Tee-Object -FilePath $evidenceLog -Append
   } else {
-    "[Phase 1] PF-OUTLET-019 READY: $outletCount distinct outlets. TC_EXT_019 still needs an isolated QA order UUID in outlet B." |
+    "[Phase 1] PF-OUTLET-019 READY: $outletCount distinct outlets. TC_EXT_019 can discover a seeded Q2-1 NEW order if present." |
       Tee-Object -FilePath $evidenceLog -Append
   }
 } finally {

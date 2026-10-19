@@ -20,13 +20,16 @@ try {
   try {
     $previousConsole = [Console]::OutputEncoding
     $previousOutput = $OutputEncoding
+    $previousErrorActionPreference = $ErrorActionPreference
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
     $OutputEncoding = [Console]::OutputEncoding
     try {
+      $ErrorActionPreference = 'Continue'
       & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_06/des_qa_06_sla_lifecycle_isolated.cy.js' 2>&1 |
         Tee-Object -FilePath $evidenceLog
       $exitCode = $LASTEXITCODE
     } finally {
+      $ErrorActionPreference = $previousErrorActionPreference
       [Console]::OutputEncoding = $previousConsole
       $OutputEncoding = $previousOutput
     }

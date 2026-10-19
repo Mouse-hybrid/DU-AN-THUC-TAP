@@ -28,13 +28,16 @@ try {
   try {
     $priorConsole = [Console]::OutputEncoding
     $priorOutput = $OutputEncoding
+    $priorErrorActionPreference = $ErrorActionPreference
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
     $OutputEncoding = [Console]::OutputEncoding
     try {
+      $ErrorActionPreference = 'Continue'
       & npx cypress run --browser chrome --headless --spec 'cypress/e2e/tc_ext/tc_pm_35_waiter_patch_current_contract.cy.js' 2>&1 |
         Tee-Object -FilePath $evidenceLog -Append
       $exitCode = $LASTEXITCODE
     } finally {
+      $ErrorActionPreference = $priorErrorActionPreference
       [Console]::OutputEncoding = $priorConsole
       $OutputEncoding = $priorOutput
     }
