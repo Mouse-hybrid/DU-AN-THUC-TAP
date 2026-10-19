@@ -1,4 +1,4 @@
-// Phase 1 TC_EXT_019: discover the seeded Q2-1 order within outlet B, then
+// Phase 1 TC_EXT_019: discover an existing QA2 order within outlet B, then
 // verify ownership before attempting an outlet A GET. No business mutation.
 describe('Phase 1 | TC_EXT_019 cross-outlet Order isolation', () => {
   const base = 'http://160.191.47.17';
@@ -54,12 +54,18 @@ describe('Phase 1 | TC_EXT_019 cross-outlet Order isolation', () => {
               }).then((list) => {
                 expect(list.status, 'outlet B order list').eq(200);
                 expect(list.body, 'outlet B order summaries').to.be.an('array');
-                const fixture = list.body.find((entry) =>
-                  entry.table_code === 'Q2-1' && entry.status === 'NEW');
-                return fixture?.id || null;
+                const orders = list.body.filter((entry) =>
+                  typeof entry.id === 'string' &&
+                  /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/.test(entry.id));
+                const fixture = orders.find((entry) =>
+                  entry.table_code === 'Q2-1' && entry.status === 'NEW') ||
+                  orders.find((entry) => typeof entry.table_code === 'string' && /^Q2-/.test(entry.table_code)) ||
+                  orders[0];
+                if (fixture) return note(`TC_EXT_019 fixture: existing outlet B order ${fixture.id}; table ${fixture.table_code}; status ${fixture.status}; read-only`).then(() => fixture.id);
+                return null;
               });
             return resolveOrderId.then((orderId) => {
-              if (!orderId) return note('TC_EXT_019 PENDING: Q2-1 NEW order absent; with_fixtures reset not confirmed; no cross-outlet GET')
+              if (!orderId) return note('TC_EXT_019 PENDING: no existing QA order in outlet B list; provide an outlet B order UUID or seed a fixture in a coordinated reset; no cross-outlet GET')
                 .then(() => this.skip());
               return getOrder(orderId, b.access_token).then((owned) => ({ orderId, owned }));
             }).then(({ orderId, owned }) => {
