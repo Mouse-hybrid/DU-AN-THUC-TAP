@@ -21,7 +21,6 @@ try {
 
   $env:CYPRESS_POS_BASE_URL = $base
   $env:CYPRESS_DES05_SEED_PASSWORD = $credential.GetNetworkCredential().Password
-  $env:CYPRESS_TC_API_12_001_ONLY = 'true'
   Push-Location (Split-Path -Parent $PSScriptRoot)
   try {
     $priorConsole = [Console]::OutputEncoding
@@ -31,7 +30,7 @@ try {
     $OutputEncoding = [Console]::OutputEncoding
     try {
       $ErrorActionPreference = 'Continue'
-      & npx cypress run --browser chrome --headless --spec 'cypress/e2e/des_qa_05/des_qa_05_lifecycle_isolated.cy.js' 2>&1 |
+      & npx cypress run --browser chrome --headless --expose 'TC_API_12_001_ONLY=true' --spec 'cypress/e2e/des_qa_05/des_qa_05_lifecycle_isolated.cy.js' 2>&1 |
         Tee-Object -FilePath $evidenceLog -Append
       $exitCode = $LASTEXITCODE
       if ($exitCode -eq 0) {
@@ -57,7 +56,7 @@ try {
     $exitCode = 1
   }
 } finally {
-  Remove-Item Env:CYPRESS_POS_BASE_URL, Env:CYPRESS_DES05_SEED_PASSWORD, Env:CYPRESS_TC_API_12_001_ONLY -ErrorAction SilentlyContinue
+  Remove-Item Env:CYPRESS_POS_BASE_URL, Env:CYPRESS_DES05_SEED_PASSWORD -ErrorAction SilentlyContinue
   $credential = $null
 }
 

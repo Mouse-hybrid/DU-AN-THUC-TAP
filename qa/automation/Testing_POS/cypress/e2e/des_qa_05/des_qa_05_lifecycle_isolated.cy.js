@@ -2,7 +2,7 @@
 // The test pays/closes only its own order, then marks its own table clean.
 // TC-012 actor audit still requires separate DB/audit evidence.
 describe('DES-QA-05 | isolated Kitchen lifecycle', () => {
-  const otherCase = Cypress.env('TC_API_12_001_ONLY') ? it.skip : it;
+  const otherCase = Cypress.expose('TC_API_12_001_ONLY') ? it.skip : it;
   let base;
   let password;
   let tokens;
