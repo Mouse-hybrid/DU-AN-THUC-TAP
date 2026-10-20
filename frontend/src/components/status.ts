@@ -17,6 +17,8 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   SERVED: { label: "Đã phục vụ", className: "served" },
   VOIDED: { label: "Đã hủy", className: "voided" },
   UNAVAILABLE: { label: "Hết món", className: "unavailable" },
+  NORMAL: { label: "Đúng tiến độ", className: "normal" },
+  CRITICAL: { label: "Rất trễ", className: "critical" },
 };
 
 export function getStatusMeta(status: string) {
