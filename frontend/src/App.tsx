@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
 import { OrderPage } from "./pages/OrderPage";
 import { TablesPage } from "./pages/TablesPage";
+import { TableDetailPage } from "./pages/TableDetailPage";
 
 function HomeRedirect() {
   const auth = getAuth();
@@ -23,6 +24,10 @@ export default function App() {
         <Route
           path="/tables"
           element={<ProtectedRoute area="pos"><TablesPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/tables/:id"
+          element={<ProtectedRoute area="pos"><TableDetailPage /></ProtectedRoute>}
         />
         <Route
           path="/tables/:id/open"

@@ -21,10 +21,10 @@ import { createIdempotencyKey } from "../utils/idempotency";
 
 type KitchenTab = "new" | "preparing" | "ready";
 
-const TAB_CONFIG: Record<KitchenTab, { label: string; status: string; action: KdsAction }> = {
+const TAB_CONFIG: Record<KitchenTab, { label: string; status: string | null; itemStatuses?: string[]; action: KdsAction }> = {
   new: { label: "Món mới", status: "QUEUED", action: "start" },
   preparing: { label: "Đang chế biến", status: "IN_PROGRESS", action: "ready" },
-  ready: { label: "Sẵn sàng", status: "DONE", action: null },
+  ready: { label: "Sẵn sàng", status: null, itemStatuses: ["READY"], action: null },
 };
 
 function queueKey(tab: KitchenTab, stationId: string): string {
@@ -55,6 +55,7 @@ export function KitchenPage() {
   const [toast, setToast] = useState<FlashMessage | null>(null);
   const [busyItemIds, setBusyItemIds] = useState<Set<string>>(() => new Set());
   const loadedKeys = useRef(new Set<string>());
+  const loadsInFlight = useRef(new Set<string>());
   const activeKeyRef = useRef(queueKey(activeTab, stationId));
   const actionInFlight = useRef(new Set<string>());
 
@@ -64,6 +65,8 @@ export function KitchenPage() {
 
   const loadQueue = useCallback(async (tab: KitchenTab, selectedStationId: string, refresh = false) => {
     const key = queueKey(tab, selectedStationId);
+    if (loadsInFlight.current.has(key)) return;
+    loadsInFlight.current.add(key);
     const hasCachedData = loadedKeys.current.has(key);
     if (activeKeyRef.current === key) {
       if (refresh) setRefreshing(true);
@@ -72,7 +75,8 @@ export function KitchenPage() {
     }
 
     try {
-      const data = await listQueue(TAB_CONFIG[tab].status, selectedStationId || undefined);
+      const config = TAB_CONFIG[tab];
+      const data = await listQueue(config.status, selectedStationId || undefined, config.itemStatuses);
       setQueueCache((current) => ({ ...current, [key]: data }));
       loadedKeys.current.add(key);
       if (activeKeyRef.current === key) {
@@ -90,6 +94,7 @@ export function KitchenPage() {
         }
       }
     } finally {
+      loadsInFlight.current.delete(key);
       if (activeKeyRef.current === key) setRefreshing(false);
     }
   }, []);
@@ -116,7 +121,7 @@ export function KitchenPage() {
       if (document.visibilityState === "visible" && navigator.onLine) {
         void loadQueue(activeTab, stationId, true);
       }
-    }, 10_000);
+    }, 5_000);
     return () => window.clearInterval(timer);
   }, [activeTab, loadQueue, stationId]);
 
@@ -205,8 +210,6 @@ export function KitchenPage() {
             </button>
           ))}
         </div>
-
-        {activeTab === "ready" ? <p className="nova-kds-source-note" role="note">Có thể gồm món đã lấy</p> : null}
 
         {state === "loading" ? <StateCard kind="loading" title="Đang tải hàng đợi" message="Vui lòng chờ trong giây lát." /> : null}
         {state === "error" ? (

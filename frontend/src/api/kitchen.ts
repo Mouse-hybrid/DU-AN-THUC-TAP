@@ -8,10 +8,15 @@ export type MarkReadyResponse = paths["/api/v1/orders/{order_id}/items/{item_id}
 
 type QueueQuery = NonNullable<paths["/api/v1/kitchen/queue"]["get"]["parameters"]["query"]>;
 
-export function listQueue(status: QueueQuery["status"], stationId?: QueueQuery["station_id"]): Promise<KitchenQueueResponse> {
+export function listQueue(
+  status: QueueQuery["status"],
+  stationId?: QueueQuery["station_id"],
+  itemStatuses?: QueueQuery["item_status"],
+): Promise<KitchenQueueResponse> {
   const query = new URLSearchParams();
   if (status) query.set("status", status);
   if (stationId) query.set("station_id", stationId);
+  itemStatuses?.forEach((itemStatus) => query.append("item_status", itemStatus));
   return apiRequest<KitchenQueueResponse>(`/kitchen/queue?${query.toString()}`);
 }
 

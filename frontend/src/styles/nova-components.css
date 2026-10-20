@@ -357,6 +357,79 @@
 .nova-status--normal { color: #0c6559; background: #dff2ee; }
 .nova-status--critical { color: #8a302e; background: var(--nova-color-danger-soft); }
 
+.nova-table-detail-header,
+.nova-table-detail-title,
+.nova-table-order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nova-space-3);
+}
+
+.nova-table-detail-header {
+  align-items: end;
+  margin-bottom: var(--nova-space-5);
+}
+
+.nova-table-detail-title {
+  justify-content: flex-start;
+  margin-bottom: var(--nova-space-1);
+}
+
+.nova-ready-banner,
+.nova-table-billing-note {
+  margin: 0 0 var(--nova-space-4);
+  padding: var(--nova-space-3) var(--nova-space-4);
+  border-radius: var(--nova-radius-small);
+  font-weight: 800;
+}
+
+.nova-ready-banner {
+  border: 1px solid var(--nova-color-border);
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+}
+
+.nova-table-billing-note {
+  color: #315f99;
+  background: var(--nova-color-info-soft);
+}
+
+.nova-table-orders {
+  display: grid;
+  gap: var(--nova-space-5);
+}
+
+.nova-table-order-card {
+  padding: var(--nova-space-5);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+  box-shadow: var(--nova-shadow-card);
+}
+
+.nova-table-order-header {
+  padding-bottom: var(--nova-space-3);
+  border-bottom: 1px solid var(--nova-color-border);
+}
+
+.nova-table-order-header p {
+  margin: 0 0 var(--nova-space-1);
+}
+
+.nova-table-item-wrap {
+  display: grid;
+  gap: var(--nova-space-2);
+}
+
+.nova-table-item-wrap > .nova-button {
+  justify-self: end;
+}
+
+a.nova-button {
+  text-decoration: none;
+}
+
 .nova-kds-tabs {
   display: flex;
   gap: var(--nova-space-2);
@@ -829,5 +902,14 @@
 
   .nova-kds-board {
     grid-template-columns: 1fr;
+  }
+
+  .nova-table-detail-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .nova-table-order-card {
+    padding: var(--nova-space-4);
   }
 }

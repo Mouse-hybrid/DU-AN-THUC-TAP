@@ -13,6 +13,8 @@ export type UpdateItemResponse = paths["/api/v1/orders/{order_id}/items/{item_id
 export type RemoveItemResponse = paths["/api/v1/orders/{order_id}/items/{item_id}"]["delete"]["responses"][200]["content"]["application/json"];
 export type SendToKitchenResponse = paths["/api/v1/orders/{order_id}/send-to-kitchen"]["post"]["responses"][200]["content"]["application/json"];
 export type GetOrderResponse = paths["/api/v1/orders/{order_id}"]["get"]["responses"][200]["content"]["application/json"];
+export type PickupItemResponse = paths["/api/v1/orders/{order_id}/items/{item_id}/pickup"]["post"]["responses"][200]["content"]["application/json"];
+export type ServeItemResponse = paths["/api/v1/orders/{order_id}/items/{item_id}/served"]["post"]["responses"][200]["content"]["application/json"];
 
 export function createOrder(body: CreateOrderRequest, idempotencyKey: string): Promise<CreateOrderResponse> {
   return apiRequest<CreateOrderResponse, CreateOrderRequest>("/orders", {
@@ -58,4 +60,18 @@ export function sendToKitchen(orderId: string, idempotencyKey: string): Promise<
 
 export function getOrder(orderId: string): Promise<GetOrderResponse> {
   return apiRequest<GetOrderResponse>(`/orders/${encodeURIComponent(orderId)}`);
+}
+
+export function pickupItem(orderId: string, itemId: string, idempotencyKey: string): Promise<PickupItemResponse> {
+  return apiRequest<PickupItemResponse>(
+    `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(itemId)}/pickup`,
+    { method: "POST", idempotencyKey },
+  );
+}
+
+export function serveItem(orderId: string, itemId: string, idempotencyKey: string): Promise<ServeItemResponse> {
+  return apiRequest<ServeItemResponse>(
+    `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(itemId)}/served`,
+    { method: "POST", idempotencyKey },
+  );
 }
