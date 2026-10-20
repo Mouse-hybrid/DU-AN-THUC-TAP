@@ -27,7 +27,11 @@ function temporaryOrderCode(entry: KitchenQueueEntry): string {
 }
 
 function waitDuration(entry: KitchenQueueEntry): string {
-  const source = entry.status === "QUEUED" ? entry.queued_at : (entry.started_at ?? entry.queued_at);
+  const source = entry.item_status === "READY"
+    ? entry.done_at
+    : entry.status === "QUEUED"
+      ? entry.queued_at
+      : (entry.started_at ?? entry.queued_at);
   const startedAt = parseApiTimestamp(source);
   if (startedAt === null) return "—";
   const minutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60_000));
@@ -54,7 +58,7 @@ export function KdsTicket({ entry, stationName, action, busy, canAct, onAction }
 
       <dl className="nova-kds-meta">
         <div><dt>Trạm</dt><dd>{stationName}</dd></div>
-        <div><dt>Thời gian chờ</dt><dd>{waitDuration(entry)}</dd></div>
+        <div><dt>{entry.item_status === "READY" ? "Đã chờ lấy" : "Thời gian chờ"}</dt><dd>{waitDuration(entry)}</dd></div>
       </dl>
 
       {action && canAct ? (
