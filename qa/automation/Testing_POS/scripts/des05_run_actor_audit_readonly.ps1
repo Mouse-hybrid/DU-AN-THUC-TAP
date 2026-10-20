@@ -25,9 +25,9 @@ try {
     }
     $uuid = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}'
     $startMatch = [regex]::Match((Get-Content $lifecycleLog.FullName -Raw -Encoding UTF8),
-      "DES05-TC-012 API assertions OK:[^`r`n]*?order (?<order>$uuid); item (?<item>$uuid)")
+      "DES05-TC-012 (?:/ [A-Z0-9_-]+ )?(?:API )?assertions OK:[^`r`n]*?order (?<order>$uuid); item (?<item>$uuid)")
     $refireMatch = [regex]::Match((Get-Content $refireLog.FullName -Raw -Encoding UTF8),
-      "DES05-TC-019 API assertions OK[^`r`n]*?order (?<order>$uuid); item (?<item>$uuid);[^`r`n]*?version [0-9]+ -> (?<version>[0-9]+)")
+      "DES05-TC-019 (?:/ [A-Z0-9_-]+ )?(?:API )?assertions OK[^`r`n]*?order (?<order>$uuid); item (?<item>$uuid);[^`r`n]*?version [0-9]+ -> (?<version>[0-9]+)")
     if (-not $startMatch.Success -or -not $refireMatch.Success) {
       throw 'Could not find successful TC-012 and TC-019 assertion lines in the latest logs; no audit executed.'
     }
