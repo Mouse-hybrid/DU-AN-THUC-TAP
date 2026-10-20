@@ -28,23 +28,11 @@ import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
 import { createIdempotencyKey } from "../utils/idempotency";
+import { countOpenOrders, isClosedOrderStatus, selectCurrentOrder } from "../utils/orders";
 
 type MenuItem = components["schemas"]["MenuItemOut"];
 
 const ORDER_WRITE_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
-const CLOSED_ORDER_STATUSES = new Set(["BILLING", "PAID", "CLOSED"]);
-
-function latestOrder(orders: OrderDetail[]): OrderDetail | null {
-  return orders.reduce<OrderDetail | null>((latest, candidate) => {
-    if (!latest) return candidate;
-    const latestTime = Date.parse(latest.created_at);
-    const candidateTime = Date.parse(candidate.created_at);
-    if (!Number.isFinite(latestTime)) return candidate;
-    if (!Number.isFinite(candidateTime)) return latest;
-    return candidateTime >= latestTime ? candidate : latest;
-  }, null);
-}
-
 function orderErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
@@ -88,7 +76,7 @@ export function OrderPage() {
   const sendInFlight = useRef(false);
 
   const canWrite = hasRole(role, ORDER_WRITE_ROLES);
-  const readOnlyOrder = closedOnlyMode || Boolean(order && CLOSED_ORDER_STATUSES.has(order.status));
+  const readOnlyOrder = closedOnlyMode || Boolean(order && isClosedOrderStatus(order.status));
   const canAdd = canWrite && !readOnlyOrder;
 
   const loadOrder = useCallback(async (orderId: string) => {
@@ -112,11 +100,11 @@ export function OrderPage() {
         throw new ApiError("Bàn chưa có phiên phục vụ hoặc đơn để hiển thị.", 409);
       }
       setTable(detail);
-      const openOrders = detail.orders.filter((candidate) => !CLOSED_ORDER_STATUSES.has(candidate.status));
-      const selectedOrder = latestOrder(openOrders) ?? latestOrder(detail.orders);
+      const openOrderCount = countOpenOrders(detail.orders);
+      const selectedOrder = selectCurrentOrder(detail.orders);
       setOrder(selectedOrder);
-      setClosedOnlyMode(openOrders.length === 0 && detail.orders.length > 0);
-      setMultipleOpenOrders(openOrders.length > 1);
+      setClosedOnlyMode(openOrderCount === 0 && detail.orders.length > 0);
+      setMultipleOpenOrders(openOrderCount > 1);
       hasLoadedPage.current = true;
       setStale(false);
       setPageState("ready");
@@ -287,6 +275,15 @@ export function OrderPage() {
               </div>
               <div className="nova-order-header-actions">
                 {order ? <StatusBadge status={order.status} /> : <StatusBadge status="NEW" label="Chưa tạo đơn" />}
+                {order ? (
+                  <Link
+                    className="nova-button nova-button--secondary"
+                    to={`/tables/${encodeURIComponent(table.id)}/summary`}
+                    aria-label={`Tóm tắt đơn bàn ${table.code}`}
+                  >
+                    Tóm tắt đơn
+                  </Link>
+                ) : null}
                 <Button
                   variant="secondary"
                   type="button"
