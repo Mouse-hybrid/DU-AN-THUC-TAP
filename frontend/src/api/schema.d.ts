@@ -711,6 +711,8 @@ export interface components {
             station_id: string;
             /** Status */
             status: string;
+            /** Item Status */
+            item_status: string;
             /**
              * Queued At
              * Format: date-time
@@ -718,6 +720,8 @@ export interface components {
             queued_at: string;
             /** Started At */
             started_at: string | null;
+            /** Done At */
+            done_at?: string | null;
             /** Elapsed Minutes */
             elapsed_minutes?: number | null;
             /**
@@ -2108,6 +2112,8 @@ export interface operations {
                 status?: string | null;
                 /** @description Chỉ trả món đang nấu quá ngưỡng (DELAYED/CRITICAL) */
                 delayed_only?: boolean;
+                /** @description Lọc theo trạng thái MÓN, lặp lại được. Màn 34 'chờ lấy': ?item_status=READY. Có item_status mà không có status thì không lọc trạng thái phiếu. */
+                item_status?: string[] | null;
             };
             header?: never;
             path?: never;
