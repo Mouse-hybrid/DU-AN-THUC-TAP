@@ -865,6 +865,59 @@ a.nova-button {
   line-height: 1;
 }
 
+.nova-summary-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nova-space-4);
+  margin-bottom: var(--nova-space-5);
+}
+
+.nova-summary-card {
+  display: grid;
+  max-width: 760px;
+  gap: var(--nova-space-4);
+  padding: var(--nova-space-5);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+  box-shadow: var(--nova-shadow-card);
+}
+
+.nova-summary-actions,
+.nova-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--nova-space-3);
+}
+
+.nova-dialog-backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--nova-space-4);
+  background: rgb(22 48 43 / 55%);
+}
+
+.nova-confirm-dialog {
+  display: grid;
+  width: min(100%, 460px);
+  gap: var(--nova-space-4);
+  padding: var(--nova-space-5);
+  border-radius: var(--nova-radius);
+  color: var(--nova-color-ink);
+  background: var(--nova-color-white);
+  box-shadow: var(--nova-shadow-card);
+}
+
+.nova-confirm-dialog h2,
+.nova-confirm-dialog p {
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nova-spinner {
     animation-duration: 1.4s;
@@ -889,6 +942,7 @@ a.nova-button {
 
 @media (max-width: 620px) {
   .nova-order-page-header,
+  .nova-summary-header,
   .nova-order-header-actions,
   .nova-order-line-actions {
     align-items: stretch;

@@ -6,6 +6,7 @@ import { KitchenPage } from "./pages/KitchenPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
 import { OrderPage } from "./pages/OrderPage";
+import { OrderSummaryPage } from "./pages/OrderSummaryPage";
 import { TablesPage } from "./pages/TablesPage";
 import { TableDetailPage } from "./pages/TableDetailPage";
 
@@ -36,6 +37,10 @@ export default function App() {
         <Route
           path="/tables/:id/order"
           element={<ProtectedRoute area="pos"><OrderPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/tables/:id/summary"
+          element={<ProtectedRoute area="pos"><OrderSummaryPage /></ProtectedRoute>}
         />
         <Route
           path="/kitchen"

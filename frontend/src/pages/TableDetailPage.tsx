@@ -164,6 +164,9 @@ export function TableDetailPage() {
                 {table.current_session && table.status !== "BILLING" ? (
                   <Link className="nova-button nova-button--primary" to={`/tables/${encodeURIComponent(table.id)}/order`} aria-label={`Gọi món cho bàn ${table.code}`}>Gọi món</Link>
                 ) : null}
+                {table.current_session && table.orders.length > 0 ? (
+                  <Link className="nova-button nova-button--secondary" to={`/tables/${encodeURIComponent(table.id)}/summary`} aria-label={`Tóm tắt đơn bàn ${table.code}`}>Tóm tắt đơn</Link>
+                ) : null}
                 <Button variant="secondary" type="button" accessibleLabel="Làm mới chi tiết bàn" busy={refreshing} onClick={() => void loadTable(true)}>Làm mới</Button>
               </div>
             </header>

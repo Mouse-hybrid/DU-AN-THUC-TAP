@@ -15,6 +15,8 @@ export type SendToKitchenResponse = paths["/api/v1/orders/{order_id}/send-to-kit
 export type GetOrderResponse = paths["/api/v1/orders/{order_id}"]["get"]["responses"][200]["content"]["application/json"];
 export type PickupItemResponse = paths["/api/v1/orders/{order_id}/items/{item_id}/pickup"]["post"]["responses"][200]["content"]["application/json"];
 export type ServeItemResponse = paths["/api/v1/orders/{order_id}/items/{item_id}/served"]["post"]["responses"][200]["content"]["application/json"];
+export type RequestBillingResponse = paths["/api/v1/orders/{order_id}/request-billing"]["post"]["responses"][200]["content"]["application/json"];
+export type PayOrderResponse = paths["/api/v1/orders/{order_id}/pay"]["post"]["responses"][200]["content"]["application/json"];
 
 export function createOrder(body: CreateOrderRequest, idempotencyKey: string): Promise<CreateOrderResponse> {
   return apiRequest<CreateOrderResponse, CreateOrderRequest>("/orders", {
@@ -74,4 +76,18 @@ export function serveItem(orderId: string, itemId: string, idempotencyKey: strin
     `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(itemId)}/served`,
     { method: "POST", idempotencyKey },
   );
+}
+
+export function requestBilling(orderId: string, idempotencyKey: string): Promise<RequestBillingResponse> {
+  return apiRequest<RequestBillingResponse>(`/orders/${encodeURIComponent(orderId)}/request-billing`, {
+    method: "POST",
+    idempotencyKey,
+  });
+}
+
+export function payOrder(orderId: string, idempotencyKey: string): Promise<PayOrderResponse> {
+  return apiRequest<PayOrderResponse>(`/orders/${encodeURIComponent(orderId)}/pay`, {
+    method: "POST",
+    idempotencyKey,
+  });
 }
