@@ -12,8 +12,8 @@ export function AppShell({ children, topbar }: AppShellProps) {
   const auth = getAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const isKitchen = auth?.staff.role === "KITCHEN";
-  const home = isKitchen ? "/kitchen" : "/tables";
+  const isKitchenArea = location.pathname.startsWith("/kitchen");
+  const home = isKitchenArea ? "/kitchen" : "/tables";
 
   function logout() {
     clearAuth();
@@ -33,8 +33,8 @@ export function AppShell({ children, topbar }: AppShellProps) {
             to={home}
             aria-current={location.pathname.startsWith(home) ? "page" : undefined}
           >
-            {isKitchen ? <span aria-hidden="true">K</span> : <Icon name="grid-2x2" />}
-            <span>{isKitchen ? "Bếp" : "Bàn"}</span>
+            {isKitchenArea ? <span aria-hidden="true">K</span> : <Icon name="grid-2x2" />}
+            <span>{isKitchenArea ? "Bếp" : "Bàn"}</span>
           </Link>
         </nav>
       </aside>
