@@ -4,6 +4,8 @@ GET /api/v1/kitchen/queue     — các món đang chờ/đang nấu, cũ nhất 
                                 sla_status (NORMAL/WARNING/DELAYED/CRITICAL).
                                 ?delayed_only=true -> chỉ món DELAYED/CRITICAL (Figma
                                 screen-33 "delayed orders queue").
+                                ?item_status=READY -> món bếp đã xong, chờ phục vụ
+                                lấy (screen-34 "ready orders queue").
 GET /api/v1/kitchen/stations  — danh sách trạm bếp của outlet (để gán món vào trạm).
 
 SLA theo BRD BR-KDS-SLA-001..003: timer bắt đầu khi món vào PREPARING (queue
@@ -32,6 +34,7 @@ from app.core.deps import CurrentStaff, get_current_staff, require_role
 from app.db.base import get_session
 from app.db.models import (
     KITCHEN_QUEUE_STATUS,
+    ORDER_ITEM_STATUS,
     KitchenQueue,
     KitchenStation,
     MenuItem,
@@ -81,6 +84,13 @@ def kitchen_queue(
     delayed_only: bool = Query(
         default=False, description="Chỉ trả món đang nấu quá ngưỡng (DELAYED/CRITICAL)"
     ),
+    item_status: list[str] | None = Query(
+        default=None,
+        description=(
+            "Lọc theo trạng thái MÓN, lặp lại được. Màn 34 'chờ lấy': ?item_status=READY. "
+            "Có item_status mà không có status thì không lọc trạng thái phiếu."
+        ),
+    ),
     current: CurrentStaff = Depends(require_role(*_VIEW_KDS_ROLES)),
     session: Session = Depends(get_session),
 ) -> list[KitchenQueueEntryOut]:
@@ -89,7 +99,20 @@ def kitchen_queue(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"status phải là một trong {', '.join(KITCHEN_QUEUE_STATUS)}",
         )
-    statuses = (queue_status,) if queue_status else _ACTIVE_QUEUE_STATUSES
+    invalid_items = sorted(set(item_status or ()) - set(ORDER_ITEM_STATUS))
+    if invalid_items:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"item_status không hợp lệ: {', '.join(invalid_items)}",
+        )
+    # Phiếu DONE chỉ cho biết bếp đã làm xong — món có thể đã được lấy/phục vụ
+    # rồi. "Chờ lấy" phải lọc theo trạng thái món (READY), không theo phiếu.
+    if queue_status:
+        statuses = (queue_status,)
+    elif item_status:
+        statuses = KITCHEN_QUEUE_STATUS
+    else:
+        statuses = _ACTIVE_QUEUE_STATUSES
 
     stmt = (
         select(KitchenQueue, OrderItem, MenuItem, Order, RestaurantTable)
@@ -104,10 +127,21 @@ def kitchen_queue(
     )
     if station_id is not None:
         stmt = stmt.where(KitchenQueue.station_id == station_id)
+    if item_status:
+        stmt = stmt.where(OrderItem.status.in_(item_status))
+
+    rows = session.execute(stmt).all()
+    if item_status:
+        # Món đã refire có nhiều phiếu (phiếu cũ cũng DONE); trạng thái món chỉ ứng
+        # với phiếu mới nhất -> giữ 1 dòng/món để màn 34 không hiện trùng.
+        latest = {}
+        for row in rows:
+            latest[row[1].id] = row  # rows đã sắp theo queued_at tăng dần
+        rows = [row for row in rows if latest[row[1].id] is row]
 
     now = datetime.now(timezone.utc)
     entries: list[KitchenQueueEntryOut] = []
-    for queue_entry, order_item, menu_item, order, table in session.execute(stmt).all():
+    for queue_entry, order_item, menu_item, order, table in rows:
         elapsed, sla_status = compute_sla(queue_entry.status, queue_entry.started_at, now)
         if delayed_only and sla_status not in _DELAYED_SLA_STATUSES:
             continue
@@ -122,8 +156,10 @@ def kitchen_queue(
                 note=order_item.note,
                 station_id=queue_entry.station_id,
                 status=queue_entry.status,
+                item_status=order_item.status,
                 queued_at=queue_entry.queued_at,
                 started_at=queue_entry.started_at,
+                done_at=queue_entry.done_at,
                 elapsed_minutes=elapsed,
                 sla_status=sla_status,
             )

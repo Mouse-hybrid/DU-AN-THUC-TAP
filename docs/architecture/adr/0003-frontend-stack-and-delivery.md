@@ -36,7 +36,8 @@ Job `frontend` trong `.github/workflows/backend-ci.yml`: `npm ci` → `npm run l
 
 ### Deploy staging (merge vào `main`)
 `deploy-staging` chờ cả `docker-build` và `frontend` xanh. `scripts/deploy-staging.sh` build FE
-bằng container `node:<bản trong .nvmrc>-alpine` (mặc định 24) với quyền của user runner, chép
+bằng container `node:<bản trong .nvmrc>-bookworm-slim` (mặc định 24; glibc như CI — đổi từ alpine
+ngày 19/10 sau lỗi thiếu binding native, kèm cache npm cố định và thử lại 3 lần) với quyền của user runner, chép
 `frontend/dist` vào `~/pos-staging-frontend` trên server; nginx mount thư mục này và phục vụ ở `/`.
 
 Phân đường dẫn trong `infra/nginx/staging.conf`:

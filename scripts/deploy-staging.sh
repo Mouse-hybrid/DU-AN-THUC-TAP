@@ -43,13 +43,29 @@ if [[ -f "${REPO_DIR}/frontend/package.json" ]]; then
     nvmrc=$(tr -d 'v[:space:]' < "${REPO_DIR}/frontend/.nvmrc")
     [[ ${nvmrc%%.*} =~ ^[0-9]+$ ]] && node_major=${nvmrc%%.*}
   fi
-  echo "Building frontend with node:${node_major}-alpine..."
+  # bookworm-slim (glibc) cho cùng native binding với job `frontend` trong CI
+  # (ubuntu), tức đúng bản đã được kiểm ở mỗi PR.
+  fe_image="node:${node_major}-bookworm-slim"
+  echo "Building frontend with ${fe_image}..."
+  # Cache npm để ngoài checkout và giữ qua các lần deploy: gói đã tải thì lần sau
+  # không phải tải lại. Lý do: binding native của rolldown/vite là optional
+  # dependency — tải lỗi thì npm lặng lẽ bỏ qua (npm/cli#4828), npm ci vẫn "xanh"
+  # với thiếu 1 gói và build vỡ "Cannot find native binding" (deploy PR #33:
+  # 190 thay vì 191 gói). Thêm vào đó thử lại tối đa 3 lần.
+  npm_cache_dir="${HOME}/.cache/pos-staging-npm"
+  mkdir -p "${npm_cache_dir}"
   # Chạy bằng uid/gid của runner để node_modules/dist không bị root sở hữu
   # (actions/checkout lần sau phải xóa được).
   docker run --rm --user "$(id -u):$(id -g)" \
-    -e HOME=/tmp -e npm_config_cache=/tmp/.npm -e VITE_API_BASE_URL=/api/v1 \
-    -v "${REPO_DIR}/frontend:/app" -w /app "node:${node_major}-alpine" \
-    sh -c "npm ci && npm run build"
+    -e HOME=/tmp -e npm_config_cache=/npm-cache -e VITE_API_BASE_URL=/api/v1 \
+    -v "${npm_cache_dir}:/npm-cache" \
+    -v "${REPO_DIR}/frontend:/app" -w /app "${fe_image}" \
+    sh -c 'for attempt in 1 2 3; do
+             npm ci --no-audit --no-fund && npm run build && exit 0
+             echo "Frontend build attempt ${attempt} failed, retrying..." >&2
+             sleep 5
+           done
+           exit 1'
   # Thay nội dung nhưng giữ nguyên thư mục để bind mount của nginx vẫn trỏ đúng.
   find "${FE_DIST_DIR}" -mindepth 1 -delete
   cp -a "${REPO_DIR}/frontend/dist/." "${FE_DIST_DIR}/"
