@@ -1,0 +1,54 @@
+name: Backup staging DB
+# Bam tay tren GitHub: Actions -> Backup staging DB -> Run workflow.
+# pg_dump database staging ra file co ghi ngay gio tren server (ngoai checkout),
+# kiem tra file doc lai duoc, giu 20 ban moi nhat. Khoi phuc: docs/runbooks/db-tools.md muc 5.
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Nhan ngan gan vao ten file, vd truoc-dien-tap (chi chu, so, gach ngang)"
+        type: string
+        default: manual
+
+permissions:
+  contents: read
+
+# Dung chung nhom voi deploy-staging va reset-staging: khong backup giua luc dang deploy/reset.
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: [self-hosted, staging]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Khoi phuc .env.staging (khong nam trong git, luu ben ngoai checkout)
+        run: cp ~/secrets/pos-staging/.env.staging .env.staging
+      - name: pg_dump database staging
+        env:
+          LABEL: ${{ inputs.label }}
+        run: |
+          set -euo pipefail
+          label=$(printf '%s' "${LABEL:-manual}" | tr -cd 'A-Za-z0-9-' | cut -c1-40)
+          backup_dir="${HOME}/backups/pos-staging"
+          mkdir -p "${backup_dir}"
+          chmod 700 "${backup_dir}"
+          file="${backup_dir}/pos_staging_$(date -u +%Y%m%dT%H%M%SZ)_${label:-manual}.dump"
+          compose=(docker compose --env-file .env.staging -f infra/compose/compose.staging.yml)
+          "${compose[@]}" exec -T db pg_dump -U pos_app -d pos_staging --format=custom > "${file}"
+          chmod 600 "${file}"
+          # Doc lai muc luc cua ban sao: file hong hoac rong thi job do ngay.
+          tables=$("${compose[@]}" exec -T db pg_restore --list < "${file}" | grep -c "TABLE DATA" || true)
+          if [ "${tables}" -lt 10 ]; then
+            echo "Ban sao chi co ${tables} bang du lieu, nghi ngo loi - xoa file."
+            rm -f "${file}"
+            exit 1
+          fi
+          echo "Da sao luu: ${file}"
+          echo "Kich thuoc: $(du -h "${file}" | cut -f1), so bang co du lieu: ${tables}"
+          # Giu 20 ban moi nhat.
+          ls -1t "${backup_dir}"/pos_staging_*.dump | tail -n +21 | xargs -r rm -f
+          echo "Cac ban sao hien co (moi nhat truoc):"
+          ls -1t "${backup_dir}"/pos_staging_*.dump | head -n 5
