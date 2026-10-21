@@ -42,3 +42,26 @@ thay đổi, nhất là CHECK constraint).
 - Không chạy `DROP`/`DELETE`/`TRUNCATE` tay trên staging nếu chưa báo mentor.
 - Không dán mật khẩu DB vào chat, commit hay screenshot.
 - Dữ liệu thử nghiệm: dùng DB local hoặc SQLite in-memory như test (`backend/tests/conftest.py`).
+
+## 5. Sao lưu và khôi phục DB staging
+
+**Sao lưu** (không cần SSH): GitHub → Actions → **Backup staging DB** → Run workflow, ô `label`
+ghi lý do ngắn (vd `truoc-dien-tap`, `truoc-demo`). Job chạy `pg_dump` trên server, kiểm tra
+bản sao đọc lại được, lưu ở `~/backups/pos-staging/pos_staging_<UTC>_<label>.dump` (quyền 600)
+và giữ 20 bản mới nhất. Nên bấm trước mỗi buổi diễn tập, trước demo và trước khi Reset staging data.
+
+**Khôi phục** (SSH vào server, chỉ khi cần và đã báo nhóm — thao tác này **ghi đè** dữ liệu hiện tại):
+
+```bash
+cd ~/actions-runner/_work/DU-AN-THUC-TAP/DU-AN-THUC-TAP   # thư mục checkout của runner
+ls -1t ~/backups/pos-staging/                             # chọn bản cần khôi phục
+COMPOSE="docker compose --env-file ~/secrets/pos-staging/.env.staging -f infra/compose/compose.staging.yml"
+$COMPOSE stop api                                         # ngừng ghi trong lúc khôi phục
+$COMPOSE exec -T db pg_restore -U pos_app -d pos_staging --clean --if-exists --no-owner \
+  < ~/backups/pos-staging/<ten-file>.dump
+$COMPOSE start api
+curl -s http://127.0.0.1/ready                            # phải thấy "database":"connected"
+```
+
+Đường dẫn checkout của runner có thể khác; tìm bằng `ls ~/actions-runner/_work`. Bản sao không
+nằm trong repo và không rời khỏi server.
