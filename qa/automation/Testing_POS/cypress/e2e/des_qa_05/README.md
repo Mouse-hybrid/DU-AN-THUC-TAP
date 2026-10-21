@@ -35,3 +35,9 @@ For CI or manual runs, configure the following variables only in the runner or l
 Missing credentials or fixtures produce `Pending` for the affected check. HTTP 401/403 with a configured token or an unexpected response shape produces `Failing` for Preflight investigation. Connection errors indicate reachability from the runner and do not, by themselves, establish a backend defect.
 
 Record the run date, environment, PF-01–03/PF-11–16 results, HTTP codes, and evidence link in `Preflight Audit` and `Execution Start`. Keep the 25 business testcases `Blocked` until their own steps and assertions run with isolated data and cleanup. Confirm station names/IDs and menu mapping with BE/BA before routing execution; PF-02 only counts candidate station IDs.
+
+## ENV-QA-03 station/menu inventory
+
+Run `./scripts/env03_run_readonly_inventory.ps1` from `qa/automation/Testing_POS` in PowerShell. It prompts once for the common `waiter`/`kitchen` staging password, records the staging SHA, and reads the active Kitchen stations and available Menu. The log lists each station ID/name, the count of mapped available items and one sample item ID. It writes `evidence/DES-QA-05/ENV_QA_03_STATION_MENU_<timestamp>.log` without printing credentials or JWTs. Review the log before sharing it.
+
+`READY` means at least six active stations each have an available mapped Menu item. `PENDING` reports the exact count to request from BE. The check never creates fixtures, sends an order or proves six-station routing. Keep DES05-TC-002 Pending until its isolated functional test runs. Modifier input and Expeditor contract remain separate gates in `des05_run_remaining_readiness.ps1`.
