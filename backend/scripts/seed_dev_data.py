@@ -95,7 +95,10 @@ DEV_SEED_PASSWORD = "password123"
 # Độ dài tối thiểu ngoài development. Tên hằng cố ý không chứa chữ "password":
 # CodeQL (py/clear-text-logging-sensitive-data) nhận diện theo tên biến và báo
 # nhầm khi in con số này ra log.
-_MIN_CHARS_NON_DEV = 12
+# Hạ từ 12 xuống 6 ngày 21/10 theo quyết định của nhóm (dễ nhớ cho demo). Rủi ro đã
+# biết: staging mở công khai qua IP, login chưa giới hạn số lần thử sai (SEC-02,
+# Pha 2) — nên nâng lại hoặc thêm giới hạn thử sai trước khi dùng dữ liệu thật.
+_MIN_CHARS_NON_DEV = 6
 
 
 def resolve_seed_password() -> tuple[str | None, bool]:
