@@ -36,7 +36,7 @@ try {
   if (-not $token) { throw 'Login response has no access token' }
   $headers = @{ Authorization = "Bearer $token" }
 
-  $tables = @(Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20)
+  $tables = Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20
   $matches = @($tables | Where-Object { $_.code -eq $TableCode })
   if ($matches.Count -ne 1) { throw "Expected exactly one $TableCode table; found $($matches.Count)" }
   $table = $matches[0]
