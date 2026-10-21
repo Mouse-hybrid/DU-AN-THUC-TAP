@@ -57,6 +57,15 @@ try {
       throw 'Table dashboard and detail session IDs disagree; no ownership conclusion'
     }
     Record "[Phase 1] OPEN session=$($session.id); opened_at=$($session.opened_at); guest_count=$($session.guest_count)"
+    $sessionId = [uri]::EscapeDataString([string]$session.id)
+    $audit = Invoke-RestMethod -Uri "$base/api/v1/audit-logs?entity_id=$sessionId&action=TABLE_SESSION_OPENED&limit=100" -Headers $headers -TimeoutSec 20
+    $auditCount = 0
+    foreach ($entry in $audit) {
+      if ([string]$entry.entity_id -ne [string]$session.id -or $entry.action -ne 'TABLE_SESSION_OPENED') { continue }
+      $auditCount++
+      Record "[Phase 1] OPEN audit: staff=$($entry.staff_username); role=$($entry.staff_role); at=$($entry.created_at); audit_id=$($entry.id)"
+    }
+    if ($auditCount -eq 0) { Record '[Phase 1] OPEN audit not found through Supervisor GET; opener remains unknown' }
     $orders = @($detail.orders)
     Record "[Phase 1] $TableCode current-session order count=$($orders.Count)"
     foreach ($order in $orders) {
