@@ -18,6 +18,27 @@ try {
   "[TSK-QA-010] SLA UI staging start $($before.Substring(0, 12)); one own ticket, four real-time bands" |
     Tee-Object -FilePath $evidenceLog
 
+  # Read-only fixture gate: print the reason for a pending/skip before Playwright starts.
+  $loginBody = @{ username = 'waiter'; password = $pin } | ConvertTo-Json -Compress
+  $auth = Invoke-RestMethod -Method Post -Uri "$base/api/v1/auth/login" -Body $loginBody `
+    -ContentType 'application/json' -TimeoutSec 20
+  $headers = @{ Authorization = "Bearer $($auth.access_token)" }
+  $tables = @(Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $headers -TimeoutSec 20)
+  $menu = @(Invoke-RestMethod -Method Get -Uri "$base/api/v1/menu?available_only=true" -Headers $headers -TimeoutSec 20)
+  $qaTables = @($tables | Where-Object { $_.code -match '^B[1-4]$' })
+  $availableTables = @($qaTables | Where-Object { $_.status -eq 'AVAILABLE' })
+  $mappedItems = @($menu | Where-Object { $_.is_available -and $_.station_id })
+  $tableSummary = ($qaTables | ForEach-Object { "$($_.code):$($_.status)" }) -join ', '
+  "[TSK-QA-010] Fixture gate: B1-B4 [$tableSummary]; available $($availableTables.Count); menu $($menu.Count); mapped $($mappedItems.Count)" |
+    Tee-Object -FilePath $evidenceLog -Append
+  if ($availableTables.Count -eq 0 -or $mappedItems.Count -eq 0) {
+    '[TSK-QA-010] PENDING: fixture gate unavailable; Playwright will skip without creating a ticket' |
+      Tee-Object -FilePath $evidenceLog -Append
+  }
+  $auth = $null
+  $headers = $null
+  $loginBody = $null
+
   $env:BASE_URL = $base
   $env:KDS_STAGING_PIN = $pin
   Push-Location (Split-Path -Parent $PSScriptRoot)
@@ -46,6 +67,9 @@ try {
   Remove-Item Env:BASE_URL, Env:KDS_STAGING_PIN -ErrorAction SilentlyContinue
   $pin = $null
   $credential = $null
+  $auth = $null
+  $headers = $null
+  $loginBody = $null
 }
 
 Write-Host "TSK-QA-010 Terminal evidence: $evidenceLog"

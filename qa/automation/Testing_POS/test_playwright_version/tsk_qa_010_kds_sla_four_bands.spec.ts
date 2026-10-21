@@ -8,6 +8,7 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
   const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
   expect(base, 'approved staging').toBe('http://160.191.47.17');
   const pin = process.env.KDS_STAGING_PIN;
+  if (!pin) console.log('[TSK-QA-010] PENDING: KDS_STAGING_PIN missing in Playwright worker');
   test.skip(!pin, 'Local staging PIN required');
 
   type Fixture = {tableId?: string; tableCode?: string; sessionId?: string;
@@ -66,10 +67,19 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
     const tables = await checked('GET', '/api/v1/tables', 'waiter', 200);
     const available = tables.filter((table: {code: string; status: string}) =>
       /^B[1-4]$/.test(table.code) && table.status === 'AVAILABLE');
+    console.log(`[TSK-QA-010] Fixture gate: B1-B4 statuses ` +
+      tables.filter((table: {code: string}) => /^B[1-4]$/.test(table.code))
+        .map((table: {code: string; status: string}) => `${table.code}:${table.status}`).join(', ') +
+      `; available ${available.length}`);
+    if (!available.length) console.log('[TSK-QA-010] PENDING: no AVAILABLE B1-B4 table; no mutation');
     test.skip(!available.length, 'No available isolated B1-B4 table');
     const menu = await checked('GET', '/api/v1/menu?available_only=true', 'waiter', 200);
     const mapped = menu.find((item: {is_available: boolean; station_id: string}) =>
       item.is_available && item.station_id);
+    console.log(`[TSK-QA-010] Fixture gate: ${menu.length} available menu items; ` +
+      `${menu.filter((item: {is_available: boolean; station_id: string}) =>
+        item.is_available && item.station_id).length} mapped to a station`);
+    if (!mapped) console.log('[TSK-QA-010] PENDING: no available mapped menu item; no mutation');
     test.skip(!mapped, 'No mapped available menu item');
     fixture.stationId = mapped.station_id;
     fixture.note = `TSK-QA-010-SLA-${randomUUID()}`;
@@ -77,13 +87,17 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
     for (const table of available) {
       const opened = await call('POST', `/api/v1/tables/${table.id}/open-session`, tokens.waiter,
         {guest_count: 2});
-      if (opened.status === 409) continue;
+      if (opened.status === 409) {
+        console.log(`[TSK-QA-010] Reservation collision: ${table.code} HTTP 409; trying next QA table`);
+        continue;
+      }
       expect(opened.status, `open ${table.code}`).toBe(201);
       fixture.tableId = table.id;
       fixture.tableCode = table.code;
       fixture.sessionId = opened.body.id;
       break;
     }
+    if (!fixture.sessionId) console.log('[TSK-QA-010] PENDING: all available QA tables were taken during reservation; no mutation');
     test.skip(!fixture.sessionId, 'B1-B4 reservation lost; no fixture mutation');
 
     const order = await checked('POST', '/api/v1/orders', 'waiter', 201,
