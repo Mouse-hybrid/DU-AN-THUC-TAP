@@ -14,6 +14,7 @@ import { Toast } from "../components/Toast";
 import { getStatusMeta } from "../components/status";
 import { formatOpenDuration } from "../utils/format";
 import { createIdempotencyKey } from "../utils/idempotency";
+import { useRealtime } from "../realtime/useRealtime";
 
 const TABLE_STATUSES = ["AVAILABLE", "OCCUPIED", "BILLING", "PAID", "CLEANING", "RESERVED", "DELAYED", "MERGED"] as const;
 type TableStatus = (typeof TABLE_STATUSES)[number];
@@ -118,6 +119,9 @@ export function TablesPage() {
     document.title = "Sơ đồ bàn · NOVA POS";
     void loadTables();
   }, [loadTables]);
+
+  // Sơ đồ bàn tự cập nhật khi có bàn mở/đổi trạng thái hoặc order thay đổi.
+  useRealtime({ channel: "tables", onRefresh: () => void loadTables(true) });
 
   const visibleTables = useMemo(
     () => (filter === "ALL" ? tables : tables.filter((table) => table.status === filter)),

@@ -17,6 +17,7 @@ import { KdsBoard } from "../components/KdsBoard";
 import type { KdsAction } from "../components/KdsTicket";
 import { StateCard } from "../components/StateCard";
 import { Toast } from "../components/Toast";
+import { useRealtime } from "../realtime/useRealtime";
 import { createIdempotencyKey } from "../utils/idempotency";
 
 type KitchenTab = "new" | "preparing" | "ready";
@@ -116,14 +117,20 @@ export function KitchenPage() {
     void loadQueue(activeTab, stationId);
   }, [activeTab, loadQueue, stationId]);
 
+  const realtimeConnected = useRealtime({
+    channel: "kitchen",
+    onRefresh: () => void loadQueue(activeTab, stationId, true),
+  });
+
+  // Polling dự phòng: 5s khi chưa có WebSocket, 30s khi WebSocket đang chạy.
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible" && navigator.onLine) {
         void loadQueue(activeTab, stationId, true);
       }
-    }, 5_000);
+    }, realtimeConnected ? 30_000 : 5_000);
     return () => window.clearInterval(timer);
-  }, [activeTab, loadQueue, stationId]);
+  }, [activeTab, loadQueue, realtimeConnected, stationId]);
 
   const activeStations = useMemo(() => stations.filter((station) => station.is_active), [stations]);
 
