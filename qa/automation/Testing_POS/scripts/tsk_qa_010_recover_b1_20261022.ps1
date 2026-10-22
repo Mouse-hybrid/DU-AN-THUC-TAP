@@ -1,5 +1,6 @@
 # One-off recovery of the TSK-QA-010 fixture interrupted on 2026-10-22.
 # Scoped to the exact staging build, table, session, order, item and ticket.
+param([switch]$Execute)
 $ErrorActionPreference = 'Stop'
 $base = 'http://160.191.47.17'
 $expectedCommit = '1c41cce58de2d9637f318e11cddae424f76d9278'
@@ -34,6 +35,7 @@ try {
   $matches = @($tables | Where-Object { $_.code -eq 'B1' })
   if ($matches.Count -ne 1) { throw "Expected one B1 table, found $($matches.Count); no mutation" }
   $table = $matches[0]
+  Record "[TSK-QA-010] OBSERVED B1: id=$($table.id); status=$($table.status); session=$($table.current_session_id); expected_id=$tableId; expected_session=$sessionId"
   if ([string]$table.id -ne $tableId -or $table.status -ne 'OCCUPIED' -or
       [string]$table.current_session_id -ne $sessionId) {
     throw "B1 no longer matches owned session $sessionId; no mutation"
@@ -57,6 +59,10 @@ try {
   $confirmVersion = [string](Invoke-RestMethod -Uri "$base/version" -TimeoutSec 20).commit
   if ($confirmVersion -ne $before) { throw 'Staging build changed before cleanup; no mutation' }
   Record "[TSK-QA-010] OWNERSHIP VERIFIED: B1 $sessionId; order $orderId SENT; item $itemId PREPARING; ticket $ticketId IN_PROGRESS; staging $($before.Substring(0, 12))"
+  if (-not $Execute) {
+    Record '[TSK-QA-010] DRY RUN PASS: all target IDs verified; no mutation. Re-run with -Execute to recover this owned fixture.'
+    return
+  }
 
   $env:POS_QA_CASHIER_TOKEN = $tokens.cashier
   $env:POS_QA_WAITER_TOKEN = $tokens.waiter
