@@ -24,8 +24,8 @@ $cashHeaders = @{ Authorization = "Bearer $cashier" }
 $waitHeaders = @{ Authorization = "Bearer $waiter" }
 
 function Get-Tables {
-    $response = Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $waitHeaders -TimeoutSec 20
-    return @($response)
+    [object[]]$response = Invoke-RestMethod -Method Get -Uri "$base/api/v1/tables" -Headers $waitHeaders -TimeoutSec 20
+    foreach ($entry in $response) { Write-Output $entry }
 }
 function Get-Order {
     return Invoke-RestMethod -Method Get -Uri "$base/api/v1/orders/$OrderId" -Headers $cashHeaders -TimeoutSec 20
