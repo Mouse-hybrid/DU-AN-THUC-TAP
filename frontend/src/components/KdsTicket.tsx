@@ -17,6 +17,7 @@ interface KdsTicketProps {
 
 const SLA_LABELS: Record<string, string> = {
   NORMAL: "Đúng tiến độ",
+  WARNING: "Sắp trễ",
   DELAYED: "Trễ",
   CRITICAL: "Rất trễ",
 };
