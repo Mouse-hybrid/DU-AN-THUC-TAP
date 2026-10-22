@@ -63,7 +63,7 @@ try {
     foreach ($entry in $audit) {
       if ([string]$entry.entity_id -ne [string]$session.id -or $entry.action -ne 'TABLE_SESSION_OPENED') { continue }
       $auditCount++
-      Record "[Phase 1] OPEN audit: staff=$($entry.staff_username); role=$($entry.staff_role); at=$($entry.created_at); audit_id=$($entry.id)"
+      Record "[Phase 1] OPEN audit: staff_id=$($entry.staff_id); staff=$($entry.staff_username); role=$($entry.staff_role); at=$($entry.created_at); audit_id=$($entry.id)"
     }
     if ($auditCount -eq 0) { Record '[Phase 1] OPEN audit not found through Supervisor GET; opener remains unknown' }
     $orders = @($detail.orders)
