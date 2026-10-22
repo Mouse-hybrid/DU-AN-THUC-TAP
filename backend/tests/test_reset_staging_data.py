@@ -15,6 +15,7 @@ from app.db.models import (
     AuditLog,
     IdempotencyKey,
     KitchenQueue,
+    MenuCategory,
     MenuItem,
     Order,
     RestaurantTable,
@@ -188,3 +189,82 @@ def test_qa_second_outlet_has_no_menu_and_is_isolated(client, seed, db_session_f
         o["id"] for o in client.get("/api/v1/orders", headers=outlet1).json()
     }
     assert login(client, "qa2_cashier")
+
+
+def _add_menu_with_qa_items(db_session_factory, seed):
+    """Menu mẫu (tên trùng SEED_MENU) lẫn món/nhóm do test QA tạo qua POST /menu."""
+    session = db_session_factory()
+    main_dishes = MenuCategory(outlet_id=seed["outlet_id"], name="Món chính", sort_order=2)
+    qa_category = MenuCategory(outlet_id=seed["outlet_id"], name="DES06-QA-CAT", sort_order=9)
+    # Nhóm lạ nhưng có món mẫu: giữ lại, không làm món mẫu mất nhóm.
+    shared = MenuCategory(outlet_id=seed["outlet_id"], name="QA nhóm có món mẫu", sort_order=8)
+    session.add_all([main_dishes, qa_category, shared])
+    session.flush()
+    rows = (
+        ("Phở bò", main_dishes.id),
+        ("Bún chả", shared.id),
+        ("DES05-QA-UNMAPPED-1", None),
+        ("DES06-QA-ITEM-1", qa_category.id),
+    )
+    for name, category_id in rows:
+        session.add(
+            MenuItem(
+                outlet_id=seed["outlet_id"],
+                station_id=seed["station_id"],
+                category_id=category_id,
+                name=name,
+                price=Decimal("10000.00"),
+            )
+        )
+    session.commit()
+    session.close()
+
+
+def _menu_names(session):
+    return set(session.scalars(select(MenuItem.name)))
+
+
+def test_purge_extra_menu_dry_run_lists_without_deleting(client, seed, db_session_factory):
+    _add_menu_with_qa_items(db_session_factory, seed)
+    session = db_session_factory()
+    before = _menu_names(session)
+
+    result = reset.run(session, apply=False, with_fixtures=False, purge_menu=True)
+
+    assert result.menu_items_purged == ["DES05-QA-UNMAPPED-1", "DES06-QA-ITEM-1", "Mon Test"]
+    assert result.categories_purged == ["DES06-QA-CAT"]
+    assert _menu_names(session) == before
+    session.close()
+
+
+def test_purge_extra_menu_keeps_only_seed_menu(client, seed, db_session_factory):
+    _add_menu_with_qa_items(db_session_factory, seed)
+    # Món QA đang nằm trong một đơn: reset xóa đơn trước, rồi mới xóa được món.
+    _run_dine_in_flow(client, seed, "purge")
+    session = db_session_factory()
+
+    result = reset.run(session, apply=True, with_fixtures=False, purge_menu=True)
+    session.close()
+
+    assert "Mon Test" in result.menu_items_purged
+    session = db_session_factory()
+    assert _menu_names(session) == {"Phở bò", "Bún chả"}
+    assert set(session.scalars(select(MenuCategory.name))) == {
+        "Món chính",
+        "QA nhóm có món mẫu",
+    }
+    payload = session.scalar(
+        select(AuditLog.payload).where(AuditLog.action == "STAGING_DATA_RESET")
+    )
+    assert "DES06-QA-ITEM-1" in str(payload)
+    session.close()
+
+
+def test_reset_without_purge_keeps_qa_menu(client, seed, db_session_factory):
+    _add_menu_with_qa_items(db_session_factory, seed)
+    session = db_session_factory()
+    reset.run(session, apply=True, with_fixtures=False)
+    session.close()
+    session = db_session_factory()
+    assert "DES06-QA-ITEM-1" in _menu_names(session)
+    session.close()

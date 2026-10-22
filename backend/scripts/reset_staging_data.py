@@ -8,6 +8,10 @@ idempotency_key (tức mọi phiên bàn, đơn, món, phiếu bếp đã tạo 
 GIỮ NGUYÊN: outlet, tài khoản staff, menu/nhóm món/trạm bếp, audit_log (lịch sử
 thao tác không bị xóa; script ghi thêm 1 dòng STAGING_DATA_RESET).
 
+Tùy chọn --purge-extra-menu xóa món và nhóm món KHÔNG thuộc menu mẫu của
+seed_dev_data.py (SEED_MENU), vd món do test tự động tạo qua POST /menu. Mặc
+định tắt; dry-run in ra tên những món sẽ bị xóa.
+
 Tùy chọn --with-fixtures tạo sẵn dữ liệu mẫu cho các test case cần trạng thái
 khó dựng tay (refire TC_EXT_012/013, SLA TC_EXT_014):
 - bàn B6: order SERVED, 2 món đã SERVED (dùng để test refire);
@@ -31,6 +35,7 @@ Chạy trên staging: GitHub → Actions → "Reset staging data" → Run workfl
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 from dataclasses import dataclass, field
@@ -47,6 +52,7 @@ from app.core.config import APP_ENV  # noqa: E402
 from app.db.models import (  # noqa: E402
     IdempotencyKey,
     KitchenQueue,
+    MenuCategory,
     MenuItem,
     Order,
     OrderItem,
@@ -79,6 +85,8 @@ class ResetResult:
     deleted: dict[str, int] = field(default_factory=dict)
     tables_reset: int = 0
     menu_items_reenabled: int = 0
+    menu_items_purged: list[str] = field(default_factory=list)
+    categories_purged: list[str] = field(default_factory=list)
     fixtures: list[str] = field(default_factory=list)
 
 
@@ -87,6 +95,45 @@ def ensure_env_allowed(app_env: str) -> None:
         raise SystemExit(
             f"Từ chối chạy: APP_ENV='{app_env}'. Script chỉ dành cho {', '.join(ALLOWED_ENVS)}."
         )
+
+
+def seed_menu_names() -> tuple[set[str], set[str]]:
+    """(tên món, tên nhóm món) của menu mẫu — lấy thẳng từ seed_dev_data.py để
+    hai script không lệch nhau."""
+    path = Path(__file__).resolve().with_name("seed_dev_data.py")
+    spec = importlib.util.spec_from_file_location("seed_dev_data", path)
+    seed = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(seed)
+    items = {name for _order, dishes in seed.SEED_MENU.values() for name, _p, _s in dishes}
+    return items, set(seed.SEED_MENU)
+
+
+def _extra_menu(session: Session) -> tuple[list[MenuItem], list[MenuCategory]]:
+    """Món/nhóm món ngoài menu mẫu. Nhóm chỉ bị xóa khi không còn món nào thuộc
+    menu mẫu trỏ tới nó."""
+    keep_items, keep_categories = seed_menu_names()
+    items = list(
+        session.scalars(
+            select(MenuItem).where(MenuItem.name.not_in(keep_items)).order_by(MenuItem.name)
+        )
+    )
+    kept_category_ids = set(
+        session.scalars(
+            select(MenuItem.category_id).where(
+                MenuItem.name.in_(keep_items), MenuItem.category_id.is_not(None)
+            )
+        )
+    )
+    categories = [
+        category
+        for category in session.scalars(
+            select(MenuCategory)
+            .where(MenuCategory.name.not_in(keep_categories))
+            .order_by(MenuCategory.name)
+        )
+        if category.id not in kept_category_ids
+    ]
+    return items, categories
 
 
 def count_targets(session: Session) -> ResetResult:
@@ -282,10 +329,32 @@ def create_fixtures(session: Session) -> list[str]:
     return lines
 
 
-def run(session: Session, *, apply: bool, with_fixtures: bool) -> ResetResult:
+def purge_extra_menu(session: Session, result: ResetResult, *, apply: bool) -> None:
+    items, categories = _extra_menu(session)
+    result.menu_items_purged = [item.name for item in items]
+    result.categories_purged = [category.name for category in categories]
     if not apply:
-        return count_targets(session)
+        return
+    # Chạy sau reset_transactional_data: order_item (khóa ngoại tới món) đã bị xóa.
+    for item in items:
+        session.delete(item)
+    session.flush()
+    for category in categories:
+        session.delete(category)
+    session.flush()
+
+
+def run(
+    session: Session, *, apply: bool, with_fixtures: bool, purge_menu: bool = False
+) -> ResetResult:
+    if not apply:
+        result = count_targets(session)
+        if purge_menu:
+            purge_extra_menu(session, result, apply=False)
+        return result
     result = reset_transactional_data(session)
+    if purge_menu:
+        purge_extra_menu(session, result, apply=True)
     if with_fixtures:
         result.fixtures = create_fixtures(session)
     outlet_id = session.scalar(select(RestaurantTable.outlet_id).limit(1))
@@ -300,6 +369,8 @@ def run(session: Session, *, apply: bool, with_fixtures: bool) -> ResetResult:
             "deleted": result.deleted,
             "tables_reset": result.tables_reset,
             "with_fixtures": with_fixtures,
+            "menu_items_purged": result.menu_items_purged,
+            "categories_purged": result.categories_purged,
         },
     )
     session.commit()
@@ -312,6 +383,11 @@ def main() -> None:
     parser.add_argument(
         "--with-fixtures", action="store_true", help="Tạo sẵn order mẫu trên B5/B6 sau khi reset"
     )
+    parser.add_argument(
+        "--purge-extra-menu",
+        action="store_true",
+        help="Xóa món/nhóm món không thuộc menu mẫu của seed_dev_data.py",
+    )
     args = parser.parse_args()
     ensure_env_allowed(APP_ENV)
 
@@ -321,7 +397,12 @@ def main() -> None:
         raise SystemExit("Chưa cấu hình database (DATABASE_URL hoặc DB_*).")
 
     with SessionLocal() as session:
-        result = run(session, apply=args.yes, with_fixtures=args.with_fixtures)
+        result = run(
+            session,
+            apply=args.yes,
+            with_fixtures=args.with_fixtures,
+            purge_menu=args.purge_extra_menu,
+        )
 
     mode = "ĐÃ RESET" if args.yes else "XEM TRƯỚC (chưa ghi gì — thêm --yes để chạy thật)"
     print(f"[{APP_ENV}] {mode}")
@@ -329,6 +410,13 @@ def main() -> None:
         print(f"  xóa {name}: {count}")
     print(f"  bàn đưa về AVAILABLE: {result.tables_reset}")
     print(f"  món bật lại is_available: {result.menu_items_reenabled}")
+    if args.purge_extra_menu:
+        print(f"  xóa món ngoài menu mẫu: {len(result.menu_items_purged)}")
+        for name in result.menu_items_purged:
+            print(f"    - {name}")
+        print(f"  xóa nhóm món ngoài menu mẫu: {len(result.categories_purged)}")
+        for name in result.categories_purged:
+            print(f"    - {name}")
     if result.fixtures:
         print("Dữ liệu mẫu cho QA:")
         for line in result.fixtures:
