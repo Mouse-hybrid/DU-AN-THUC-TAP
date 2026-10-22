@@ -355,6 +355,7 @@
 .nova-status--voided,
 .nova-status--unavailable { color: #8a302e; background: var(--nova-color-danger-soft); }
 .nova-status--normal { color: #0c6559; background: #dff2ee; }
+.nova-status--warning { color: #8b520d; background: var(--nova-color-warning-soft); }
 .nova-status--critical { color: #8a302e; background: var(--nova-color-danger-soft); }
 
 .nova-table-detail-header,

@@ -18,6 +18,7 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   VOIDED: { label: "Đã hủy", className: "voided" },
   UNAVAILABLE: { label: "Hết món", className: "unavailable" },
   NORMAL: { label: "Đúng tiến độ", className: "normal" },
+  WARNING: { label: "Sắp trễ", className: "warning" },
   CRITICAL: { label: "Rất trễ", className: "critical" },
 };
 
