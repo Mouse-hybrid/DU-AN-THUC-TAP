@@ -31,7 +31,7 @@ try {
   }
   $waitHeaders = @{ Authorization = "Bearer $($tokens.waiter)" }
   $kitchenHeaders = @{ Authorization = "Bearer $($tokens.kitchen)" }
-  $tables = @(Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $waitHeaders -TimeoutSec 20)
+  [object[]]$tables = Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $waitHeaders -TimeoutSec 20
   $matches = @($tables | Where-Object { $_.code -eq 'B1' })
   if ($matches.Count -ne 1) { throw "Expected one B1 table, found $($matches.Count); no mutation" }
   $table = $matches[0]
@@ -49,8 +49,8 @@ try {
       $items[0].status -ne 'PREPARING') {
     throw 'Item identity, QA note or PREPARING status changed; no mutation'
   }
-  $queue = @(Invoke-RestMethod -Uri "$base/api/v1/kitchen/queue?status=IN_PROGRESS" `
-    -Headers $kitchenHeaders -TimeoutSec 20)
+  [object[]]$queue = Invoke-RestMethod -Uri "$base/api/v1/kitchen/queue?status=IN_PROGRESS" `
+    -Headers $kitchenHeaders -TimeoutSec 20
   $ownTickets = @($queue | Where-Object {
     [string]$_.id -eq $ticketId -and [string]$_.order_id -eq $orderId -and
     [string]$_.order_item_id -eq $itemId
@@ -70,7 +70,7 @@ try {
     -BaseUrl $base -Execute -Confirm:$false 2>&1 | Tee-Object -FilePath $evidenceLog -Append
 
   $finalOrder = Invoke-RestMethod -Uri "$base/api/v1/orders/$orderId" -Headers $waitHeaders -TimeoutSec 20
-  $finalTables = @(Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $waitHeaders -TimeoutSec 20)
+  [object[]]$finalTables = Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $waitHeaders -TimeoutSec 20
   $finalB1 = @($finalTables | Where-Object { $_.code -eq 'B1' -and [string]$_.id -eq $tableId })
   if ($finalOrder.status -ne 'CLOSED' -or $finalB1.Count -ne 1 -or
       $finalB1[0].status -ne 'AVAILABLE' -or $finalB1[0].current_session_id) {
