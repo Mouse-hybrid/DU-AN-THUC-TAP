@@ -1,6 +1,7 @@
 param(
   [ValidateSet('B1', 'B2', 'B3', 'B4', 'B5', 'B6')][string]$TableCode = 'B4',
   [string]$ExpectedSessionId = '',
+  [string]$OrderId = '',
   [string]$BaseUrl = 'http://160.191.47.17'
 )
 
@@ -75,6 +76,18 @@ try {
       Record "[Phase 1] order=$($order.id); status=$($order.status); created_at=$($order.created_at); version=$($order.current_version); item_count=$(@($order.items).Count)"
     }
     Record '[Phase 1] Ownership UNVERIFIED: compare session/order IDs and timestamps against QA evidence before any cleanup'
+  }
+
+  if ($OrderId) {
+    if ($OrderId -notmatch '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$') {
+      throw 'OrderId must be a UUID; no order GET performed'
+    }
+    $target = Invoke-RestMethod -Uri "$base/api/v1/orders/$OrderId" -Headers $headers -TimeoutSec 20
+    if ([string]$target.id -ne $OrderId) { throw 'Target order GET returned another ID' }
+    Record "[Phase 1] TARGET order=$($target.id); table_session_id=$($target.table_session_id); status=$($target.status); version=$($target.current_version); item_count=$(@($target.items).Count)"
+    foreach ($item in @($target.items)) {
+      Record "[Phase 1] TARGET item=$($item.id); status=$($item.status); note=$($item.note)"
+    }
   }
 
   $after = (Invoke-RestMethod -Uri "$base/version" -TimeoutSec 20).commit
