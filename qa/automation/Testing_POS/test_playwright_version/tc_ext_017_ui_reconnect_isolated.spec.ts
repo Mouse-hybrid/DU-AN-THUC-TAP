@@ -18,6 +18,16 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
   const events: Array<{type: string; at: number}> = [];
   const queueReads: Array<{at: number; status: number}> = [];
 
+  // Isolate the WebSocket path: the product's 5s/30s fallback polling must not
+  // make a missing reconnect refresh appear to pass this test.
+  await page.addInitScript(() => {
+    const original = window.setInterval.bind(window);
+    window.setInterval = ((handler: TimerHandler, timeout?: number, ...args: any[]) => {
+      if (timeout === 5_000 || timeout === 30_000) return 0;
+      return original(handler, timeout, ...args);
+    }) as typeof window.setInterval;
+  });
+
   page.on('websocket', ws => {
     const url = new URL(ws.url());
     if (url.pathname !== '/api/v1/ws' || url.searchParams.get('channel') !== 'kitchen') return;
