@@ -2,6 +2,8 @@ name: Reset staging data
 # Bam tay tren GitHub: Actions -> Reset staging data -> Run workflow.
 # Xoa phien ban/don/phieu bep da tao khi test, dua moi ban ve AVAILABLE; giu
 # menu, tai khoan, audit log. Xem backend/scripts/reset_staging_data.py.
+# purge_extra_menu: xoa mon/nhom mon khong thuoc menu mau (vd mon test QA tao qua
+# POST /menu). Nen bat dry_run truoc de xem danh sach se xoa.
 
 on:
   workflow_dispatch:
@@ -10,6 +12,10 @@ on:
         description: "Tao san du lieu mau cho QA (B6: order SERVED de test refire; B5: mon cho bep + SLA WARNING/CRITICAL)"
         type: boolean
         default: true
+      purge_extra_menu:
+        description: "Xoa mon/nhom mon KHONG thuoc menu mau (mon test QA tao qua POST /menu)"
+        type: boolean
+        default: false
       dry_run:
         description: "Chi xem truoc se xoa gi, khong ghi"
         type: boolean
@@ -34,9 +40,11 @@ jobs:
         env:
           WITH_FIXTURES: ${{ inputs.with_fixtures }}
           DRY_RUN: ${{ inputs.dry_run }}
+          PURGE_EXTRA_MENU: ${{ inputs.purge_extra_menu }}
         run: |
           args=()
           [ "$DRY_RUN" = "true" ] || args+=(--yes)
           [ "$WITH_FIXTURES" = "true" ] && args+=(--with-fixtures)
+          [ "$PURGE_EXTRA_MENU" = "true" ] && args+=(--purge-extra-menu)
           docker compose --env-file .env.staging -f infra/compose/compose.staging.yml \
             run --rm -T api python scripts/reset_staging_data.py "${args[@]}"
