@@ -1,57 +1,22 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('POS System - Render Test', () => {
+// Anonymous route readiness only. Authenticated screen and Customer menu
+// behavior have separate tests; a login redirect is not a business UI PASS.
+const routes = [
+  { ref: 'PF-UI-ROUTE-001', path: '/pos' },
+  { ref: 'PF-UI-ROUTE-002', path: '/kitchen' },
+  { ref: 'PF-UI-ROUTE-003', path: '/customer' },
+  { ref: 'PF-UI-ROUTE-004', path: '/admin' },
+] as const;
 
-  test('TC-E2E-001 - POS screen hiển thị', async ({ page }) => {
-    await page.goto('/pos');
-
-    await expect(
-      page.getByRole('heading', { name: 'Staff POS' })
-    ).toBeVisible();
-
-    await page.screenshot({
-      path: 'test-results/pos-screen.png',
-      fullPage: true,
+test.describe('POS System | anonymous route guard smoke', () => {
+  for (const { ref, path } of routes) {
+    test(`${ref} | ${path} redirects to login without a session`, async ({ page }) => {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL(/\/login(?:[?#].*)?$/);
+      await expect(page.getByRole('heading', { name: 'Chào mừng trở lại' })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Mã nhân viên' })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Mã PIN' })).toBeVisible();
     });
-  });
-
-  test('TC-E2E-002 - Kitchen screen hiển thị', async ({ page }) => {
-    await page.goto('/kitchen');
-
-    await expect(
-      page.getByRole('heading', { name: 'Kitchen queue' })
-    ).toBeVisible();
-
-    await page.screenshot({
-      path: 'test-results/kitchen-screen.png',
-      fullPage: true,
-    });
-  });
-
-  test('TC-E2E-003 - Customer screen hiển thị', async ({ page }) => {
-    await page.goto('/customer');
-
-    await expect(
-      page.getByRole('heading', { name: 'Customer menu' })
-    ).toBeVisible();
-
-    await page.screenshot({
-      path: 'test-results/customer-screen.png',
-      fullPage: true,
-    });
-  });
-
-  test('TC-E2E-004 - Admin screen hiển thị', async ({ page }) => {
-    await page.goto('/admin');
-
-    await expect(
-      page.getByRole('heading', { name: 'Tổng quan vận hành' })
-    ).toBeVisible();
-
-    await page.screenshot({
-      path: 'test-results/admin-screen.png',
-      fullPage: true,
-    });
-  });
-
+  }
 });
