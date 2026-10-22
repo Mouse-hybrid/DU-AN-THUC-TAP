@@ -13,6 +13,7 @@ import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
 import { formatOpenDuration, formatVnd } from "../utils/format";
+import { useRealtime } from "../realtime/useRealtime";
 import { createIdempotencyKey } from "../utils/idempotency";
 
 type ItemAction = "pickup" | "served";
@@ -83,6 +84,15 @@ export function TableDetailPage() {
     void loadTable();
   }, [loadTable]);
 
+  const realtimeConnected = useRealtime({
+    channel: "tables",
+    filter: (event) => event.data.table_id === tableId,
+    onRefresh: () => {
+      if (mutationInFlight.current.size === 0 && !loadInFlight.current) void loadTable(true);
+    },
+  });
+
+  // Polling dự phòng: 5s khi chưa có WebSocket, 30s khi WebSocket đang chạy.
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (
@@ -93,9 +103,9 @@ export function TableDetailPage() {
       ) {
         void loadTable(true);
       }
-    }, 5_000);
+    }, realtimeConnected ? 30_000 : 5_000);
     return () => window.clearInterval(timer);
-  }, [loadTable]);
+  }, [loadTable, realtimeConnected]);
 
   const readyCount = useMemo(
     () => table?.orders.reduce(
