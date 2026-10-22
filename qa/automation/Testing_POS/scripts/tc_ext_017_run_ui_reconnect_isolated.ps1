@@ -1,6 +1,7 @@
 param(
   [string]$BaseUrl = 'http://160.191.47.17',
-  [string]$ExpectedCommit = ''
+  [string]$ExpectedCommit = '',
+  [switch]$RequireUiWebSocket
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,7 +30,7 @@ try {
 
   $env:BASE_URL = $base
   $env:TC_EXT_017_STAGING_PIN = $pin
-  $env:TC_EXT_017_EXPECT_UI_WS = if ($ExpectedCommit) { 'true' } else { 'false' }
+  $env:TC_EXT_017_EXPECT_UI_WS = if ($RequireUiWebSocket) { 'true' } else { 'false' }
   Push-Location (Split-Path -Parent $PSScriptRoot)
   try {
     $priorConsole = [Console]::OutputEncoding
