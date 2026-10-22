@@ -5,6 +5,16 @@ $base = $BaseUrl.TrimEnd('/')
 if ($base -ne 'http://160.191.47.17') { throw 'TSK-QA-010 SLA run is restricted to approved staging' }
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-06'
 $evidenceLog = Join-Path $evidenceDir ("TSK_QA_010_KDS_SLA_FOUR_BANDS_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$unfixedCommit = '1c41cce58de2d9637f318e11cddae424f76d9278'
+$observedCommit = [string](Invoke-RestMethod -Method Get -Uri "$base/version" -TimeoutSec 20).commit
+if ($observedCommit -notmatch '^[0-9a-f]{40}$') { throw 'GET /version missing full commit' }
+if ($observedCommit -eq $unfixedCommit) {
+  New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
+  '[TSK-QA-010] PENDING retest: staging 1c41cce predates PR #43 WARNING badge fix; no ticket created' |
+    Tee-Object -FilePath $evidenceLog
+  Write-Host "TSK-QA-010 Terminal evidence: $evidenceLog"
+  exit 0
+}
 $credential = Get-Credential -UserName 'kitchen' -Message 'Shared staging PIN for one isolated 15-minute KDS SLA UI run and fixture cleanup'
 $exitCode = 1
 $preflightBlocked = $false
@@ -15,7 +25,7 @@ try {
   if (-not $pin) { throw 'Staging PIN is empty' }
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
   $before = (Invoke-RestMethod -Method Get -Uri "$base/version" -TimeoutSec 20).commit
-  if ($before -notmatch '^[0-9a-f]{40}$') { throw 'GET /version missing full commit' }
+  if ($before -ne $observedCommit) { throw "Staging build changed before SLA run: $observedCommit -> $before" }
   "[TSK-QA-010] SLA UI staging start $($before.Substring(0, 12)); one own ticket, four real-time bands" |
     Tee-Object -FilePath $evidenceLog
 
