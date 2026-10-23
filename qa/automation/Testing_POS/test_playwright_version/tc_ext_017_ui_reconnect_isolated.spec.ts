@@ -1,8 +1,8 @@
 import {randomUUID} from 'node:crypto';
-import {test, expect, type WebSocket, type WebSocketRoute} from '@playwright/test';
+import {test, expect, type BrowserContext, type WebSocket, type WebSocketRoute} from '@playwright/test';
 
 // Product UI acceptance for PR #42. The API component reconnect check is separate.
-test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, request}, testInfo) => {
+test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, request, browser}, testInfo) => {
   test.setTimeout(120_000);
   const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
   expect(base, 'approved staging').toBe('http://160.191.47.17');
@@ -10,7 +10,7 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
   test.skip(!pin, 'Local staging PIN required');
 
   type Table = {id: string; code: string; status: string};
-  type MenuItem = {id: string; is_available: boolean; station_id: string};
+  type MenuItem = {id: string; name: string; is_available: boolean; station_id: string};
   const fixture: {table?: Table; sessionId?: string; orderId?: string; itemId?: string;
     menu?: MenuItem; note?: string} = {};
   const tokens: Record<string, string> = {};
@@ -20,6 +20,7 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
   const queueReads: Array<{at: number; status: number}> = [];
   let holdReconnect = false;
   let releaseReconnect: (() => void) | undefined;
+  let waiterContext: BrowserContext | undefined;
 
   // Isolate the WebSocket path: the product's 5s/30s fallback polling must not
   // make a missing reconnect refresh appear to pass this test.
@@ -86,7 +87,13 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
     if (!fixture.sessionId) return;
     if (!fixture.table) throw new Error(`CLEANUP REQUIRED: session ${fixture.sessionId}; no table`);
     const currentTable = await checked('GET', `/api/v1/tables/${fixture.table.id}`, 'waiter', 200);
-    if (currentTable.status === 'AVAILABLE' && !currentTable.current_session) return;
+    if (currentTable.status === 'AVAILABLE' && !currentTable.current_session) {
+      if (fixture.orderId) {
+        const existing = await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200);
+        expect(existing.status, 'owned order closed when table is available').toBe('CLOSED');
+      }
+      return;
+    }
     if (currentTable.current_session?.id !== fixture.sessionId) {
       throw new Error(`CLEANUP REQUIRED: ${fixture.table.code} session changed; owned ${fixture.sessionId}`);
     }
@@ -226,8 +233,37 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
     const queue = await checked('GET', '/api/v1/kitchen/queue?status=IN_PROGRESS', 'kitchen', 200);
     expect(queue.filter((entry: {order_id: string; order_item_id: string}) =>
       entry.order_id === fixture.orderId && entry.order_item_id === fixture.itemId)).toHaveLength(1);
-    console.log(`[TC_EXT_017] PASS: reconnect + REST resync shows same own PREPARING item; ` +
-      `WS connections ${sockets.length}`);
+    const itemStatus = async () => {
+      const order = await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200);
+      return order.items.find((item: {id: string}) => item.id === fixture.itemId)?.status;
+    };
+    expect(await itemStatus(), 'own item in Đang chế biến').toBe('PREPARING');
+
+    // Kitchen completes its own item; Ready is the handoff point for Waiter.
+    await card.getByRole('button',
+      {name: `Món xong ${fixture.menu!.name} bàn ${fixture.table!.code}`}).click();
+    await expect.poll(itemStatus, {timeout: 20_000}).toBe('READY');
+    await expect(card, 'completed item leaves Đang chế biến').toHaveCount(0);
+    await page.getByRole('tab', {name: 'Sẵn sàng'}).click();
+    await expect(card, 'completed item appears in Sẵn sàng').toHaveCount(1);
+    await testInfo.attach('TC_EXT_017_ready_handoff', {
+      body: await card.screenshot(), contentType: 'image/png',
+    });
+
+    waiterContext = await browser.newContext({baseURL: base});
+    const waiterPage = await waiterContext.newPage();
+    await waiterPage.goto('/login', {waitUntil: 'domcontentloaded'});
+    await waiterPage.getByLabel('Mã nhân viên', {exact: true}).fill('waiter');
+    await waiterPage.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await waiterPage.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
+    await expect(waiterPage).toHaveURL(/\/tables$/, {timeout: 15_000});
+    await waiterPage.goto(`/tables/${fixture.table!.id}`, {waitUntil: 'domcontentloaded'});
+    await waiterPage.getByRole('button', {name: `Lấy món ${fixture.menu!.name}`}).click();
+    await expect.poll(itemStatus, {timeout: 20_000}).toBe('PICKED_UP');
+    await waiterPage.getByRole('button', {name: `Đã mang ra ${fixture.menu!.name}`}).click();
+    await expect.poll(itemStatus, {timeout: 20_000}).toBe('SERVED');
+    console.log(`[TC_EXT_017] PASS: reconnect + REST resync; KDS PREPARING -> READY; ` +
+      `Waiter PICKED_UP -> SERVED; own order ${fixture.orderId}; WS connections ${sockets.length}`);
   } finally {
     holdReconnect = false;
     releaseReconnect?.();
@@ -241,6 +277,7 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
         body: JSON.stringify({fixture, events, queueReads, socketCount: sockets.length}, null, 2),
         contentType: 'application/json',
       });
+      await waiterContext?.close();
     }
   }
 });
