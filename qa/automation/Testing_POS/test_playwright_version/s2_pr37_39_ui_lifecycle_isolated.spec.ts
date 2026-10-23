@@ -159,6 +159,8 @@ test('S2-UI-BIZ-01 | order, KDS, pickup, serve and simulated payment', async ({b
     await waiter.getByRole('button', {name: `Đã mang ra ${fixture.menu!.name}`}).click();
     await waitForStatus('SERVED');
     await waiter.goto(`/tables/${fixture.table!.id}/summary`, {waitUntil: 'domcontentloaded'});
+    expect((await order()).items.find(item => item.id === fixture.itemId)?.status,
+      'owned item is served before requesting payment').toBe('SERVED');
     await waiter.getByRole('button', {name: 'Yêu cầu thanh toán đơn'}).click();
     await waiter.getByRole('dialog', {name: 'Yêu cầu thanh toán?'}).getByRole('button',
       {name: 'Yêu cầu thanh toán'}).click();
@@ -171,8 +173,12 @@ test('S2-UI-BIZ-01 | order, KDS, pickup, serve and simulated payment', async ({b
       {name: 'Xác nhận đã thanh toán'}).click();
     await expect.poll(async () => (await order()).status, {timeout: 20_000}).toBe('PAID');
     await checked('POST', `/api/v1/orders/${fixture.orderId}/close`, 'cashier', 200);
+    await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
+      'waiter', 200)).status, {timeout: 20_000}).toBe('CLEANING');
     await waiter.goto('/tables', {waitUntil: 'domcontentloaded'});
-    await waiter.getByRole('button', {name: `Dọn xong bàn ${fixture.table!.code}`}).click();
+    const markClean = waiter.getByRole('button', {name: `Dọn xong bàn ${fixture.table!.code}`});
+    await expect(markClean).toBeVisible();
+    await markClean.click();
     await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
       'waiter', 200)).status, {timeout: 20_000}).toBe('AVAILABLE');
     expect((await order()).status).toBe('CLOSED');
