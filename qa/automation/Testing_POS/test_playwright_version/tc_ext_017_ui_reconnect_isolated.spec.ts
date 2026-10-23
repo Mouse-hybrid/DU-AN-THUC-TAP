@@ -279,6 +279,37 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
     await expect.poll(itemStatus, {timeout: 20_000}).toBe('SERVED');
     console.log(`[TC_EXT_017] PASS: reconnect + REST resync; KDS PREPARING -> READY; ` +
       `Waiter PICKED_UP -> SERVED; own order ${fixture.orderId}; WS connections ${sockets.length}`);
+
+    const orderStatus = async () => (await checked('GET',
+      `/api/v1/orders/${fixture.orderId}`, 'waiter', 200)).status as string;
+    await page.goto(`/tables/${fixture.table!.id}/summary`, {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: 'Yêu cầu thanh toán đơn'}).click();
+    await page.getByRole('dialog', {name: 'Yêu cầu thanh toán?'})
+      .getByRole('button', {name: 'Yêu cầu thanh toán'}).click();
+    await expect.poll(orderStatus, {timeout: 20_000}).toBe('BILLING');
+
+    // The summary replaces the top-right logout with a back link; return to
+    // the table map so the role change uses the product's logout button.
+    await page.goto('/tables', {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: 'Đăng xuất'}).click();
+    await expect(page).toHaveURL(/\/login$/, {timeout: 15_000});
+    await page.getByLabel('Mã nhân viên', {exact: true}).fill('cashier');
+    await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
+    await expect(page).toHaveURL(/\/tables$/, {timeout: 15_000});
+    await page.goto(`/tables/${fixture.table!.id}/summary`, {waitUntil: 'domcontentloaded'});
+    const summary = page.locator('.nova-summary-card');
+    await expect(summary, 'Cashier sees the billing summary').toBeVisible();
+    await testInfo.attach('S2_UI_cashier_billing_summary', {
+      body: await summary.screenshot(), contentType: 'image/png',
+    });
+    await page.getByRole('button', {name: 'Xác nhận đơn đã thanh toán'}).click();
+    await page.getByRole('dialog', {name: 'Xác nhận đã thanh toán?'})
+      .getByRole('button', {name: 'Xác nhận đã thanh toán'}).click();
+    await expect.poll(orderStatus, {timeout: 20_000}).toBe('PAID');
+    console.log(`[S2-UI] Payment UI PASS: Waiter requested billing; Cashier confirmed ` +
+      `simulated staging payment; order ${fixture.orderId} PAID. ` +
+      `Invoice export/print NOT TESTED; needs deployed UI/API contract.`);
   } finally {
     holdReconnect = false;
     releaseReconnect?.();
