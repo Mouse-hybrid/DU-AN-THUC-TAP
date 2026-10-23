@@ -60,8 +60,14 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
     let current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
     expect(current.table_session_id, 'owned order session').toBe(fixture.sessionId);
     if (table.status === 'AVAILABLE' && !table.current_session && current.status === 'CLOSED') return;
-    if (table.current_session?.id !== fixture.sessionId) {
-      throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} session changed; owned ${fixture.sessionId}`);
+    const ownOpenSession = table.status === 'OCCUPIED' &&
+      table.current_session?.id === fixture.sessionId;
+    const ownPaidSession = table.status === 'CLEANING' && !table.current_session &&
+      ['PAID', 'CLOSED'].includes(current.status);
+    if (!ownOpenSession && !ownPaidSession) {
+      throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} state ${table.status}; ` +
+        `session ${table.current_session?.id ?? 'none'}; owned ${fixture.sessionId}; ` +
+        `order ${current.status}`);
     }
     if (current.status !== 'CLOSED') {
       // Complete the owned cooking item before billing, as in the BE demo flow.
