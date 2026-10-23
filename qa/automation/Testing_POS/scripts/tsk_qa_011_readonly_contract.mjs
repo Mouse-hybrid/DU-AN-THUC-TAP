@@ -68,4 +68,5 @@ try {
   await fs.writeFile(evidenceFile,`${lines.join('\n')}\n`);
   console.log(`TSK-QA-011 evidence: ${evidenceFile}`);
 }
-process.exit(exitCode);
+// Let pending stdout/TTY writes finish before Node exits, particularly on Windows.
+process.exitCode = exitCode;
