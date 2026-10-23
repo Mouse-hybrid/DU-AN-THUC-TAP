@@ -134,7 +134,7 @@ test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({brow
       await waiter.goto('/tables', {waitUntil: 'domcontentloaded'});
       await waiter.getByRole('button', {name: new RegExp(`^Bàn ${table.code},`)}).click();
       await expect(waiter).toHaveURL(new RegExp(`/tables/${table.id}/open$`));
-      await waiter.getByLabel('Số khách').fill('1');
+      await expect(waiter.locator('#nova-guest-count'), 'default guest count').toHaveValue('1');
       const openedResponse = waiter.waitForResponse(response =>
         response.request().method() === 'POST' &&
         new URL(response.url()).pathname === `/api/v1/tables/${table.id}/open-session`);
