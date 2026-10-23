@@ -99,22 +99,33 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
     if (!fixture.sessionId) return;
     if (!fixture.table) throw new Error(`CLEANUP REQUIRED: session ${fixture.sessionId}; no table`);
     const currentTable = await checked('GET', `/api/v1/tables/${fixture.table.id}`, 'waiter', 200);
+    let current = fixture.orderId
+      ? await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200) : undefined;
+    if (current && current.table_session_id !== fixture.sessionId) {
+      throw new Error(`CLEANUP REQUIRED: order ${fixture.orderId} belongs to another session`);
+    }
     if (currentTable.status === 'AVAILABLE' && !currentTable.current_session) {
-      if (fixture.orderId) {
-        const existing = await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200);
-        expect(existing.status, 'owned order closed when table is available').toBe('CLOSED');
-      }
+      expect(current?.status, 'owned order closed when table is available').toBe('CLOSED');
       return;
     }
-    if (currentTable.current_session?.id !== fixture.sessionId) {
-      throw new Error(`CLEANUP REQUIRED: ${fixture.table.code} session changed; owned ${fixture.sessionId}`);
+    const ownOpenSession = currentTable.status === 'OCCUPIED' &&
+      currentTable.current_session?.id === fixture.sessionId;
+    // Payment closes the table session before the separate order-close and
+    // mark-clean calls. Only this verified order may be cleaned up afterward.
+    const ownPaidSession = currentTable.status === 'CLEANING' &&
+      !currentTable.current_session && current && ['PAID', 'CLOSED'].includes(current.status);
+    if (!ownOpenSession && !ownPaidSession) {
+      throw new Error(`CLEANUP REQUIRED: ${fixture.table.code} state ${currentTable.status}; ` +
+        `session ${currentTable.current_session?.id ?? 'none'}; owned ${fixture.sessionId}; ` +
+        `order ${current?.status ?? 'none'}`);
     }
     if (!fixture.orderId) {
       fixture.orderId = (await checked('POST', '/api/v1/orders', 'waiter', 201,
         {table_session_id: fixture.sessionId})).id;
     }
     const order = fixture.orderId;
-    let current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+    current ??= await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+    expect(current.table_session_id, 'cleanup order belongs to own session').toBe(fixture.sessionId);
     if (current.status === 'NEW') {
       if (!current.items?.length) {
         if (!fixture.menu) throw new Error('CLEANUP REQUIRED: no mapped menu item');
