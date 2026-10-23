@@ -1,8 +1,8 @@
 import {randomUUID} from 'node:crypto';
-import {test, expect, type BrowserContext, type WebSocket, type WebSocketRoute} from '@playwright/test';
+import {test, expect, type WebSocket} from '@playwright/test';
 
 // Product UI acceptance for PR #42. The API component reconnect check is separate.
-test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, request, browser}, testInfo) => {
+test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, request}, testInfo) => {
   test.setTimeout(120_000);
   const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
   expect(base, 'approved staging').toBe('http://160.191.47.17');
@@ -15,12 +15,10 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
     menu?: MenuItem; note?: string} = {};
   const tokens: Record<string, string> = {};
   const sockets: WebSocket[] = [];
-  const kitchenRoutes: WebSocketRoute[] = [];
   const events: Array<{type: string; at: number}> = [];
   const queueReads: Array<{at: number; status: number}> = [];
   let holdReconnect = false;
   let releaseReconnect: (() => void) | undefined;
-  let waiterContext: BrowserContext | undefined;
 
   // Isolate the WebSocket path: the product's 5s/30s fallback polling must not
   // make a missing reconnect refresh appear to pass this test.
@@ -30,19 +28,33 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
       if (timeout === 5_000 || timeout === 30_000) return 0;
       return original(handler, timeout, ...args);
     }) as typeof window.setInterval;
+    const NativeWebSocket = window.WebSocket;
+    const kitchenSockets: InstanceType<typeof NativeWebSocket>[] = [];
+    window.WebSocket = class extends NativeWebSocket {
+      constructor(url: string | URL, protocols?: string | string[]) {
+        super(url, protocols);
+        const parsed = new URL(String(url), window.location.href);
+        if (parsed.pathname === '/api/v1/ws' && parsed.searchParams.get('channel') === 'kitchen') {
+          kitchenSockets.push(this);
+        }
+      }
+    } as typeof WebSocket;
+    (window as typeof window & {__qaCloseKitchenSocket: () => boolean}).__qaCloseKitchenSocket = () => {
+      const active = [...kitchenSockets].reverse().find(socket => socket.readyState === WebSocket.OPEN);
+      if (!active) return false;
+      active.close(4001, 'QA reconnect exercise');
+      return true;
+    };
   });
 
-  // Forward the real kitchen socket. During the recovery check, close that
-  // connection explicitly and hold the next handshake until the API changes.
-  // Browser offline emulation can leave an established socket open for longer
-  // than the test's five-second disconnect window.
+  // Forward the real kitchen socket. Hold the next handshake after the page
+  // closes its own live socket, until the API changes while disconnected.
   await page.routeWebSocket(/\/api\/v1\/ws(?:\?|$)/, async route => {
     const url = new URL(route.url());
     if (url.searchParams.get('channel') !== 'kitchen') {
       route.connectToServer();
       return;
     }
-    kitchenRoutes.push(route);
     if (holdReconnect) {
       await new Promise<void>(resolve => { releaseReconnect = resolve; });
     }
@@ -218,14 +230,18 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
     await page.getByRole('tab', {name: 'Đang chế biến'}).click();
     await expect(card).toHaveCount(0);
     holdReconnect = true;
-    await kitchenRoutes[0].close({code: 1011, reason: 'QA reconnect exercise'});
-    await expect.poll(() => sockets[0].isClosed(), {timeout: 5_000}).toBe(true);
+    const previousSocket = sockets.at(-1)!;
+    const previousSocketCount = sockets.length;
+    expect(await page.evaluate(() =>
+      (window as typeof window & {__qaCloseKitchenSocket: () => boolean}).__qaCloseKitchenSocket()),
+    'closed the active Kitchen WebSocket in the page').toBe(true);
+    await expect.poll(() => previousSocket.isClosed(), {timeout: 5_000}).toBe(true);
     await checked('POST', `/api/v1/orders/${fixture.orderId}/items/${fixture.itemId}/start-cooking`,
       'kitchen', 200);
     const onlineAt = Date.now();
     holdReconnect = false;
     releaseReconnect?.();
-    await expect.poll(() => sockets.length, {timeout: 20_000}).toBeGreaterThan(1);
+    await expect.poll(() => sockets.length, {timeout: 20_000}).toBeGreaterThan(previousSocketCount);
     await expect.poll(() => queueReads.filter(r => r.at >= onlineAt && r.status === 200).length,
       {timeout: 20_000}).toBeGreaterThan(0);
     await expect(card, 'missed Start Cooking recovered in KDS after reconnect').toHaveCount(1,
@@ -250,17 +266,16 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
       body: await card.screenshot(), contentType: 'image/png',
     });
 
-    waiterContext = await browser.newContext({baseURL: base});
-    const waiterPage = await waiterContext.newPage();
-    await waiterPage.goto('/login', {waitUntil: 'domcontentloaded'});
-    await waiterPage.getByLabel('Mã nhân viên', {exact: true}).fill('waiter');
-    await waiterPage.getByLabel('Mã PIN', {exact: true}).fill(pin!);
-    await waiterPage.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
-    await expect(waiterPage).toHaveURL(/\/tables$/, {timeout: 15_000});
-    await waiterPage.goto(`/tables/${fixture.table!.id}`, {waitUntil: 'domcontentloaded'});
-    await waiterPage.getByRole('button', {name: `Lấy món ${fixture.menu!.name}`}).click();
+    await page.getByRole('button', {name: 'Đăng xuất'}).click();
+    await expect(page).toHaveURL(/\/login$/, {timeout: 15_000});
+    await page.getByLabel('Mã nhân viên', {exact: true}).fill('waiter');
+    await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
+    await expect(page).toHaveURL(/\/tables$/, {timeout: 15_000});
+    await page.goto(`/tables/${fixture.table!.id}`, {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: `Lấy món ${fixture.menu!.name}`}).click();
     await expect.poll(itemStatus, {timeout: 20_000}).toBe('PICKED_UP');
-    await waiterPage.getByRole('button', {name: `Đã mang ra ${fixture.menu!.name}`}).click();
+    await page.getByRole('button', {name: `Đã mang ra ${fixture.menu!.name}`}).click();
     await expect.poll(itemStatus, {timeout: 20_000}).toBe('SERVED');
     console.log(`[TC_EXT_017] PASS: reconnect + REST resync; KDS PREPARING -> READY; ` +
       `Waiter PICKED_UP -> SERVED; own order ${fixture.orderId}; WS connections ${sockets.length}`);
@@ -277,7 +292,6 @@ test('TC_EXT_017 | KDS event delivery and reconnect REST resync', async ({page, 
         body: JSON.stringify({fixture, events, queueReads, socketCount: sockets.length}, null, 2),
         contentType: 'application/json',
       });
-      await waiterContext?.close();
     }
   }
 });
