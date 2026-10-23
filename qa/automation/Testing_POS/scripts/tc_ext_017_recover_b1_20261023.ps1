@@ -44,9 +44,14 @@ try {
   $waiterHeaders = @{ Authorization = "Bearer $($tokens.waiter)" }
   $cashierHeaders = @{ Authorization = "Bearer $($tokens.cashier)" }
 
-  $tables = @(Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $waiterHeaders -TimeoutSec 20)
+  # Invoke-RestMethod can return one collection object; avoid wrapping it in @(...).
+  $tables = Invoke-RestMethod -Uri "$base/api/v1/tables" -Headers $waiterHeaders -TimeoutSec 20
   $matched = @($tables | Where-Object { $_.code -eq 'B1' -and [string]$_.id -eq $tableId })
-  if ($matched.Count -ne 1) { throw 'B1 table identity changed; no mutation' }
+  if ($matched.Count -ne 1) {
+    $observed = @($tables | Where-Object { $_.code -eq 'B1' } |
+      ForEach-Object { "$($_.code):$($_.id):$($_.status)" }) -join ', '
+    throw "Expected one B1 id $tableId; observed [$observed]; no mutation"
+  }
   $table = Invoke-RestMethod -Uri "$base/api/v1/tables/$tableId" -Headers $waiterHeaders -TimeoutSec 20
   $order = Invoke-RestMethod -Uri "$base/api/v1/orders/$orderId" -Headers $waiterHeaders -TimeoutSec 20
   if ([string]$order.id -ne $orderId -or [string]$order.table_session_id -ne $sessionId) {
