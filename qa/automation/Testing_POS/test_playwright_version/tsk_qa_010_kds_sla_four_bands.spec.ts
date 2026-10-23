@@ -39,7 +39,7 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
   async function checked(method: 'GET' | 'POST', path: string, role: string,
     expected: number, data?: Record<string, unknown>) {
     const result = await call(method, path, tokens[role], data);
-    expect(result.status, `${method} ${path}`).toBe(expected);
+    expect(result.status, `${method} ${path}: ${JSON.stringify(result.body)}`).toBe(expected);
     return result.body;
   }
   async function ownTicket() {
@@ -52,13 +52,55 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
   }
   async function cleanup() {
     if (!fixture.sessionId) return;
-    if (!fixture.orderId) throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} session ${fixture.sessionId}`);
+    if (!fixture.orderId || !fixture.tableId) {
+      throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} session ${fixture.sessionId}`);
+    }
     const order = fixture.orderId;
-    await checked('POST', `/api/v1/orders/${order}/request-billing`, 'waiter', 200);
-    await checked('POST', `/api/v1/orders/${order}/pay`, 'cashier', 200);
-    await checked('POST', `/api/v1/orders/${order}/close`, 'cashier', 200);
-    const table = await checked('POST', `/api/v1/tables/${fixture.tableId}/mark-clean`, 'waiter', 200);
+    let table = await checked('GET', `/api/v1/tables/${fixture.tableId}`, 'waiter', 200);
+    let current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+    expect(current.table_session_id, 'owned order session').toBe(fixture.sessionId);
+    if (table.status === 'AVAILABLE' && !table.current_session && current.status === 'CLOSED') return;
+    if (table.current_session?.id !== fixture.sessionId) {
+      throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} session changed; owned ${fixture.sessionId}`);
+    }
+    if (current.status !== 'CLOSED') {
+      // Complete the owned cooking item before billing, as in the BE demo flow.
+      // The SLA assertion intentionally leaves it IN_PROGRESS for 15 minutes.
+      for (const item of current.items ?? []) {
+        const path = `/api/v1/orders/${order}/items/${item.id}`;
+        if (item.status === 'SENT') await checked('POST', `${path}/start-cooking`, 'kitchen', 200);
+        if (item.status === 'SENT' || item.status === 'PREPARING') {
+          await checked('POST', `${path}/mark-ready`, 'kitchen', 200);
+        }
+        if (['SENT', 'PREPARING', 'READY'].includes(item.status)) {
+          await checked('POST', `${path}/pickup`, 'waiter', 200);
+        }
+        if (['SENT', 'PREPARING', 'READY', 'PICKED_UP'].includes(item.status)) {
+          await checked('POST', `${path}/served`, 'waiter', 200);
+        }
+      }
+      current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+      if (current.status === 'SENT' || current.status === 'SERVED') {
+        expect(current.items.every((item: {status: string}) => item.status === 'SERVED'),
+          'owned items served before billing').toBe(true);
+        await checked('POST', `/api/v1/orders/${order}/request-billing`, 'waiter', 200);
+        current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+      }
+      if (current.status === 'BILLING') {
+        await checked('POST', `/api/v1/orders/${order}/pay`, 'cashier', 200);
+        current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+      }
+      if (current.status === 'PAID') await checked('POST', `/api/v1/orders/${order}/close`, 'cashier', 200);
+    }
+    current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
+    expect(current.status, 'own order closed before cleaning').toBe('CLOSED');
+    table = await checked('GET', `/api/v1/tables/${fixture.tableId}`, 'waiter', 200);
+    if (table.status === 'CLEANING') {
+      await checked('POST', `/api/v1/tables/${fixture.tableId}/mark-clean`, 'waiter', 200);
+    }
+    table = await checked('GET', `/api/v1/tables/${fixture.tableId}`, 'waiter', 200);
     expect(table.status, 'cleaned table').toBe('AVAILABLE');
+    expect(table.current_session, 'no open session after cleanup').toBeNull();
     console.log(`[TSK-QA-010] Cleanup: ${fixture.tableCode} AVAILABLE; order ${order} CLOSED`);
   }
 
