@@ -106,9 +106,9 @@ if ($preflightBlocked) {
   Write-Host '[TSK-QA-010] Fixture Pending. Playwright was not started; no new video or business PASS.'
 } else {
   if ($CleanupSmoke) {
-    Write-Host '[TSK-QA-010] Cleanup smoke only; four SLA bands and Expeditor remain untested.'
+    Write-Host '[TSK-QA-010] Short UI handoff and cleanup smoke only; four SLA bands, Expeditor and invoice export/print remain untested.'
   } else {
-    Write-Host '[TSK-QA-010] Check screenshots/JSON in Playwright report and CLEANUP REQUIRED in the log. Expeditor remains untested.'
+    Write-Host '[TSK-QA-010] Check four-band and READY/billing screenshots plus cleanup. Expeditor and invoice export/print remain untested.'
   }
 }
 exit $exitCode

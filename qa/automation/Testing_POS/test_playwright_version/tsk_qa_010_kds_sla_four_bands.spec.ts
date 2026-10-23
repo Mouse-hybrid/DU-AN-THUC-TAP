@@ -15,7 +15,8 @@ test(cleanupSmoke ? 'TSK-QA-010 | short cleanup smoke for one PREPARING item' :
   test.skip(!pin, 'Local staging PIN required');
 
   type Fixture = {tableId?: string; tableCode?: string; sessionId?: string;
-    orderId?: string; itemId?: string; ticketId?: string; stationId?: string; note?: string};
+    orderId?: string; itemId?: string; ticketId?: string; stationId?: string;
+    menuName?: string; note?: string};
   const fixture: Fixture = {};
   const tokens: Record<string, string> = {};
   const failures: string[] = [];
@@ -59,6 +60,83 @@ test(cleanupSmoke ? 'TSK-QA-010 | short cleanup smoke for one PREPARING item' :
     console.log(`[TSK-QA-010] CLEANUP PASS: ${fixture.tableCode} AVAILABLE; ` +
       `order ${fixture.orderId} CLOSED`);
   }
+  async function ownOrder() {
+    return await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200);
+  }
+  async function ownItemStatus() {
+    const current = await ownOrder();
+    return current.items.find((item: {id: string}) => item.id === fixture.itemId)?.status;
+  }
+  async function finishThroughUi() {
+    const card = page.locator('article.nova-kds-ticket').filter({hasText: fixture.note!});
+    await expect(card, 'own item in Đang chế biến').toHaveCount(1);
+    await card.getByRole('button',
+      {name: `Món xong ${fixture.menuName} bàn ${fixture.tableCode}`}).click();
+    await expect.poll(ownItemStatus, {timeout: 20_000}).toBe('READY');
+    await expect(card, 'ready item leaves Đang chế biến').toHaveCount(0);
+    await page.getByRole('tab', {name: 'Sẵn sàng'}).click();
+    await expect(card, 'ready item appears in Sẵn sàng').toHaveCount(1);
+    await testInfo.attach('TSK_QA_010_READY_handoff', {
+      body: await card.screenshot(), contentType: 'image/png',
+    });
+    console.log(`[TSK-QA-010] UI READY: ticket ${fixture.ticketId}; ` +
+      `visible in Sẵn sàng for Waiter pickup`);
+
+    await page.getByRole('button', {name: 'Đăng xuất'}).click();
+    await expect(page).toHaveURL(/\/login$/, {timeout: 15_000});
+    await page.getByLabel('Mã nhân viên', {exact: true}).fill('waiter');
+    await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
+    await expect(page).toHaveURL(/\/tables$/, {timeout: 15_000});
+    await page.goto(`/tables/${fixture.tableId}`, {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: `Lấy món ${fixture.menuName}`}).click();
+    await expect.poll(ownItemStatus, {timeout: 20_000}).toBe('PICKED_UP');
+    await page.getByRole('button', {name: `Đã mang ra ${fixture.menuName}`}).click();
+    await expect.poll(ownItemStatus, {timeout: 20_000}).toBe('SERVED');
+
+    await page.goto(`/tables/${fixture.tableId}/summary`, {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: 'Yêu cầu thanh toán đơn'}).click();
+    await page.getByRole('dialog', {name: 'Yêu cầu thanh toán?'})
+      .getByRole('button', {name: 'Yêu cầu thanh toán'}).click();
+    await expect.poll(async () => (await ownOrder()).status, {timeout: 20_000}).toBe('BILLING');
+    await page.goto('/tables', {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: 'Đăng xuất'}).click();
+    await expect(page).toHaveURL(/\/login$/, {timeout: 15_000});
+    await page.getByLabel('Mã nhân viên', {exact: true}).fill('cashier');
+    await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
+    await expect(page).toHaveURL(/\/tables$/, {timeout: 15_000});
+    await page.goto(`/tables/${fixture.tableId}/summary`, {waitUntil: 'domcontentloaded'});
+    const summary = page.locator('.nova-summary-card');
+    await expect(summary, 'Cashier sees billing summary').toBeVisible();
+    await testInfo.attach('TSK_QA_010_cashier_billing_summary', {
+      body: await summary.screenshot(), contentType: 'image/png',
+    });
+    await page.getByRole('button', {name: 'Xác nhận đơn đã thanh toán'}).click();
+    await page.getByRole('dialog', {name: 'Xác nhận đã thanh toán?'})
+      .getByRole('button', {name: 'Xác nhận đã thanh toán'}).click();
+    await expect.poll(async () => (await ownOrder()).status, {timeout: 20_000}).toBe('PAID');
+    console.log(`[TSK-QA-010] Payment UI: billing summary shown and simulated payment confirmed; ` +
+      `invoice export/print not tested`);
+
+    // There is no deployed UI action to close the paid order.
+    await checked('POST', `/api/v1/orders/${fixture.orderId}/close`, 'cashier', 200);
+    await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.tableId}`,
+      'waiter', 200)).status, {timeout: 20_000}).toBe('CLEANING');
+    await page.goto('/tables', {waitUntil: 'domcontentloaded'});
+    await page.getByRole('button', {name: 'Đăng xuất'}).click();
+    await expect(page).toHaveURL(/\/login$/, {timeout: 15_000});
+    await page.getByLabel('Mã nhân viên', {exact: true}).fill('waiter');
+    await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
+    await expect(page).toHaveURL(/\/tables$/, {timeout: 15_000});
+    await page.getByRole('button', {name: `Dọn xong bàn ${fixture.tableCode}`}).click();
+    await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.tableId}`,
+      'waiter', 200)).status, {timeout: 20_000}).toBe('AVAILABLE');
+    expect((await ownOrder()).status, 'own order after UI cleaning').toBe('CLOSED');
+    console.log(`[TSK-QA-010] UI LIFECYCLE PASS: item ${fixture.itemId} SERVED; ` +
+      `order ${fixture.orderId} CLOSED; ${fixture.tableCode} AVAILABLE`);
+  }
 
   try {
     await Promise.all(['waiter', 'kitchen', 'cashier'].map(login));
@@ -80,6 +158,7 @@ test(cleanupSmoke ? 'TSK-QA-010 | short cleanup smoke for one PREPARING item' :
     if (!mapped) console.log('[TSK-QA-010] PENDING: no available mapped menu item; no mutation');
     test.skip(!mapped, 'No mapped available menu item');
     fixture.stationId = mapped.station_id;
+    fixture.menuName = mapped.name;
     fixture.note = `TSK-QA-010-SLA-${randomUUID()}`;
 
     for (const table of available) {
@@ -127,7 +206,8 @@ test(cleanupSmoke ? 'TSK-QA-010 | short cleanup smoke for one PREPARING item' :
       const current = await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200);
       expect(current.items.find((item: {id: string}) => item.id === fixture.itemId)?.status,
         'own cooking item before short cleanup').toBe('PREPARING');
-      console.log('[TSK-QA-010] CLEANUP SMOKE: PREPARING fixture verified; exercising cleanup now');
+      console.log('[TSK-QA-010] CLEANUP SMOKE: PREPARING fixture verified; exercising UI handoff now');
+      await finishThroughUi();
       return;
     }
 
@@ -186,6 +266,7 @@ test(cleanupSmoke ? 'TSK-QA-010 | short cleanup smoke for one PREPARING item' :
       body: JSON.stringify({fixture, evidence, failures}, null, 2), contentType: 'application/json',
     });
     expect(failures, 'KDS SLA UI band mismatches').toEqual([]);
+    await finishThroughUi();
   } finally {
     try {
       await cleanup();
