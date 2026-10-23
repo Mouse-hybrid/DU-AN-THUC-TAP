@@ -1,10 +1,13 @@
 import {randomUUID} from 'node:crypto';
 import {test, expect} from '@playwright/test';
+import {completeOwnedKdsFixture} from './helpers/tsk010_cleanup.mjs';
 
 // TSK-QA-010 UI component: one owned ticket, real server time, four SLA bands.
 // The test records every band before reporting UI mismatches and always attempts fixture cleanup.
-test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({page, request}, testInfo) => {
-  test.setTimeout(20 * 60_000);
+const cleanupSmoke = process.env.KDS_CLEANUP_SMOKE === 'true';
+test(cleanupSmoke ? 'TSK-QA-010 | short cleanup smoke for one PREPARING item' :
+  'TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({page, request}, testInfo) => {
+  test.setTimeout(cleanupSmoke ? 90_000 : 20 * 60_000);
   const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
   expect(base, 'approved staging').toBe('http://160.191.47.17');
   const pin = process.env.KDS_STAGING_PIN;
@@ -52,62 +55,9 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
   }
   async function cleanup() {
     if (!fixture.sessionId) return;
-    if (!fixture.orderId || !fixture.tableId) {
-      throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} session ${fixture.sessionId}`);
-    }
-    const order = fixture.orderId;
-    let table = await checked('GET', `/api/v1/tables/${fixture.tableId}`, 'waiter', 200);
-    let current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
-    expect(current.table_session_id, 'owned order session').toBe(fixture.sessionId);
-    if (table.status === 'AVAILABLE' && !table.current_session && current.status === 'CLOSED') return;
-    const ownOpenSession = table.status === 'OCCUPIED' &&
-      table.current_session?.id === fixture.sessionId;
-    const ownPaidSession = table.status === 'CLEANING' && !table.current_session &&
-      ['PAID', 'CLOSED'].includes(current.status);
-    if (!ownOpenSession && !ownPaidSession) {
-      throw new Error(`CLEANUP REQUIRED: ${fixture.tableCode} state ${table.status}; ` +
-        `session ${table.current_session?.id ?? 'none'}; owned ${fixture.sessionId}; ` +
-        `order ${current.status}`);
-    }
-    if (current.status !== 'CLOSED') {
-      // Complete the owned cooking item before billing, as in the BE demo flow.
-      // The SLA assertion intentionally leaves it IN_PROGRESS for 15 minutes.
-      for (const item of current.items ?? []) {
-        const path = `/api/v1/orders/${order}/items/${item.id}`;
-        if (item.status === 'SENT') await checked('POST', `${path}/start-cooking`, 'kitchen', 200);
-        if (item.status === 'SENT' || item.status === 'PREPARING') {
-          await checked('POST', `${path}/mark-ready`, 'kitchen', 200);
-        }
-        if (['SENT', 'PREPARING', 'READY'].includes(item.status)) {
-          await checked('POST', `${path}/pickup`, 'waiter', 200);
-        }
-        if (['SENT', 'PREPARING', 'READY', 'PICKED_UP'].includes(item.status)) {
-          await checked('POST', `${path}/served`, 'waiter', 200);
-        }
-      }
-      current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
-      if (current.status === 'SENT' || current.status === 'SERVED') {
-        expect(current.items.every((item: {status: string}) => item.status === 'SERVED'),
-          'owned items served before billing').toBe(true);
-        await checked('POST', `/api/v1/orders/${order}/request-billing`, 'waiter', 200);
-        current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
-      }
-      if (current.status === 'BILLING') {
-        await checked('POST', `/api/v1/orders/${order}/pay`, 'cashier', 200);
-        current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
-      }
-      if (current.status === 'PAID') await checked('POST', `/api/v1/orders/${order}/close`, 'cashier', 200);
-    }
-    current = await checked('GET', `/api/v1/orders/${order}`, 'waiter', 200);
-    expect(current.status, 'own order closed before cleaning').toBe('CLOSED');
-    table = await checked('GET', `/api/v1/tables/${fixture.tableId}`, 'waiter', 200);
-    if (table.status === 'CLEANING') {
-      await checked('POST', `/api/v1/tables/${fixture.tableId}/mark-clean`, 'waiter', 200);
-    }
-    table = await checked('GET', `/api/v1/tables/${fixture.tableId}`, 'waiter', 200);
-    expect(table.status, 'cleaned table').toBe('AVAILABLE');
-    expect(table.current_session, 'no open session after cleanup').toBeNull();
-    console.log(`[TSK-QA-010] Cleanup: ${fixture.tableCode} AVAILABLE; order ${order} CLOSED`);
+    await completeOwnedKdsFixture(fixture, checked);
+    console.log(`[TSK-QA-010] CLEANUP PASS: ${fixture.tableCode} AVAILABLE; ` +
+      `order ${fixture.orderId} CLOSED`);
   }
 
   try {
@@ -173,6 +123,13 @@ test('TSK-QA-010 | KDS renders four SLA bands for one owned ticket', async ({pag
     console.log(`[TSK-QA-010] Fixture: ${fixture.tableCode}; order ${fixture.orderId}; ` +
       `item ${fixture.itemId}; ticket ${fixture.ticketId}; started_at ${own[0].started_at}`);
     await page.getByRole('tab', {name: 'Đang chế biến'}).click();
+    if (cleanupSmoke) {
+      const current = await checked('GET', `/api/v1/orders/${fixture.orderId}`, 'waiter', 200);
+      expect(current.items.find((item: {id: string}) => item.id === fixture.itemId)?.status,
+        'own cooking item before short cleanup').toBe('PREPARING');
+      console.log('[TSK-QA-010] CLEANUP SMOKE: PREPARING fixture verified; exercising cleanup now');
+      return;
+    }
 
     const bands = [
       {name: 'NORMAL', from: 0, until: 8, css: 'normal'},

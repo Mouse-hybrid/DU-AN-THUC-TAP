@@ -1,13 +1,24 @@
-param([string]$BaseUrl = 'http://160.191.47.17')
+param(
+  [string]$BaseUrl = 'http://160.191.47.17',
+  [string]$ExpectedCommit = '',
+  [switch]$CleanupSmoke
+)
 
 $ErrorActionPreference = 'Stop'
 $base = $BaseUrl.TrimEnd('/')
 if ($base -ne 'http://160.191.47.17') { throw 'TSK-QA-010 SLA run is restricted to approved staging' }
+if ($ExpectedCommit -and $ExpectedCommit -notmatch '^[0-9a-fA-F]{7,40}$') {
+  throw 'ExpectedCommit must be a 7-40 character Git commit prefix'
+}
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\DES-QA-06'
-$evidenceLog = Join-Path $evidenceDir ("TSK_QA_010_KDS_SLA_FOUR_BANDS_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$logPrefix = if ($CleanupSmoke) { 'TSK_QA_010_CLEANUP_SMOKE' } else { 'TSK_QA_010_KDS_SLA_FOUR_BANDS' }
+$evidenceLog = Join-Path $evidenceDir ("{0}_{1}.log" -f $logPrefix, (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 $unfixedCommit = '1c41cce58de2d9637f318e11cddae424f76d9278'
 $observedCommit = [string](Invoke-RestMethod -Method Get -Uri "$base/version" -TimeoutSec 20).commit
 if ($observedCommit -notmatch '^[0-9a-f]{40}$') { throw 'GET /version missing full commit' }
+if ($ExpectedCommit -and -not $observedCommit.StartsWith($ExpectedCommit, [StringComparison]::OrdinalIgnoreCase)) {
+  throw "Staging commit $observedCommit differs from expected $ExpectedCommit; no fixture created"
+}
 if ($observedCommit -eq $unfixedCommit) {
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
   '[TSK-QA-010] PENDING retest: staging 1c41cce predates PR #43 WARNING badge fix; no ticket created' |
@@ -26,7 +37,8 @@ try {
   New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
   $before = (Invoke-RestMethod -Method Get -Uri "$base/version" -TimeoutSec 20).commit
   if ($before -ne $observedCommit) { throw "Staging build changed before SLA run: $observedCommit -> $before" }
-  "[TSK-QA-010] SLA UI staging start $($before.Substring(0, 12)); one own ticket, four real-time bands" |
+  $mode = if ($CleanupSmoke) { 'short cleanup smoke' } else { 'four real-time bands' }
+  "[TSK-QA-010] SLA UI staging start $($before.Substring(0, 12)); one own ticket, $mode" |
     Tee-Object -FilePath $evidenceLog
 
   # Read-only fixture gate: print the reason for a pending/skip before Playwright starts.
@@ -56,6 +68,7 @@ try {
   } else {
     $env:BASE_URL = $base
     $env:KDS_STAGING_PIN = $pin
+    if ($CleanupSmoke) { $env:KDS_CLEANUP_SMOKE = 'true' }
     Push-Location (Split-Path -Parent $PSScriptRoot)
     try {
       $priorConsole = [Console]::OutputEncoding
@@ -80,7 +93,7 @@ try {
     $exitCode = 1
   }
 } finally {
-  Remove-Item Env:BASE_URL, Env:KDS_STAGING_PIN -ErrorAction SilentlyContinue
+  Remove-Item Env:BASE_URL, Env:KDS_STAGING_PIN, Env:KDS_CLEANUP_SMOKE -ErrorAction SilentlyContinue
   $pin = $null
   $credential = $null
   $auth = $null
@@ -92,6 +105,10 @@ Write-Host "TSK-QA-010 Terminal evidence: $evidenceLog"
 if ($preflightBlocked) {
   Write-Host '[TSK-QA-010] Fixture Pending. Playwright was not started; no new video or business PASS.'
 } else {
-  Write-Host '[TSK-QA-010] Check screenshots/JSON in Playwright report and CLEANUP REQUIRED in the log. Expeditor remains untested.'
+  if ($CleanupSmoke) {
+    Write-Host '[TSK-QA-010] Cleanup smoke only; four SLA bands and Expeditor remain untested.'
+  } else {
+    Write-Host '[TSK-QA-010] Check screenshots/JSON in Playwright report and CLEANUP REQUIRED in the log. Expeditor remains untested.'
+  }
 }
 exit $exitCode
