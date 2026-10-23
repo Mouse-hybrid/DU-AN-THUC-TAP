@@ -12,7 +12,8 @@ test('S2-UI-BIZ-01 | order, KDS, pickup, serve and simulated payment', async ({b
 
   type Table = {id: string; code: string; status: string; current_session_id?: string};
   type Item = {id: string; name: string; is_available: boolean; station_id: string};
-  type Order = {id: string; status: string; items: Array<{id: string; status: string; menu_item_id: string}>};
+  type Order = {id: string; table_session_id: string; status: string;
+    items: Array<{id: string; status: string; menu_item_id: string}>};
   const tokens: Record<string, string> = {};
   const fixture: {table?: Table; sessionId?: string; orderId?: string; itemId?: string; menu?: Item} = {};
   const contexts: BrowserContext[] = [];
@@ -57,9 +58,22 @@ test('S2-UI-BIZ-01 | order, KDS, pickup, serve and simulated payment', async ({b
   async function cleanup() {
     if (!fixture.sessionId || !fixture.table) return;
     const table = await checked('GET', `/api/v1/tables/${fixture.table.id}`, 'waiter', 200);
-    if (table.status === 'AVAILABLE' && !table.current_session) return;
-    if (table.current_session?.id !== fixture.sessionId) {
-      throw new Error(`CLEANUP REQUIRED: ${fixture.table.code} session changed; owned ${fixture.sessionId}`);
+    const existing = fixture.orderId ? await order() : undefined;
+    if (existing && existing.table_session_id !== fixture.sessionId) {
+      throw new Error(`CLEANUP REQUIRED: order ${fixture.orderId} belongs to another session`);
+    }
+    if (table.status === 'AVAILABLE' && !table.current_session) {
+      expect(existing?.status, 'owned order closed when table is available').toBe('CLOSED');
+      return;
+    }
+    const ownOpenSession = table.status === 'OCCUPIED' &&
+      table.current_session?.id === fixture.sessionId;
+    const ownPaidSession = table.status === 'CLEANING' && !table.current_session &&
+      existing && ['PAID', 'CLOSED'].includes(existing.status);
+    if (!ownOpenSession && !ownPaidSession) {
+      throw new Error(`CLEANUP REQUIRED: ${fixture.table.code} state ${table.status}; ` +
+        `session ${table.current_session?.id ?? 'none'}; owned ${fixture.sessionId}; ` +
+        `order ${existing?.status ?? 'none'}`);
     }
     if (!fixture.orderId) {
       const created = await checked('POST', '/api/v1/orders', 'waiter', 201,
@@ -67,7 +81,8 @@ test('S2-UI-BIZ-01 | order, KDS, pickup, serve and simulated payment', async ({b
       fixture.orderId = created.id;
       console.log(`[S2-UI] Recovery: created own order ${fixture.orderId} for session ${fixture.sessionId}`);
     }
-    let current = await order();
+    let current = existing ?? await order();
+    expect(current.table_session_id, 'cleanup order belongs to own session').toBe(fixture.sessionId);
     if (current.status === 'NEW') {
       if (current.items.length === 0) {
         if (!fixture.menu) throw new Error('CLEANUP REQUIRED: no mapped QA menu item');
@@ -88,6 +103,7 @@ test('S2-UI-BIZ-01 | order, KDS, pickup, serve and simulated payment', async ({b
     if (current.status === 'PAID') {
       await checked('POST', `/api/v1/orders/${fixture.orderId}/close`, 'cashier', 200);
     }
+    expect((await order()).status, 'owned order closed before cleaning').toBe('CLOSED');
     const cleaned = await checked('POST', `/api/v1/tables/${fixture.table.id}/mark-clean`,
       'waiter', 200);
     expect(cleaned.status, 'own QA table cleaned').toBe('AVAILABLE');
