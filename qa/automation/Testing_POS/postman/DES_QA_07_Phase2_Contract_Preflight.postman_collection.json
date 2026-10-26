@@ -1,0 +1,50 @@
+{
+  "info": {
+    "name": "DES-QA-07 | Sprint 3 API contract preflight (read-only)",
+    "description": "GET-only readiness inventory. Passing requests are not QR/Rewards/payment business testcase passes. Compare the same staging build before using this as evidence.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://160.191.47.17" },
+    { "key": "stagingCommit", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "PF-01 | Version before",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Version before: HTTP 200 and commit', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().commit).to.match(/^[0-9a-f]{40}$/); });",
+        "if (pm.response.code === 200) pm.collectionVariables.set('stagingCommit', pm.response.json().commit);"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/version" }
+    },
+    {
+      "name": "PF-02 | Health",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Health: HTTP 200', () => pm.response.to.have.status(200));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "PF-03 | Phase 2 OpenAPI inventory",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('OpenAPI: HTTP 200 and paths', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().paths).to.be.an('object'); });",
+        "if (pm.response.code === 200) {",
+        "  const paths = pm.response.json().paths;",
+        "  const patterns = { qr: /qr/i, rewards: /reward|customer|member/i, payment_v2: /payments|split-bill/i, table_advanced: /transfer|merge|split/i, modifier: /modifier/i, inventory: /ingredient|stock|recipe/i };",
+        "  const operations = Object.entries(paths).flatMap(([path, methods]) => Object.keys(methods).filter(m => /^(get|post|put|patch|delete)$/i.test(m)).map(method => `${method.toUpperCase()} ${path}`));",
+        "  Object.entries(patterns).forEach(([name, regex]) => { const found = operations.filter(x => regex.test(x)); console.log(`[DES-QA-07] ${name}: ${found.length} operation(s): ${found.join('; ') || 'none'}`); });",
+        "  console.log(`[DES-QA-07] OpenAPI: ${Object.keys(paths).length} paths, ${operations.length} REST operations. Readiness only; absent route => pending/blocked business test.`);",
+        "}",
+        "pm.test('No write operation executed by preflight', () => pm.expect(pm.request.method).to.eql('GET'));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/openapi.json" }
+    },
+    {
+      "name": "PF-04 | Version after",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Version after: same staging commit', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().commit).to.eql(pm.collectionVariables.get('stagingCommit')); });"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/version" }
+    }
+  ]
+}
