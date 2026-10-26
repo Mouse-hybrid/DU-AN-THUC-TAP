@@ -64,3 +64,8 @@ The board covers all Phase 2 through Sprint 3–4 (26/10–20/11). This two-week
 | Payment | Sandbox success, failure, timeout/UNKNOWN and signed callback fixtures | No real charge; reconcile payment attempts, order state and reward ledger |
 
 **Gate:** no QR/Rewards/payment write request until BE/PO/CRM confirms the specific contract, fixture ownership, and cleanup path. Do not reset shared staging as a substitute for isolated cleanup.
+
+## 7. Supporting QA design artifacts
+
+- `PLN_QA_03_QR_RW_Trace_2026-10-26.md`: one-to-one trace for QR-001..024 and RW-001..020, requirement ID, candidate contract and RFI. All remain Not Executed.
+- `ENV_QA_04_Fixture_Request_2026-10-26.md`: isolated fixture, ownership and cleanup requirements. No staging mutation has been authorized by this document.
