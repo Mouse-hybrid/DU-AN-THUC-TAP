@@ -37,8 +37,9 @@ const groups = Object.fromEntries(Object.entries(patterns).map(([name, regex]) =
   [name, operations.filter(op => regex.test(op.slice(op.indexOf(' ') + 1)))]));
 const result = {audit: 'DES-QA-07 read-only contract inventory', observed_at: new Date().toISOString(),
   commit: before.commit, path_count: Object.keys(paths).length, operation_count: operations.length,
-  groups, missing_groups: Object.keys(groups).filter(name => groups[name].length === 0),
-  conclusion: 'Readiness only. Missing endpoints are contract/fixture gates, not business testcase failures or passes.'};
+  groups, phase2_missing_groups: Object.keys(groups).filter(name =>
+    name !== 'inventory' && groups[name].length === 0),
+  conclusion: 'Readiness only. Inventory/BOM is a separate scope decision; no Phase 2 business testcase executed.'};
 const output = process.argv[2];
 if (output) {
   mkdirSync(dirname(output), { recursive: true });
