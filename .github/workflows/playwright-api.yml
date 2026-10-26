@@ -49,9 +49,14 @@ jobs:
           BASE_URL: http://160.191.47.17
 
       - name: Run Menu Integration Smoke Tests
-        run: npx playwright test menu-integration-smoke.spec.ts --project=chromium
+        run: |
+          if [ -z "$CUSTOMER_MENU_URL" ]; then
+            echo 'TC-FE-MENU-001 PENDING: chưa có Customer Menu URL/fixture; /customer là route cần đăng nhập.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          npx playwright test menu-integration-smoke.spec.ts --project=chromium
         env:
           BASE_URL: http://160.191.47.17
+          CUSTOMER_MENU_URL: ${{ secrets.CUSTOMER_MENU_URL }}
 
       - name: Upload Playwright Evidence
         if: always()
