@@ -5,20 +5,23 @@ import { test, expect } from '@playwright/test';
 test('TC_EXT_018 | diagnose configured Customer route', async ({ page }, testInfo) => {
   const target=process.env.CUSTOMER_MENU_URL;
   test.skip(!target, 'Set CUSTOMER_MENU_URL to a suspected customer route');
+  const redactPath = (path: string) => path.replace(/\/[A-Za-z0-9_-]{24,}(?=\/|$)/g, '/:token');
   const seen: Array<{method:string;path:string;status:number}> = [];
   page.on('response', response => {
     try {
       const u=new URL(response.url());
-      const path=u.pathname; // avoid query values which might contain tokens
+      const path=redactPath(u.pathname); // avoid query values and token-like path segments
       if (seen.length < 100) seen.push({method:response.request().method(),path,status:response.status()});
     } catch (_) { /* ignore non-HTTP URLs */ }
   });
   const response=await page.goto(target!, {waitUntil:'domcontentloaded',timeout:15000});
   await page.waitForTimeout(2000);
+  // Playwright accepts a relative target using baseURL; URL() needs an explicit base.
+  const requested=new URL(target!, process.env.BASE_URL || page.url());
   const report={
-    requested_url: new URL(target!).origin + new URL(target!).pathname,
+    requested_url: requested.origin + redactPath(requested.pathname),
     response_status:response?.status()??null,
-    final_path:new URL(page.url()).pathname,
+    final_path:redactPath(new URL(page.url()).pathname),
     page_title:await page.title(),
     menu_get_observed:seen.some(x=>x.method==='GET'&&x.path==='/api/v1/menu'),
     recorded_responses:seen
