@@ -5,6 +5,8 @@ trên DB local (SQLite hoặc Postgres, tùy DATABASE_URL).
 Tạo đủ 4 tài khoản staff theo đúng 4 role thật trong BRD (Cashier/Waiter/
 Kitchen/Supervisor) để test được ranh giới RBAC, không chỉ 1 tài khoản "admin"
 có toàn quyền; cùng menu mẫu (3 nhóm, 8 món, 2 trạm bếp) và 6 bàn B1–B6.
+Kèm 2 chi nhánh cho QA: QA 2 (không menu, thử cách ly) và QA 3 (đủ menu, chạy
+trọn luồng có ghi dữ liệu mà không đụng chi nhánh demo).
 
 Trên staging: scripts/deploy-staging.sh tự chạy script này sau mỗi lần migrate
 (CI/CD, không cần SSH). Mật khẩu 4 tài khoản lấy từ biến SEED_PASSWORD trong
@@ -90,6 +92,18 @@ QA_OUTLET_STAFF: dict[str, tuple[str, str]] = {
     "qa2_admin": ("SUPERVISOR", "Supervisor QA chi nhánh 2"),
     "qa2_cashier": ("CASHIER", "Cashier QA chi nhánh 2"),
 }
+# Chi nhánh thứ 3 cho QA chạy trọn luồng POS -> bếp -> thanh toán mà không đụng chi
+# nhánh demo: đủ menu mẫu, 2 trạm bếp, 4 vai. Chi nhánh QA 2 giữ KHÔNG có menu
+# (TC_API_03_004). Món QA3_SOLD_OUT_ITEM được reset --with-fixtures đặt hết hàng.
+QA3_OUTLET_NAME = "Chi nhánh QA 3 (luồng đầy đủ)"
+QA3_OUTLET_TABLES = (("Q3-1", 4), ("Q3-2", 4), ("Q3-3", 2))
+QA3_OUTLET_STAFF: dict[str, tuple[str, str]] = {
+    "qa3_admin": ("SUPERVISOR", "Supervisor QA chi nhánh 3"),
+    "qa3_cashier": ("CASHIER", "Cashier QA chi nhánh 3"),
+    "qa3_waiter": ("WAITER", "Waiter QA chi nhánh 3"),
+    "qa3_kitchen": ("KITCHEN", "Kitchen QA chi nhánh 3"),
+}
+QA3_SOLD_OUT_ITEM = "Nước cam"
 # CHỈ dùng khi APP_ENV=development (máy local). Môi trường khác bắt buộc env SEED_PASSWORD.
 DEV_SEED_PASSWORD = "password123"
 # Độ dài tối thiểu ngoài development. Tên hằng cố ý không chứa chữ "password":
@@ -166,6 +180,82 @@ def _ensure_qa_second_outlet(session, password, explicit) -> None:
             print(f"+ restaurant_table {code} (outlet QA 2)")
 
 
+def _ensure_menu_and_tables(session, outlet, tables, label: str = "") -> None:
+    """Trạm bếp, menu mẫu (SEED_MENU) và bàn cho một chi nhánh. Idempotent theo tên."""
+    stations: dict[str, KitchenStation] = {}
+    for station_name in SEED_STATIONS:
+        station = session.execute(
+            select(KitchenStation).where(
+                KitchenStation.outlet_id == outlet.id, KitchenStation.name == station_name
+            )
+        ).scalar_one_or_none()
+        if station is None:
+            station = KitchenStation(outlet_id=outlet.id, name=station_name)
+            session.add(station)
+            session.flush()
+            print(f"+ kitchen_station {station_name}: {station.id}")
+        stations[station_name] = station
+
+    for category_name, (sort_order, items) in SEED_MENU.items():
+        category = session.execute(
+            select(MenuCategory).where(
+                MenuCategory.outlet_id == outlet.id, MenuCategory.name == category_name
+            )
+        ).scalar_one_or_none()
+        if category is None:
+            category = MenuCategory(outlet_id=outlet.id, name=category_name, sort_order=sort_order)
+            session.add(category)
+            session.flush()
+            print(f"+ menu_category {category_name}: {category.id}")
+
+        for item_name, price, station_name in items:
+            menu_item = session.execute(
+                select(MenuItem).where(MenuItem.outlet_id == outlet.id, MenuItem.name == item_name)
+            ).scalar_one_or_none()
+            if menu_item is None:
+                menu_item = MenuItem(
+                    outlet_id=outlet.id,
+                    station_id=stations[station_name].id,
+                    category_id=category.id,
+                    name=item_name,
+                    price=price,
+                )
+                session.add(menu_item)
+                session.flush()
+                print(f"+ menu_item {item_name}: {menu_item.id}")
+            elif menu_item.category_id is None:
+                # Món seed từ bản cũ (trước khi có nhóm món) -> gán nhóm.
+                menu_item.category_id = category.id
+
+    for code, seats in tables:
+        table = session.execute(
+            select(RestaurantTable).where(
+                RestaurantTable.outlet_id == outlet.id, RestaurantTable.code == code
+            )
+        ).scalar_one_or_none()
+        if table is None:
+            table = RestaurantTable(outlet_id=outlet.id, code=code, seats=seats, status="AVAILABLE")
+            session.add(table)
+            session.flush()
+            print(f"+ restaurant_table {code}{label}: {table.id}")
+
+
+def _ensure_qa_third_outlet(session, password, explicit) -> None:
+    """Chi nhánh QA 3: đủ menu mẫu, trạm bếp, bàn Q3-1..Q3-3 và 4 vai, để QA chạy
+    trọn luồng có ghi dữ liệu mà không đụng chi nhánh demo."""
+    outlet = session.execute(
+        select(Outlet).where(Outlet.name == QA3_OUTLET_NAME)
+    ).scalar_one_or_none()
+    if outlet is None:
+        outlet = Outlet(name=QA3_OUTLET_NAME, address="Dữ liệu kiểm thử QA")
+        session.add(outlet)
+        session.flush()
+        print(f"+ outlet QA 3: {outlet.id}")
+    for username, (role, full_name) in QA3_OUTLET_STAFF.items():
+        _ensure_staff(session, outlet, username, role, full_name, password, explicit)
+    _ensure_menu_and_tables(session, outlet, QA3_OUTLET_TABLES, label=" (outlet QA 3)")
+
+
 def main() -> None:
     if SessionLocal is None:
         raise RuntimeError("DATABASE_URL chưa được set — xem docstring đầu file")
@@ -188,70 +278,10 @@ def main() -> None:
         for username, (role, full_name) in SEED_STAFF.items():
             _ensure_staff(session, outlet, username, role, full_name, password, explicit)
 
-        stations: dict[str, KitchenStation] = {}
-        for station_name in SEED_STATIONS:
-            station = session.execute(
-                select(KitchenStation).where(
-                    KitchenStation.outlet_id == outlet.id, KitchenStation.name == station_name
-                )
-            ).scalar_one_or_none()
-            if station is None:
-                station = KitchenStation(outlet_id=outlet.id, name=station_name)
-                session.add(station)
-                session.flush()
-                print(f"+ kitchen_station {station_name}: {station.id}")
-            stations[station_name] = station
-
-        for category_name, (sort_order, items) in SEED_MENU.items():
-            category = session.execute(
-                select(MenuCategory).where(
-                    MenuCategory.outlet_id == outlet.id, MenuCategory.name == category_name
-                )
-            ).scalar_one_or_none()
-            if category is None:
-                category = MenuCategory(
-                    outlet_id=outlet.id, name=category_name, sort_order=sort_order
-                )
-                session.add(category)
-                session.flush()
-                print(f"+ menu_category {category_name}: {category.id}")
-
-            for item_name, price, station_name in items:
-                menu_item = session.execute(
-                    select(MenuItem).where(
-                        MenuItem.outlet_id == outlet.id, MenuItem.name == item_name
-                    )
-                ).scalar_one_or_none()
-                if menu_item is None:
-                    menu_item = MenuItem(
-                        outlet_id=outlet.id,
-                        station_id=stations[station_name].id,
-                        category_id=category.id,
-                        name=item_name,
-                        price=price,
-                    )
-                    session.add(menu_item)
-                    session.flush()
-                    print(f"+ menu_item {item_name}: {menu_item.id}")
-                elif menu_item.category_id is None:
-                    # Món seed từ bản cũ (trước khi có nhóm món) -> gán nhóm.
-                    menu_item.category_id = category.id
-
-        for code, seats in SEED_TABLES:
-            table = session.execute(
-                select(RestaurantTable).where(
-                    RestaurantTable.outlet_id == outlet.id, RestaurantTable.code == code
-                )
-            ).scalar_one_or_none()
-            if table is None:
-                table = RestaurantTable(
-                    outlet_id=outlet.id, code=code, seats=seats, status="AVAILABLE"
-                )
-                session.add(table)
-                session.flush()
-                print(f"+ restaurant_table {code}: {table.id}")
+        _ensure_menu_and_tables(session, outlet, SEED_TABLES)
 
         _ensure_qa_second_outlet(session, password, explicit)
+        _ensure_qa_third_outlet(session, password, explicit)
 
         session.commit()
 
@@ -266,6 +296,8 @@ def main() -> None:
             print(f'  {role:<10} -> POST /api/v1/auth/login  {{"username": "{username}"}}')
         for username, (role, _) in QA_OUTLET_STAFF.items():
             print(f'  {role:<10} (chi nhánh QA 2) -> {{"username": "{username}"}}')
+        for username, (role, _) in QA3_OUTLET_STAFF.items():
+            print(f'  {role:<10} (chi nhánh QA 3) -> {{"username": "{username}"}}')
 
 
 if __name__ == "__main__":

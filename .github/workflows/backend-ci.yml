@@ -107,7 +107,7 @@ jobs:
             http://localhost:8080/api/v1/ws)
           echo "WebSocket handshake qua nginx: HTTP $code"
           [ "$code" = "403" ] || fail "WebSocket handshake tra $code, mong doi 403"
-          curl -s http://localhost:8080/ | grep -q 'POS System staging' || fail "chua co FE: / phai roi ve backend"
+          curl -s http://localhost:8080/ | grep -q 'NOVA POS API' || fail "chua co FE: / phai roi ve backend"
           echo '<!doctype html><title>FE-SMOKE</title>' > /tmp/fe-dist/index.html
           curl -s http://localhost:8080/ | grep -q 'FE-SMOKE' || fail "/ phai tra index.html cua FE"
           curl -s http://localhost:8080/tables | grep -q 'FE-SMOKE' || fail "duong dan SPA /tables phai tra index.html"

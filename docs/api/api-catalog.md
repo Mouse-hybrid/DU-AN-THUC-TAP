@@ -91,7 +91,7 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | 31 | POST | `/api/v1/orders/{id}/close` | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 32 | POST | `/api/v1/orders/{id}/items/{item_id}/void` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 33 | POST | `/api/v1/orders/{id}/items/{item_id}/refire` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
-| 34 | GET | `/api/v1/mock/summary` (+ trang `/pos`, `/kitchen`, `/customer`, `/admin`) | công khai | trang mock cũ | ✅ (sẽ bỏ) |
+| 34 | ~~GET~~ | ~~`/api/v1/mock/summary` (+ trang `/pos`, `/kitchen`, `/customer`, `/admin`)~~ | — | trang mock cũ | **Đã gỡ 28/10** |
 
 ### A7. Tra cứu nhật ký (chỉ Supervisor)
 
@@ -129,7 +129,7 @@ lại `GET /tables/{id}`; `reason = ITEM_READY` thì nhắc phục vụ ra lấy
 | `GET /orders` (danh sách) | Không có màn tra cứu order trong Pha 1 | **Pha 1**: QA tìm order làm fixture. **Pha 2**: màn tra cứu order, Audit/Report |
 | `GET /kitchen/queue?delayed_only=true` | Thuộc màn 33 Món trễ — FE làm sau cùng | **Pha 1** (19/10 theo kế hoạch) |
 | `/health`, `/ready`, `/version` | API vận hành, không dành cho giao diện | CI/CD, giám sát (đang dùng) |
-| `mock/summary` + trang mock | Trang giả từ Sprint 0, sẽ bị giao diện FE thay ở `/` | **Bỏ** sau khi FE deploy ổn định (Pha 1, sau 23/10) |
+| ~~`mock/summary` + trang mock~~ | Trang giả từ Sprint 0 | **Đã gỡ 28/10**; `/` của backend giờ chỉ trả chỉ dẫn tới `/docs` |
 
 ---
 

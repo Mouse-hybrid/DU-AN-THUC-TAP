@@ -11,7 +11,7 @@ Dành cho QA. Mọi payload dưới đây đã được chạy thử trên DB v�
 
 | Loại | Dữ liệu |
 |---|---|
-| Tài khoản | `admin` (SUPERVISOR), `cashier` (CASHIER), `waiter` (WAITER), `kitchen` (KITCHEN). Chi nhánh 2 (không có menu, cho TC_API_03_004 / TC_EXT_019): `qa2_admin` (SUPERVISOR), `qa2_cashier` (CASHIER). Mật khẩu chung: **staging** — BE nhắn riêng (biến `SEED_PASSWORD` trên server, không nằm trong repo); **máy local** — hằng `DEV_SEED_PASSWORD` trong file seed |
+| Tài khoản | `admin` (SUPERVISOR), `cashier` (CASHIER), `waiter` (WAITER), `kitchen` (KITCHEN). Chi nhánh 2 (không có menu, cho TC_API_03_004 / TC_EXT_019): `qa2_admin` (SUPERVISOR), `qa2_cashier` (CASHIER). Chi nhánh 3 (đủ menu mẫu, 2 trạm bếp, bàn Q3-1..Q3-3 — chạy trọn luồng có ghi dữ liệu mà không đụng chi nhánh demo): `qa3_admin` (SUPERVISOR), `qa3_cashier` (CASHIER), `qa3_waiter` (WAITER), `qa3_kitchen` (KITCHEN). Mật khẩu chung: **staging** — BE nhắn riêng (biến `SEED_PASSWORD` trên server, không nằm trong repo); **máy local** — hằng `DEV_SEED_PASSWORD` trong file seed |
 | Trạm bếp | Bếp chính, Quầy bar |
 | Nhóm món | Món khai vị (1), Món chính (2), Đồ uống (3) |
 | Món | Gỏi cuốn 35.000, Chả giò 40.000, Phở bò 45.000, Bún chả 50.000, Cơm tấm sườn 55.000 (Bếp chính); Trà đá 5.000, Cà phê sữa đá 25.000, Nước cam 30.000 (Quầy bar) |
@@ -117,7 +117,7 @@ Không có API xóa món: dùng "hết món" (`is_available: false`) để giữ
 Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 bàn B1–B6). Trước mỗi đợt test, mỗi lần diễn tập và trước buổi demo thì reset:
 
 1. GitHub → tab **Actions** → **Reset staging data** → **Run workflow** (nhánh `main`).
-2. `with_fixtures` (mặc định bật): tạo sẵn dữ liệu mẫu. `dry_run`: chỉ xem trước sẽ xóa gì.
+2. `with_fixtures` (mặc định bật): tạo sẵn dữ liệu mẫu. `dry_run` (**mặc định bật** từ 28/10): chỉ xem trước sẽ xóa gì — muốn xóa thật phải tự tắt ô này. `purge_extra_menu` (mặc định tắt): xóa món, nhóm món ngoài menu mẫu.
 3. Mở log của job để lấy `order_id` / `item_id` của dữ liệu mẫu.
 
 | Reset làm gì | Chi tiết |
@@ -131,6 +131,7 @@ Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 
 | **B6**: order `SERVED`, 2 món `SERVED` | Refire (TC_EXT_012/013), thanh toán. Tìm nhanh: `GET /api/v1/orders?status=SERVED` |
 | **B5**: order `SENT`, 1 món chờ bếp (`QUEUED`), 1 món đang nấu 9 phút (`WARNING`), 1 món đang nấu 16 phút (`CRITICAL`) | Hàng đợi bếp, SLA (TC_EXT_014), `?delayed_only=true` |
 | **Q2-1** (chi nhánh "Chi nhánh QA 2 (không menu)"): order NEW rỗng | Truy cập chéo chi nhánh (TC_EXT_019): tài khoản chi nhánh 1 gọi `GET /orders/{id}` → `404` |
+| **Chi nhánh QA 3**: món `Nước cam` hết hàng (`is_available=false`) | Gọi món hết hàng mà không đụng chi nhánh demo. Đăng nhập `qa3_waiter` |
 | **B1–B4** trống | Test thủ công mở bàn → gọi món |
 
 Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).

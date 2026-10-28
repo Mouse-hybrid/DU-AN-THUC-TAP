@@ -268,3 +268,39 @@ def test_reset_without_purge_keeps_qa_menu(client, seed, db_session_factory):
     session = db_session_factory()
     assert "DES06-QA-ITEM-1" in _menu_names(session)
     session.close()
+
+
+def test_qa_third_outlet_runs_full_flow_and_has_sold_out_fixture(client, seed, db_session_factory):
+    """Chi nhánh QA 3: đủ menu mẫu, 2 trạm, 4 vai; reset --with-fixtures đặt 1 món hết hàng.
+    Menu QA 3 trùng tên menu mẫu nên --purge-extra-menu không xóa."""
+    _add_fixture_tables_and_menu(db_session_factory, seed)
+    session = db_session_factory()
+    seed_script._ensure_qa_third_outlet(session, "password123", True)
+    seed_script._ensure_qa_third_outlet(session, "password123", True)  # chạy lại không trùng
+    session.commit()
+    preview = reset.run(session, apply=False, with_fixtures=False, purge_menu=True)
+    result = reset.run(session, apply=True, with_fixtures=True)
+    session.close()
+
+    qa3_names = {
+        name for _order, dishes in seed_script.SEED_MENU.values() for name, _p, _s in dishes
+    }
+    assert not qa3_names & set(preview.menu_items_purged)
+    assert any("Nước cam" in line and "QA 3" in line for line in result.fixtures)
+
+    waiter = login(client, "qa3_waiter")
+    menu = {m["name"]: m["is_available"] for m in client.get("/api/v1/menu", headers=waiter).json()}
+    assert set(menu) == qa3_names
+    assert menu[seed_script.QA3_SOLD_OUT_ITEM] is False
+    tables = {t["code"] for t in client.get("/api/v1/tables", headers=waiter).json()}
+    assert tables == {"Q3-1", "Q3-2", "Q3-3"}
+
+    kitchen = login(client, "qa3_kitchen")
+    stations = client.get("/api/v1/kitchen/stations", headers=kitchen).json()
+    assert {s["name"] for s in stations} == set(seed_script.SEED_STATIONS)
+    assert login(client, "qa3_admin") and login(client, "qa3_cashier")
+
+    # Cách ly: tài khoản chi nhánh test không thấy bàn của QA 3.
+    outlet1 = login(client, "supervisor_test")
+    codes = {t["code"] for t in client.get("/api/v1/tables", headers=outlet1).json()}
+    assert not codes & tables

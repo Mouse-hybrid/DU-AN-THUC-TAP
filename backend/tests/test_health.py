@@ -19,39 +19,15 @@ def test_readiness_identifies_environment():
     assert response.json()["database"] == "not_configured"
 
 
-def test_mock_summary_contains_all_screens():
-    response = client.get("/api/v1/mock/summary")
+def test_root_points_to_api_docs():
+    response = client.get("/")
     assert response.status_code == 200
-    assert response.json()["data_mode"] == "mock"
-    assert response.json()["screens"] == ["landing", "pos", "kitchen", "customer", "admin"]
+    assert response.json()["service"] == "NOVA POS API"
+    assert response.json()["docs"] == "/docs"
 
 
-def test_mock_pages_render():
-    expected_titles = {
-        "/": "POS System staging",
-        "/pos": "Staff POS",
-        "/kitchen": "Kitchen queue",
-        "/customer": "Customer menu",
-        "/admin": "Admin dashboard",
-    }
-    for path, title in expected_titles.items():
-        response = client.get(path)
-        assert response.status_code == 200
-        assert title in response.text
-        assert "Mock interface" in response.text
-
-
-def test_static_styles_are_available():
-    response = client.get("/static/styles.css")
-    assert response.status_code == 200
-    assert "--ink" in response.text
-
-
-def test_landing_and_admin_use_distinct_mock_experiences():
-    landing = client.get("/")
-    admin = client.get("/admin")
-
-    assert "PointFlow" in landing.text
-    assert "Một hệ thống" in landing.text
-    assert "Tổng quan vận hành" in admin.text
-    assert "Doanh thu hôm nay" in admin.text
+def test_sprint0_mock_pages_are_removed():
+    """Trang mock Sprint 0 đã gỡ (28/10): giao diện thật nằm ở frontend/."""
+    for path in ("/pos", "/kitchen", "/customer", "/admin", "/static/styles.css"):
+        assert client.get(path).status_code == 404
+    assert client.get("/api/v1/mock/summary").status_code == 404
