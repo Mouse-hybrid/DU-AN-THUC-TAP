@@ -29,7 +29,7 @@ POS_PASSWORD=<lấy từ BE, lưu ở secret>
    tắt `dry_run`). **Báo nhóm trước**; nên chạy **Backup staging DB** trước khi reset.
 3. Sau reset: B1–B4 trống; B5 có món ở bếp (SLA), B6 có đơn đã phục vụ; menu đúng 8 món mẫu.
 4. **Không tạo/sửa món trên chi nhánh demo.** Test có ghi dữ liệu (tạo món, chạy trọn luồng nhiều
-   lần) dùng chi nhánh QA 3 (`qa3_admin`, `qa3_cashier`, `qa3_waiter`, `qa3_kitchen`, bàn Q3-1..Q3-3).
+   lần) dùng khu thử nghiệm QA 3 (`qa3_admin`, `qa3_cashier`, `qa3_waiter`, `qa3_kitchen`, bàn Q3-1..Q3-3).
    Chi nhánh QA 2 cố ý không có menu, chỉ dùng cho test cách ly.
 
 Menu mẫu (seed) dùng trong test:

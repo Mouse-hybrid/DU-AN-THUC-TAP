@@ -19,8 +19,8 @@ khó dựng tay (refire TC_EXT_012/013, SLA TC_EXT_014):
   (SLA WARNING), 1 món đang nấu 16 phút (SLA CRITICAL).
 - bàn Q2-1 (chi nhánh QA 2, không có menu): order NEW rỗng để test truy cập
   chéo chi nhánh.
-- chi nhánh QA 3: món QA3_SOLD_OUT_ITEM (seed_dev_data.py) đặt hết hàng, để test
-  gọi món hết hàng mà không đụng chi nhánh demo.
+- khu thử nghiệm QA 3: món QA3_SOLD_OUT_ITEM (seed_dev_data.py) đặt hết hàng, để test
+  gọi món hết hàng mà không đụng dữ liệu demo.
 B1–B4 để trống cho test thủ công.
 
 Không bao giờ chạy với APP_ENV=production. Mặc định chỉ in ra sẽ xóa gì
@@ -336,7 +336,7 @@ def create_fixtures(session: Session) -> list[str]:
             f"{FIXTURE_OTHER_OUTLET_TABLE} (chi nhánh QA 2): order NEW rỗng order_id={q2_order.id}"
         )
 
-    # Chi nhánh QA 3 (đủ menu): 1 món hết hàng để test gọi món hết hàng. Reset vừa
+    # Khu thử nghiệm QA 3 (đủ menu): 1 món hết hàng để test gọi món hết hàng. Reset vừa
     # bật lại mọi món nên phải đặt lại sau bước đó.
     seed = _seed_module()
     sold_out = session.scalar(
@@ -346,7 +346,9 @@ def create_fixtures(session: Session) -> list[str]:
     )
     if sold_out is not None:
         sold_out.is_available = False
-        lines.append(f"Chi nhánh QA 3: món hết hàng '{sold_out.name}' menu_item_id={sold_out.id}")
+        lines.append(
+            f"Khu thử nghiệm QA 3: món hết hàng '{sold_out.name}' menu_item_id={sold_out.id}"
+        )
     return lines
 
 

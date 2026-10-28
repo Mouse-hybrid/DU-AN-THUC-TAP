@@ -271,7 +271,7 @@ def test_reset_without_purge_keeps_qa_menu(client, seed, db_session_factory):
 
 
 def test_qa_third_outlet_runs_full_flow_and_has_sold_out_fixture(client, seed, db_session_factory):
-    """Chi nhánh QA 3: đủ menu mẫu, 2 trạm, 4 vai; reset --with-fixtures đặt 1 món hết hàng.
+    """Khu thử nghiệm QA 3: đủ menu mẫu, 2 trạm, 4 vai; reset --with-fixtures đặt 1 món hết hàng.
     Menu QA 3 trùng tên menu mẫu nên --purge-extra-menu không xóa."""
     _add_fixture_tables_and_menu(db_session_factory, seed)
     session = db_session_factory()
@@ -300,7 +300,7 @@ def test_qa_third_outlet_runs_full_flow_and_has_sold_out_fixture(client, seed, d
     assert {s["name"] for s in stations} == set(seed_script.SEED_STATIONS)
     assert login(client, "qa3_admin") and login(client, "qa3_cashier")
 
-    # Cách ly: tài khoản chi nhánh test không thấy bàn của QA 3.
+    # Cách ly: tài khoản outlet test không thấy bàn của khu QA 3.
     outlet1 = login(client, "supervisor_test")
     codes = {t["code"] for t in client.get("/api/v1/tables", headers=outlet1).json()}
     assert not codes & tables

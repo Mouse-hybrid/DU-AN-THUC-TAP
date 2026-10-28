@@ -5,8 +5,9 @@ trên DB local (SQLite hoặc Postgres, tùy DATABASE_URL).
 Tạo đủ 4 tài khoản staff theo đúng 4 role thật trong BRD (Cashier/Waiter/
 Kitchen/Supervisor) để test được ranh giới RBAC, không chỉ 1 tài khoản "admin"
 có toàn quyền; cùng menu mẫu (3 nhóm, 8 món, 2 trạm bếp) và 6 bàn B1–B6.
-Kèm 2 chi nhánh cho QA: QA 2 (không menu, thử cách ly) và QA 3 (đủ menu, chạy
-trọn luồng có ghi dữ liệu mà không đụng chi nhánh demo).
+Kèm 2 khu dữ liệu thử cho QA (outlet riêng, KHÔNG phải chi nhánh thật — dự án là
+1 nhà hàng nhiều tầng): QA 2 (không menu, thử cách ly) và khu thử nghiệm QA 3 (đủ
+menu, chạy trọn luồng có ghi dữ liệu mà không đụng dữ liệu demo).
 
 Trên staging: scripts/deploy-staging.sh tự chạy script này sau mỗi lần migrate
 (CI/CD, không cần SSH). Mật khẩu 4 tài khoản lấy từ biến SEED_PASSWORD trong
@@ -92,16 +93,17 @@ QA_OUTLET_STAFF: dict[str, tuple[str, str]] = {
     "qa2_admin": ("SUPERVISOR", "Supervisor QA chi nhánh 2"),
     "qa2_cashier": ("CASHIER", "Cashier QA chi nhánh 2"),
 }
-# Chi nhánh thứ 3 cho QA chạy trọn luồng POS -> bếp -> thanh toán mà không đụng chi
-# nhánh demo: đủ menu mẫu, 2 trạm bếp, 4 vai. Chi nhánh QA 2 giữ KHÔNG có menu
-# (TC_API_03_004). Món QA3_SOLD_OUT_ITEM được reset --with-fixtures đặt hết hàng.
-QA3_OUTLET_NAME = "Chi nhánh QA 3 (luồng đầy đủ)"
+# Khu thử nghiệm QA 3 (outlet riêng, không phải chi nhánh thật): QA chạy trọn luồng
+# POS -> bếp -> thanh toán mà không đụng dữ liệu demo: đủ menu mẫu, 2 trạm bếp, 4 vai.
+# Outlet QA 2 giữ KHÔNG có menu (TC_API_03_004). Món QA3_SOLD_OUT_ITEM được reset
+# --with-fixtures đặt hết hàng.
+QA3_OUTLET_NAME = "Khu thử nghiệm QA (luồng đầy đủ)"
 QA3_OUTLET_TABLES = (("Q3-1", 4), ("Q3-2", 4), ("Q3-3", 2))
 QA3_OUTLET_STAFF: dict[str, tuple[str, str]] = {
-    "qa3_admin": ("SUPERVISOR", "Supervisor QA chi nhánh 3"),
-    "qa3_cashier": ("CASHIER", "Cashier QA chi nhánh 3"),
-    "qa3_waiter": ("WAITER", "Waiter QA chi nhánh 3"),
-    "qa3_kitchen": ("KITCHEN", "Kitchen QA chi nhánh 3"),
+    "qa3_admin": ("SUPERVISOR", "Supervisor QA khu thử nghiệm"),
+    "qa3_cashier": ("CASHIER", "Cashier QA khu thử nghiệm"),
+    "qa3_waiter": ("WAITER", "Waiter QA khu thử nghiệm"),
+    "qa3_kitchen": ("KITCHEN", "Kitchen QA khu thử nghiệm"),
 }
 QA3_SOLD_OUT_ITEM = "Nước cam"
 # CHỈ dùng khi APP_ENV=development (máy local). Môi trường khác bắt buộc env SEED_PASSWORD.
@@ -241,8 +243,8 @@ def _ensure_menu_and_tables(session, outlet, tables, label: str = "") -> None:
 
 
 def _ensure_qa_third_outlet(session, password, explicit) -> None:
-    """Chi nhánh QA 3: đủ menu mẫu, trạm bếp, bàn Q3-1..Q3-3 và 4 vai, để QA chạy
-    trọn luồng có ghi dữ liệu mà không đụng chi nhánh demo."""
+    """Khu thử nghiệm QA 3: đủ menu mẫu, trạm bếp, bàn Q3-1..Q3-3 và 4 vai, để QA chạy
+    trọn luồng có ghi dữ liệu mà không đụng dữ liệu demo."""
     outlet = session.execute(
         select(Outlet).where(Outlet.name == QA3_OUTLET_NAME)
     ).scalar_one_or_none()
@@ -250,10 +252,10 @@ def _ensure_qa_third_outlet(session, password, explicit) -> None:
         outlet = Outlet(name=QA3_OUTLET_NAME, address="Dữ liệu kiểm thử QA")
         session.add(outlet)
         session.flush()
-        print(f"+ outlet QA 3: {outlet.id}")
+        print(f"+ outlet khu thử nghiệm QA 3: {outlet.id}")
     for username, (role, full_name) in QA3_OUTLET_STAFF.items():
         _ensure_staff(session, outlet, username, role, full_name, password, explicit)
-    _ensure_menu_and_tables(session, outlet, QA3_OUTLET_TABLES, label=" (outlet QA 3)")
+    _ensure_menu_and_tables(session, outlet, QA3_OUTLET_TABLES, label=" (khu thử nghiệm QA 3)")
 
 
 def main() -> None:
@@ -297,7 +299,7 @@ def main() -> None:
         for username, (role, _) in QA_OUTLET_STAFF.items():
             print(f'  {role:<10} (chi nhánh QA 2) -> {{"username": "{username}"}}')
         for username, (role, _) in QA3_OUTLET_STAFF.items():
-            print(f'  {role:<10} (chi nhánh QA 3) -> {{"username": "{username}"}}')
+            print(f'  {role:<10} (khu thử nghiệm QA 3) -> {{"username": "{username}"}}')
 
 
 if __name__ == "__main__":
