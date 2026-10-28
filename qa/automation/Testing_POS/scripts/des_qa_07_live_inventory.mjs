@@ -28,7 +28,7 @@ const patterns = {
   payment_v2: /\/payments(?:\/|$)|\/split-bill(?:\/|$)/i,
   table_advanced: /\/tables\/(?:merge|[^/]+\/transfer)(?:\/|$)|\/orders\/[^/]+\/split(?:\/|$)/i,
   modifier: /\/modifiers?(?:\/|$)/i,
-  inventory: /\/(?:ingredients?|stock-levels|stock-movements|recipe)(?:\/|$)/i
+  inventory: /\/(?:inventory|bom|ingredients?|stock(?:-levels|-movements)?|recipes?)(?:\/|$)/i
 };
 const paths = spec.paths || {};
 const operations = Object.entries(paths).flatMap(([path, methods]) =>
