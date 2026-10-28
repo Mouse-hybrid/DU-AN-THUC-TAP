@@ -5,12 +5,12 @@ import { dirname } from 'node:path';
 
 const [inventoryPath, manifestPath, outputPath] = process.argv.slice(2);
 if (!inventoryPath) {
-  console.error('Usage: node env_qa_04_fixture_gate.mjs INVENTORY.json [FIXTURES.json] [EVIDENCE.json]');
+  console.error('Usage: node env_qa_04_fixture_gate.mjs INVENTORY.json [FIXTURES.json|-] [EVIDENCE.json]');
   process.exit(1);
 }
 const sha = s => typeof s === 'string' && /^[a-f0-9]{40}$/i.test(s);
 const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8'));
-const manifest = manifestPath ? JSON.parse(readFileSync(manifestPath, 'utf8')) : null;
+const manifest = manifestPath && manifestPath !== '-' ? JSON.parse(readFileSync(manifestPath, 'utf8')) : null;
 if (!sha(inventory.commit) || !inventory.groups || typeof inventory.groups !== 'object') {
   throw new Error('Invalid DES-QA-07 inventory: full commit and groups required');
 }
