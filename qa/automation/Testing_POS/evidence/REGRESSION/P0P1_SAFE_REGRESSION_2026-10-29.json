@@ -1,0 +1,36 @@
+{
+  "run_at_utc": "2026-10-29T01:29:16.140101+00:00",
+  "environment": "staging",
+  "build_before": "46d6049b7228bfe023a42c84269fb3fb8464be63",
+  "build_after": "46d6049b7228bfe023a42c84269fb3fb8464be63",
+  "preflight": {
+    "health_http": 200,
+    "openapi_http": 200,
+    "path_count": 31,
+    "rest_operations": 35
+  },
+  "business_regression": [
+    {
+      "tc_id": "TC_EXT_009",
+      "priority": "Critical / P0",
+      "method": "GET",
+      "path": "/api/v1/tables",
+      "expected_http": 401,
+      "actual_http": 401,
+      "assertion": "No Authorization; no table list",
+      "result": "PASSED"
+    },
+    {
+      "tc_id": "TC_API_01_003",
+      "priority": "High / P1",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "expected_http": 422,
+      "actual_http": 422,
+      "assertion": "Required username missing; no token",
+      "result": "PASSED"
+    }
+  ],
+  "scope": "Only two fixture-free Phase 1 cases; no Phase 2 business case executed.",
+  "secrets_recorded": false
+}
