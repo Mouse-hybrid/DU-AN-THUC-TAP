@@ -1,6 +1,6 @@
 # Backend FastAPI
 
-Backend nền của dự án POS sử dụng Python 3.11, FastAPI và PostgreSQL. Bản hiện tại phục vụ giao diện staging mock; chưa chứa nghiệp vụ POS thật.
+Backend nền của dự án POS sử dụng Python 3.11, FastAPI và PostgreSQL. Giao diện nằm ở `frontend/`; backend chỉ cung cấp API (Swagger tại `/docs`).
 
 ## Cài đặt trên Windows
 

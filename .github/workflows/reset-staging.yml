@@ -3,7 +3,8 @@ name: Reset staging data
 # Xoa phien ban/don/phieu bep da tao khi test, dua moi ban ve AVAILABLE; giu
 # menu, tai khoan, audit log. Xem backend/scripts/reset_staging_data.py.
 # purge_extra_menu: xoa mon/nhom mon khong thuoc menu mau (vd mon test QA tao qua
-# POST /menu). Nen bat dry_run truoc de xem danh sach se xoa.
+# POST /menu). dry_run mac dinh bat (tu 28/10) de bam nham khong xoa du lieu; xem
+# danh sach trong log roi chay lai voi dry_run tat. Nen Backup staging DB truoc.
 
 on:
   workflow_dispatch:
@@ -17,9 +18,9 @@ on:
         type: boolean
         default: false
       dry_run:
-        description: "Chi xem truoc se xoa gi, khong ghi"
+        description: "Chi xem truoc se xoa gi, khong ghi (mac dinh BAT: muon xoa that phai tu tat o nay)"
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read

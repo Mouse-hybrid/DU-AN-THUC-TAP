@@ -4,13 +4,10 @@ Monorepo nền cho hệ thống POS. Stack backend đã chốt: Python 3.11, Fas
 
 ## Staging foundation
 
-Bản tuần đầu cung cấp năm giao diện mock và các endpoint kiểm tra:
-
-- `/` — landing page
-- `/pos` — staff POS mock
-- `/kitchen` — kitchen queue mock
-- `/customer` — customer menu mock
-- `/admin` — admin dashboard mock
+Giao diện (React) nằm ở `frontend/`, API (FastAPI) ở `backend/`. Trên staging, nginx
+phục vụ giao diện ở `/` và chuyển `/api`, `/docs`, `/health`, `/ready`, `/version`
+xuống backend. Các trang mock của Sprint 0 (`/pos`, `/kitchen`, `/customer`, `/admin`)
+đã gỡ ngày 28/10 vì giao diện thật đã thay thế.
 - `/health` — liveness
 - `/ready` — readiness
 - `/docs` — OpenAPI

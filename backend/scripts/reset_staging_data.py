@@ -19,6 +19,8 @@ khó dựng tay (refire TC_EXT_012/013, SLA TC_EXT_014):
   (SLA WARNING), 1 món đang nấu 16 phút (SLA CRITICAL).
 - bàn Q2-1 (chi nhánh QA 2, không có menu): order NEW rỗng để test truy cập
   chéo chi nhánh.
+- khu thử nghiệm QA 3: món QA3_SOLD_OUT_ITEM (seed_dev_data.py) đặt hết hàng, để test
+  gọi món hết hàng mà không đụng dữ liệu demo.
 B1–B4 để trống cho test thủ công.
 
 Không bao giờ chạy với APP_ENV=production. Mặc định chỉ in ra sẽ xóa gì
@@ -57,6 +59,7 @@ from app.db.models import (  # noqa: E402
     Order,
     OrderItem,
     OrderVersion,
+    Outlet,
     RestaurantTable,
     Staff,
     TableSession,
@@ -97,13 +100,19 @@ def ensure_env_allowed(app_env: str) -> None:
         )
 
 
-def seed_menu_names() -> tuple[set[str], set[str]]:
-    """(tên món, tên nhóm món) của menu mẫu — lấy thẳng từ seed_dev_data.py để
-    hai script không lệch nhau."""
+def _seed_module():
+    """Nạp seed_dev_data.py để dùng chung hằng số (menu mẫu, chi nhánh QA)."""
     path = Path(__file__).resolve().with_name("seed_dev_data.py")
     spec = importlib.util.spec_from_file_location("seed_dev_data", path)
     seed = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(seed)
+    return seed
+
+
+def seed_menu_names() -> tuple[set[str], set[str]]:
+    """(tên món, tên nhóm món) của menu mẫu — lấy thẳng từ seed_dev_data.py để
+    hai script không lệch nhau."""
+    seed = _seed_module()
     items = {name for _order, dishes in seed.SEED_MENU.values() for name, _p, _s in dishes}
     return items, set(seed.SEED_MENU)
 
@@ -325,6 +334,20 @@ def create_fixtures(session: Session) -> list[str]:
         _, q2_order = _open_fixture_order(session, q2_table, q2_staff, order_status="NEW")
         lines.append(
             f"{FIXTURE_OTHER_OUTLET_TABLE} (chi nhánh QA 2): order NEW rỗng order_id={q2_order.id}"
+        )
+
+    # Khu thử nghiệm QA 3 (đủ menu): 1 món hết hàng để test gọi món hết hàng. Reset vừa
+    # bật lại mọi món nên phải đặt lại sau bước đó.
+    seed = _seed_module()
+    sold_out = session.scalar(
+        select(MenuItem)
+        .join(Outlet, MenuItem.outlet_id == Outlet.id)
+        .where(Outlet.name == seed.QA3_OUTLET_NAME, MenuItem.name == seed.QA3_SOLD_OUT_ITEM)
+    )
+    if sold_out is not None:
+        sold_out.is_available = False
+        lines.append(
+            f"Khu thử nghiệm QA 3: món hết hàng '{sold_out.name}' menu_item_id={sold_out.id}"
         )
     return lines
 

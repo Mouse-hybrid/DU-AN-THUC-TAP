@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "POS Staging API",
-    "description": "Backend foundation and mock screens for the POS project.",
+    "description": "Backend API cho hệ thống POS nhà hàng NOVA.",
     "version": "0.1.0"
   },
   "paths": {
@@ -2310,26 +2310,6 @@
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/mock/summary": {
-      "get": {
-        "summary": "Mock Summary",
-        "operationId": "mock_summary_api_v1_mock_summary_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Mock Summary Api V1 Mock Summary Get"
-                }
               }
             }
           }
