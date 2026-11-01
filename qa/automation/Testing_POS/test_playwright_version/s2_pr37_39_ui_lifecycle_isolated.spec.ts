@@ -70,6 +70,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     }
     if (table.status === 'AVAILABLE' && !table.current_session) {
       expect(existing?.status, 'owned order closed when table is available').toBe('CLOSED');
+      console.log(`[S2-UI] CLEANUP: ${fixture.table.code} AVAILABLE; order ${fixture.orderId} CLOSED`);
       return;
     }
     const ownOpenSession = table.status === 'OCCUPIED' &&
