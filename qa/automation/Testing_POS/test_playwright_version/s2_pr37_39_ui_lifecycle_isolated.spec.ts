@@ -3,7 +3,13 @@ import {expect, test, type BrowserContext, type Page} from '@playwright/test';
 
 // Open an available QA table and create its order through the product UI.
 // API reads assert persisted state; only order-close uses API because no UI action exists.
-test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({browser, request}, testInfo) => {
+// QA3_REHEARSAL uses only the isolated Q3 tables and seed accounts. It is not user UAT.
+const qa3Rehearsal = process.env.QA3_REHEARSAL === 'true';
+const tableCode = qa3Rehearsal ? /^Q3-[1-3]$/ : /^B[1-4]$/;
+const runId = qa3Rehearsal ? 'QA3-REHEARSAL-01' : 'S2-UI-BIZ-01';
+const account = (role: string) => qa3Rehearsal ? `qa3_${role}` : role;
+
+test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser, request}, testInfo) => {
   test.setTimeout(180_000);
   const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
   expect(base, 'approved staging only').toBe('http://160.191.47.17');
@@ -48,7 +54,7 @@ test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({brow
     contexts.push(context);
     const page = await context.newPage();
     await page.goto('/login', {waitUntil: 'domcontentloaded'});
-    await page.getByLabel('Mã nhân viên', {exact: true}).fill(role);
+    await page.getByLabel('Mã nhân viên', {exact: true}).fill(account(role));
     await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
     await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
     await expect(page).toHaveURL(new RegExp(role === 'kitchen' ? '/kitchen$' : '/tables$'),
@@ -87,7 +93,7 @@ test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({brow
       if (current.items.length === 0) {
         if (!fixture.menu) throw new Error('CLEANUP REQUIRED: no mapped QA menu item');
         await checked('POST', `/api/v1/orders/${fixture.orderId}/items`, 'waiter', 201,
-          {items: [{menu_item_id: fixture.menu.id, quantity: 1, note: 'S2-UI-BIZ-01 cleanup'}]});
+          {items: [{menu_item_id: fixture.menu.id, quantity: 1, note: `${runId} cleanup`}]});
       }
       await checked('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`, 'waiter', 200);
       current = await order();
@@ -113,18 +119,19 @@ test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({brow
   }
 
   try {
-    for (const role of ['waiter', 'kitchen', 'cashier']) {
+    for (const role of (qa3Rehearsal ? ['waiter', 'kitchen', 'cashier', 'admin'] :
+      ['waiter', 'kitchen', 'cashier'])) {
       const response = await request.post(base + '/api/v1/auth/login', {
-        data: {username: role, password: pin}, timeout: 20_000});
+        data: {username: account(role), password: pin}, timeout: 20_000});
       expect(response.status(), `${role} login`).toBe(200);
       tokens[role] = (await response.json()).access_token;
       expect(tokens[role], `${role} JWT`).toBeTruthy();
     }
     const tables = await checked('GET', '/api/v1/tables', 'waiter', 200) as Table[];
-    const available = tables.filter(t => /^B[1-4]$/.test(t.code) && t.status === 'AVAILABLE');
-    console.log(`[S2-UI] Fixture gate: ${tables.filter(t => /^B[1-4]$/.test(t.code))
+    const available = tables.filter(t => tableCode.test(t.code) && t.status === 'AVAILABLE');
+    console.log(`[S2-UI] Fixture gate: ${tables.filter(t => tableCode.test(t.code))
       .map(t => `${t.code}:${t.status}`).join(', ')}; available ${available.length}`);
-    test.skip(!available.length, 'PENDING: no AVAILABLE B1-B4; no mutation');
+    test.skip(!available.length, `PENDING: no AVAILABLE ${qa3Rehearsal ? 'Q3-1..Q3-3' : 'B1-B4'}; no mutation`);
     const menu = await checked('GET', '/api/v1/menu?available_only=true', 'waiter', 200) as Item[];
     fixture.menu = menu.find(item => item.is_available && Boolean(item.station_id));
     test.skip(!fixture.menu, 'PENDING: no available item mapped to Kitchen; no mutation');
@@ -210,8 +217,24 @@ test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({brow
     await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
       'waiter', 200)).status, {timeout: 20_000}).toBe('AVAILABLE');
     expect((await order()).status).toBe('CLOSED');
-    console.log(`[S2-UI] BUSINESS PASS: ${fixture.table!.code}; order ${fixture.orderId} CLOSED; ` +
-      `item ${fixture.itemId} SERVED; simulated staging payment; table AVAILABLE`);
+    if (qa3Rehearsal) {
+      await login('admin');
+      const audit = await checked('GET', `/api/v1/audit-logs?order_id=${fixture.orderId}`,
+        'admin', 200) as Array<{action: string; staff_username: string}>;
+      for (const [action, actor] of [
+        ['ORDER_CREATED', 'qa3_waiter'],
+        ['ORDER_ITEM_START_COOKING', 'qa3_kitchen'],
+        ['ORDER_PAID', 'qa3_cashier'],
+        ['ORDER_CLOSED', 'qa3_cashier'],
+      ]) {
+        expect(audit.some(row => row.action === action && row.staff_username === actor),
+          `${action} audited for ${actor}`).toBe(true);
+      }
+      console.log(`[QA3] Supervisor audit PASS: ${audit.length} rows for own order ${fixture.orderId}`);
+    }
+    console.log(`[S2-UI] ${qa3Rehearsal ? 'QA REHEARSAL' : 'BUSINESS'} PASS: ` +
+      `${fixture.table!.code}; order ${fixture.orderId} CLOSED; item ${fixture.itemId} SERVED; ` +
+      'simulated staging payment; table AVAILABLE');
   } finally {
     try {
       await cleanup();
@@ -220,8 +243,10 @@ test('S2-UI-BIZ-01 | open table, order, KDS, serve, pay and clean', async ({brow
         `order ${fixture.orderId}; ${String(error)}`);
       throw error;
     } finally {
-      await testInfo.attach('S2_UI_BIZ_01_fixture_and_states', {
-        body: JSON.stringify({fixture, observations, scope: 'UI lifecycle with API persistence checks'}, null, 2),
+      await testInfo.attach(`${runId}_fixture_and_states`, {
+        body: JSON.stringify({fixture, observations, scope: qa3Rehearsal ?
+          'QA3 rehearsal with API persistence checks; not user UAT' :
+          'UI lifecycle with API persistence checks'}, null, 2),
         contentType: 'application/json',
       });
       await Promise.all(contexts.map(context => context.close()));
