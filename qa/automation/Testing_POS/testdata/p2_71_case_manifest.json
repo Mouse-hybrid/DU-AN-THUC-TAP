@@ -1,0 +1,647 @@
+{
+  "schema_version": 1,
+  "source_filename": "POS_Testcase_71_Phase2_Bug_Report(2).xlsx",
+  "source_sha256": "82df9c5d0f4d21f153a5e8d2b7d2bb2eab03bc87b4ab4a6cfbf9c94e0f6df203",
+  "scope": "Phase 2 design baseline; readiness is not business execution",
+  "cases": [
+    {
+      "id": "P2-PAY-001",
+      "title": "Thanh toán CASH đủ số tiền",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Payment Processing; Board Pha 2",
+      "planned_operation": "POST /orders/{id}/payments",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-002",
+      "title": "Thanh toán CARD qua sandbox thành công",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Payment Processing",
+      "planned_operation": "POST /orders/{id}/payments",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-003",
+      "title": "Thanh toán QR Pay qua sandbox thành công",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Payment Processing",
+      "planned_operation": "POST /orders/{id}/payments",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-004",
+      "title": "Gateway trả thất bại và cho phép thử lại",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Payment failure recovery",
+      "planned_operation": "POST /orders/{id}/payments",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-005",
+      "title": "Callback lặp không tạo thanh toán trùng",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Payment confirmation; Data Consistency",
+      "planned_operation": "POST /payments/webhooks/{provider}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-006",
+      "title": "Callback sai chữ ký bị từ chối",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Payment Security",
+      "planned_operation": "POST /payments/webhooks/{provider}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-007",
+      "title": "Thiếu số tiền hoặc phương thức không hợp lệ",
+      "module": "Payment Processing",
+      "priority": "High",
+      "req_id": "BRD Payment Processing",
+      "planned_operation": "POST /orders/{id}/payments",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PAY"
+    },
+    {
+      "id": "P2-PAY-008",
+      "title": "Split bill tổng bằng bill gốc",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BR-SB-003/004/005/006/009",
+      "planned_operation": "POST /orders/{id}/split-bill",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-SPLIT"
+    },
+    {
+      "id": "P2-PAY-009",
+      "title": "Không chuyển món đã trả sang bill khác",
+      "module": "Payment Processing",
+      "priority": "High",
+      "req_id": "BR-SB-002/008",
+      "planned_operation": "POST /orders/{id}/split-bill",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-SPLIT"
+    },
+    {
+      "id": "P2-PAY-010",
+      "title": "Bấm xác nhận split hai lần",
+      "module": "Payment Processing",
+      "priority": "High",
+      "req_id": "BR-SB-010/011",
+      "planned_operation": "POST /orders/{id}/split-bill",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-SPLIT"
+    },
+    {
+      "id": "P2-PAY-011",
+      "title": "Cashier và Supervisor được thanh toán, Waiter bị chặn",
+      "module": "Payment Processing",
+      "priority": "Critical",
+      "req_id": "BRD Permission Matrix: Process Payment; catalog Pha 1 /pay",
+      "planned_operation": "POST /orders/{id}/payments",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-TBL-001",
+      "title": "Transfer giữ nguyên session/order/ticket",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BR-TT-001/002/004/005/010/011",
+      "planned_operation": "POST /tables/{id}/transfer",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-002",
+      "title": "Transfer sang bàn đang OCCUPIED bị chặn",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BR-TT-002",
+      "planned_operation": "POST /tables/{id}/transfer",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-003",
+      "title": "Transfer sau thanh toán bị chặn",
+      "module": "Table Management nâng cao",
+      "priority": "High",
+      "req_id": "BR-TT-003/009",
+      "planned_operation": "POST /tables/{id}/transfer",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-004",
+      "title": "Transfer đồng bộ KDS và QR đúng bàn",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BR-TT-005/006/007",
+      "planned_operation": "POST /tables/{id}/transfer",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-005",
+      "title": "Transfer lặp và concurrent không nhân đôi",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BR-TT-008/013",
+      "planned_operation": "POST /tables/{id}/transfer",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-006",
+      "title": "Transfer kiểm tra sức chứa",
+      "module": "Table Management nâng cao",
+      "priority": "High",
+      "req_id": "BR-TT-014",
+      "planned_operation": "POST /tables/{id}/transfer",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-007",
+      "title": "Merge hai bàn active vào master session",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BR-MT-003/004/005/006/013",
+      "planned_operation": "POST /tables/merge",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-008",
+      "title": "Merge bàn BILLING/CLEANING bị chặn",
+      "module": "Table Management nâng cao",
+      "priority": "High",
+      "req_id": "BR-MT-002; BRD Merge edge case",
+      "planned_operation": "POST /tables/merge",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-009",
+      "title": "Merge concurrent và double-tap",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BR-MT-009/011",
+      "planned_operation": "POST /tables/merge",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-010",
+      "title": "Merge giữ QR order và trạng thái CLEANING sau pay",
+      "module": "Table Management nâng cao",
+      "priority": "High",
+      "req_id": "BR-MT-007/014",
+      "planned_operation": "POST /tables/merge",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-011",
+      "title": "Split order/bàn giữ nguyên tổng và lịch sử",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "Board Pha 2 Split; catalog POST /orders/{id}/split",
+      "planned_operation": "POST /orders/{id}/split",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-TBL-012",
+      "title": "Cross-outlet transfer/merge/split bị từ chối",
+      "module": "Table Management nâng cao",
+      "priority": "Critical",
+      "req_id": "BRD table ownership; Permission Matrix",
+      "planned_operation": "POST /tables/{id}/transfer; POST /tables/merge; POST /orders/{id}/split",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-TABLE"
+    },
+    {
+      "id": "P2-USR-001",
+      "title": "Supervisor tạo staff theo role/outlet",
+      "module": "User & Permission",
+      "priority": "Critical",
+      "req_id": "BRD User & Permission: Role Management",
+      "planned_operation": "POST /staff",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-002",
+      "title": "Waiter/Cashier/Kitchen không quản lý staff",
+      "module": "User & Permission",
+      "priority": "Critical",
+      "req_id": "BRD User & Permission; catalog Role Management",
+      "planned_operation": "POST /staff; PATCH /staff/{id}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-003",
+      "title": "Supervisor đổi role và áp dụng quyền tức thời",
+      "module": "User & Permission",
+      "priority": "Critical",
+      "req_id": "BRD Permission Matrix",
+      "planned_operation": "PATCH /staff/{id}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-004",
+      "title": "Khóa và mở khóa staff QA",
+      "module": "User & Permission",
+      "priority": "High",
+      "req_id": "BRD Role Management; SEC-02",
+      "planned_operation": "POST /staff/{id}/lock; /unlock",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-005",
+      "title": "Reset password không lộ secret",
+      "module": "User & Permission",
+      "priority": "High",
+      "req_id": "BRD User & Permission; SEC-02",
+      "planned_operation": "POST /staff/{id}/reset-password",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-006",
+      "title": "PIN login sai N lần khóa tài khoản",
+      "module": "User & Permission",
+      "priority": "Critical",
+      "req_id": "SEC-02 (BE: chưa chốt PIN/lockout)",
+      "planned_operation": "POST /auth/pin-login",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PIN"
+    },
+    {
+      "id": "P2-USR-007",
+      "title": "Refresh token hết hạn và token bị thu hồi",
+      "module": "User & Permission",
+      "priority": "High",
+      "req_id": "SEC-02; catalog Pha 2",
+      "planned_operation": "POST /auth/refresh",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-008",
+      "title": "Bảng quyền POS/KDS/QR theo từng vai trò",
+      "module": "User & Permission",
+      "priority": "Critical",
+      "req_id": "BRD Permission Matrix 5 vai trò; current API RBAC",
+      "planned_operation": "Các write/read endpoints Phase 2",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-USR-009",
+      "title": "Staff outlet A không đọc/sửa staff outlet B",
+      "module": "User & Permission",
+      "priority": "Critical",
+      "req_id": "BRD outlet isolation",
+      "planned_operation": "GET/PATCH /staff/{id}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-AUD-001",
+      "title": "Tìm audit theo order/action/time",
+      "module": "Audit Search / Report",
+      "priority": "High",
+      "req_id": "BRD Audit & Logging; catalog A7",
+      "planned_operation": "GET /api/v1/audit-logs",
+      "contract_rfi": "Contract: Đã có Pha 1; RFI: P2-RFI-AUD"
+    },
+    {
+      "id": "P2-AUD-002",
+      "title": "Audit search phân trang ổn định",
+      "module": "Audit Search / Report",
+      "priority": "High",
+      "req_id": "BRD Audit & Logging; catalog A7",
+      "planned_operation": "GET /api/v1/audit-logs?limit=&offset=",
+      "contract_rfi": "Contract: Đã có Pha 1; RFI: P2-RFI-AUD"
+    },
+    {
+      "id": "P2-AUD-003",
+      "title": "Role thấp không đọc audit",
+      "module": "Audit Search / Report",
+      "priority": "Critical",
+      "req_id": "BRD Permission Matrix; catalog A7 Supervisor",
+      "planned_operation": "GET /api/v1/audit-logs",
+      "contract_rfi": "Contract: Đã có Pha 1; RFI: P2-RFI-AUD"
+    },
+    {
+      "id": "P2-AUD-004",
+      "title": "Xuất báo cáo audit khớp filter màn tra cứu",
+      "module": "Audit Search / Report",
+      "priority": "High",
+      "req_id": "Board Pha 2 Audit Search/Report",
+      "planned_operation": "GET /audit-logs/export [TBD]",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-AUD"
+    },
+    {
+      "id": "P2-AUD-005",
+      "title": "Audit cho payment/table/reward không thể sửa",
+      "module": "Audit Search / Report",
+      "priority": "Critical",
+      "req_id": "BRD Logging Rules immutable",
+      "planned_operation": "GET /api/v1/audit-logs; write actions",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-AUD"
+    },
+    {
+      "id": "P2-QR-001",
+      "title": "Cấp QR token ràng buộc bàn và session",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-004; Board Pha 2 QR",
+      "planned_operation": "POST /tables/{id}/qr-session",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-002",
+      "title": "Khách xem menu không đăng nhập",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-002/007",
+      "planned_operation": "GET /public/qr/{token}/menu",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-003",
+      "title": "Khách tạo QR order vào đúng session",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-004/006/009",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-004",
+      "title": "QR + POS order cùng session",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-009",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-005",
+      "title": "Lặp QR request không tạo hai order",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-005",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-006",
+      "title": "Hai khách cùng bàn gửi đồng thời",
+      "module": "QR Ordering",
+      "priority": "High",
+      "req_id": "BR-QR-004/005; QR edge cases",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-007",
+      "title": "Token sai/hết hạn/thu hồi bị chặn",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BRD Security QR public",
+      "planned_operation": "GET /public/qr/{token}/menu; POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-008",
+      "title": "Token bàn A không đọc order bàn B",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-004; outlet isolation",
+      "planned_operation": "GET /public/qr/{token}/orders/{id}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-009",
+      "title": "Không sửa order sau submit",
+      "module": "QR Ordering",
+      "priority": "High",
+      "req_id": "BR-QR-008",
+      "planned_operation": "QR modify/cancel endpoint (nếu có)",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-010",
+      "title": "Giá client sửa bị bỏ qua",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BRD QR cart; Data Consistency",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-011",
+      "title": "Modifier QR chuyển đúng trạm",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BRD Item customization; Modifier-based routing",
+      "planned_operation": "GET /menu/{id}/modifiers; POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-MOD"
+    },
+    {
+      "id": "P2-QR-012",
+      "title": "Modifier không hợp lệ bị từ chối nguyên tử",
+      "module": "QR Ordering",
+      "priority": "High",
+      "req_id": "BRD Item customization",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-MOD"
+    },
+    {
+      "id": "P2-QR-013",
+      "title": "Khách yêu cầu bill bằng QR đúng bàn",
+      "module": "QR Ordering",
+      "priority": "High",
+      "req_id": "BRD QR Ordering payment integration",
+      "planned_operation": "POST /public/qr/{token}/request-bill",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-014",
+      "title": "QR retry sau mất mạng giữ một order",
+      "module": "QR Ordering",
+      "priority": "Critical",
+      "req_id": "BR-QR-010; BRD network edge",
+      "planned_operation": "POST /public/qr/{token}/orders",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-QR"
+    },
+    {
+      "id": "P2-QR-015",
+      "title": "QR flow hoàn thành ≤30 giây",
+      "module": "QR Ordering",
+      "priority": "High",
+      "req_id": "BR-QR-001",
+      "planned_operation": "QR public menu/cart/submit flow",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PERF"
+    },
+    {
+      "id": "P2-RWD-001",
+      "title": "Tạo và tra customer QA theo SĐT",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Rewards customer identification",
+      "planned_operation": "POST /customers; GET /customers?phone=",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-002",
+      "title": "SĐT trùng không tạo hai profile",
+      "module": "Rewards System",
+      "priority": "High",
+      "req_id": "BRD Rewards identification",
+      "planned_operation": "POST /customers",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-003",
+      "title": "Tra cứu số điểm/lịch sử",
+      "module": "Rewards System",
+      "priority": "High",
+      "req_id": "BRD Rewards tracking",
+      "planned_operation": "GET /customers/{id}/rewards",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-004",
+      "title": "Kiểm eligibility trước áp ưu đãi",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Reward eligibility check",
+      "planned_operation": "GET /customers/{id}/rewards; POST /orders/{id}/apply-reward",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-005",
+      "title": "Áp reward vào order chưa thanh toán",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Rewards application ≤30 sec",
+      "planned_operation": "POST /orders/{id}/apply-reward",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-006",
+      "title": "Điểm không bị dùng hai lần",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Rewards tracking; Data Consistency",
+      "planned_operation": "POST /orders/{id}/apply-reward",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-007",
+      "title": "Gỡ reward trước payment",
+      "module": "Rewards System",
+      "priority": "High",
+      "req_id": "BRD Rewards correction",
+      "planned_operation": "DELETE /orders/{id}/rewards/{reward_id}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-008",
+      "title": "Không gỡ hoặc áp reward sau PAID",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Payment/Rewards integrity",
+      "planned_operation": "POST /orders/{id}/apply-reward; DELETE /orders/{id}/rewards/{reward_id}",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-009",
+      "title": "Payment failed không trừ điểm vĩnh viễn",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Payment failure recovery; Rewards",
+      "planned_operation": "POST /orders/{id}/apply-reward; payment callbacks",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-010",
+      "title": "Cross-outlet/customer không lộ điểm",
+      "module": "Rewards System",
+      "priority": "Critical",
+      "req_id": "BRD Data Protection; Rewards",
+      "planned_operation": "GET /customers/{id}/rewards",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-RWD-011",
+      "title": "Tích điểm sau pay đúng một lần",
+      "module": "Rewards System",
+      "priority": "High",
+      "req_id": "BRD Rewards tracking",
+      "planned_operation": "Payment confirmation + rewards ledger",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-RWD"
+    },
+    {
+      "id": "P2-MON-001",
+      "title": "Sentry nhận lỗi staging QA có context an toàn",
+      "module": "System Control & Monitoring",
+      "priority": "High",
+      "req_id": "Board Pha 2 System Control & Monitoring",
+      "planned_operation": "Sentry staging integration",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-MON"
+    },
+    {
+      "id": "P2-MON-002",
+      "title": "Không ghi secret trong log/error",
+      "module": "System Control & Monitoring",
+      "priority": "Critical",
+      "req_id": "BRD Data Protection; Logging Rules",
+      "planned_operation": "Auth, QR, payment and rewards errors",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-MON"
+    },
+    {
+      "id": "P2-MON-003",
+      "title": "Lỗi gateway báo trạng thái có thể retry",
+      "module": "System Control & Monitoring",
+      "priority": "High",
+      "req_id": "BRD fail gracefully; Payment failure",
+      "planned_operation": "Payment gateway sandbox",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-MON"
+    },
+    {
+      "id": "P2-MON-004",
+      "title": "SLA giám sát và delay escalation",
+      "module": "System Control & Monitoring",
+      "priority": "High",
+      "req_id": "BRD System Control & Monitoring",
+      "planned_operation": "Sentry/monitoring & kitchen queue",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-MON"
+    },
+    {
+      "id": "P2-MON-005",
+      "title": "RBAC regression API nhạy cảm sau thay role",
+      "module": "System Control & Monitoring",
+      "priority": "Critical",
+      "req_id": "Board Pha 2 Hardening; BRD Permission Matrix",
+      "planned_operation": "Payment/Table/Staff/Rewards writes",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-ROLE"
+    },
+    {
+      "id": "P2-ORD-001",
+      "title": "Stale expected_version bị 409 với current_version",
+      "module": "Order Control Pha 2",
+      "priority": "Critical",
+      "req_id": "S2-RFI-02; BE 22/10 Pha 2",
+      "planned_operation": "Order write + expected_version [TBD]",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-VER"
+    },
+    {
+      "id": "P2-ORD-002",
+      "title": "Replay cùng key và version không tạo lần ghi mới",
+      "module": "Order Control Pha 2",
+      "priority": "High",
+      "req_id": "S2-RFI-02; Idempotency-Key",
+      "planned_operation": "Order write + expected_version [TBD]",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-VER"
+    },
+    {
+      "id": "P2-ORD-003",
+      "title": "Void món đang nấu yêu cầu PIN Supervisor",
+      "module": "Order Control Pha 2",
+      "priority": "Critical",
+      "req_id": "S2-RFI-09; SEC-02 Pha 2",
+      "planned_operation": "POST /orders/{id}/items/{item_id}/void + PIN [TBD]",
+      "contract_rfi": "Contract: Đề xuất Pha 2; RFI: P2-RFI-PIN"
+    }
+  ]
+}
