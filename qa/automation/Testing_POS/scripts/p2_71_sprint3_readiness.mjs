@@ -46,7 +46,10 @@ const rows = manifest.cases.map(c => {
     business_execution:'NOT_EXECUTED_IN_THIS_RUN'};
 });
 const sprint3 = rows.filter(r => r.module === 'QR Ordering' || r.module === 'Rewards System');
-const result = {task:'Phase 2 Sprint 3 / 71-case readiness', checked_at:new Date().toISOString(),
+const checkedAt = new Date().toISOString();
+const stamp = checkedAt.replace(/\D/g, '').slice(0,14);
+const runId = `RUN-${stamp.slice(0,8)}-P2S3-${stamp.slice(8,14)}`;
+const result = {task:'Phase 2 Sprint 3 / 71-case readiness', run_id:runId, checked_at:checkedAt,
   staging_commit:inventory.commit, source_filename:manifest.source_filename,
   source_sha256:manifest.source_sha256, type:'READ_ONLY_GATE',
   counts:{baseline_cases:rows.length, sprint3_cases:sprint3.length,
@@ -61,6 +64,6 @@ const result = {task:'Phase 2 Sprint 3 / 71-case readiness', checked_at:new Date
   conclusion:'Readiness only. Missing contract/fixture leaves business testcase status Not Executed; do not log a business failure or Pass from this gate.'};
 mkdirSync(dirname(outputFile), {recursive:true});
 writeFileSync(outputFile, `${JSON.stringify(result,null,2)}\n`);
-console.log(JSON.stringify({task:result.task, staging_commit:result.staging_commit,
+console.log(JSON.stringify({task:result.task, run_id:result.run_id, staging_commit:result.staging_commit,
   counts:result.counts, output:outputFile, conclusion:result.conclusion},null,2));
 process.exitCode = result.counts.blocked ? 2 : 0;
