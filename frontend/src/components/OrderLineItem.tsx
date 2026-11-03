@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { components } from "../api/schema";
 import { formatVnd } from "../utils/format";
 import { Button } from "./Button";
@@ -15,9 +15,11 @@ interface OrderLineItemProps {
   removing?: boolean;
   onUpdate: (item: OrderItem, quantity: number, note: string | null) => void;
   onRemove: (item: OrderItem) => void;
+  /** Nút thao tác theo trạng thái món (ví dụ Lấy món), đặt cùng hàng với thành tiền. */
+  actions?: ReactNode;
 }
 
-export function OrderLineItem({ item, editable, updating = false, removing = false, onUpdate, onRemove }: OrderLineItemProps) {
+export function OrderLineItem({ item, editable, updating = false, removing = false, onUpdate, onRemove, actions }: OrderLineItemProps) {
   const [quantity, setQuantity] = useState(item.quantity);
   const [note, setNote] = useState(item.note ?? "");
 
@@ -88,7 +90,10 @@ export function OrderLineItem({ item, editable, updating = false, removing = fal
           {item.note ? <span>Ghi chú: {item.note}</span> : null}
         </div>
       )}
-      <strong className="nova-order-line-total">{formatVnd(item.line_total)}</strong>
+      <div className="nova-order-line-footer">
+        {actions}
+        <strong className="nova-order-line-total">{formatVnd(item.line_total)}</strong>
+      </div>
     </article>
   );
 }

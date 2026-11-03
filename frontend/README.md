@@ -137,7 +137,7 @@ Thời gian thực và mất mạng
 
 ## Đối chiếu giao diện với Figma (NOVA POS — UI/UX Screen System)
 
-Đã chỉnh theo frame Figma: khung chung (sidebar tối 188px, topbar có chi nhánh và chip vai trò, bảng màu "POS code · Vibrant"), màn 04 (thẻ thống kê, thẻ bàn theo màu trạng thái), màn 09 (thẻ món có ảnh 3 cột, nút "Gửi bếp" màu cam), màn 12 (một cột, ô tìm có biểu tượng, danh sách món, nút "Thêm món" cao 48px), màn 30–33 (phiếu bếp: huy hiệu bàn, đồng hồ, viền theo mức trễ, banner phiếu trễ nghiêm trọng), màn 19 (tóm tắt đơn 2 cột: danh sách món | tổng tiền và thao tác), màn 29 (đăng nhập bếp nền tối, thẻ trắng giữa trang), màn 102 (cột danh mục + bảng món + công tắc hiển thị), màn 103 (form 2 cột + xem trước trên POS).
+Đã chỉnh theo frame Figma: khung chung (sidebar tối 188px, topbar có chi nhánh và chip vai trò, bảng màu "POS code · Vibrant"), màn 04 (thẻ thống kê, thẻ bàn theo màu trạng thái), màn 05 (chi tiết bàn: nút Lấy món/Đã mang ra nằm trong dòng món, huy hiệu theo màu Figma), màn 06 (thẻ Mở bàn có biểu tượng cửa, ô bàn chỉ đọc), màn 09 (thẻ món có ảnh 3 cột, nút "Gửi bếp" màu cam), màn 12 (một cột, ô tìm có biểu tượng, danh sách món, nút "Thêm món" cao 48px), màn 30–33 (phiếu bếp: huy hiệu bàn, đồng hồ, viền theo mức trễ, banner phiếu trễ nghiêm trọng), màn 19 (tóm tắt đơn 2 cột: danh sách món | tổng tiền và thao tác), màn 29 (đăng nhập bếp nền tối, thẻ trắng giữa trang), màn 102 (cột danh mục + bảng món + công tắc hiển thị), màn 103 (form 2 cột + xem trước trên POS).
 
 Khác Figma có chủ đích (API chưa hỗ trợ, không giả dữ liệu):
 

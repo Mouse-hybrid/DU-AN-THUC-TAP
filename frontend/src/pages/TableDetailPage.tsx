@@ -142,15 +142,12 @@ export function TableDetailPage() {
   }
 
   return (
-    <AppShell
-      topbar={
-        <Link className="nova-back-link" to="/tables">
-          <Icon name="chevron-left" />
+    <AppShell>
+      <main className="nova-content">
+        <Link className="nova-back-link nova-back-link--inline" to="/tables">
+          <Icon name="arrow-left" />
           Quay lại sơ đồ bàn
         </Link>
-      }
-    >
-      <main className="nova-content">
         {state === "loading" ? <StateCard kind="loading" title="Đang tải chi tiết bàn" message="Vui lòng chờ trong giây lát." /> : null}
         {state === "error" ? <StateCard kind="error" title="Không thể tải chi tiết bàn" message={error} onRetry={() => void loadTable()} /> : null}
         {state === "ready" && stale ? (
@@ -177,7 +174,7 @@ export function TableDetailPage() {
                 {table.current_session && table.orders.length > 0 ? (
                   <Link className="nova-button nova-button--secondary" to={`/tables/${encodeURIComponent(table.id)}/summary`} aria-label={`Tóm tắt đơn bàn ${table.code}`}>Tóm tắt đơn</Link>
                 ) : null}
-                <Button variant="secondary" type="button" accessibleLabel="Làm mới chi tiết bàn" busy={refreshing} onClick={() => void loadTable(true)}>Làm mới</Button>
+                <Button variant="secondary" type="button" accessibleLabel="Làm mới chi tiết bàn" busy={refreshing} onClick={() => void loadTable(true)}><Icon name="refresh-cw" />Làm mới</Button>
               </div>
             </header>
 
@@ -210,13 +207,18 @@ export function TableDetailPage() {
                         {order.items.length > 0 ? (
                           <div className="nova-order-lines">
                             {order.items.map((item) => (
-                              <div key={item.id} className="nova-table-item-wrap">
-                                <OrderLineItem item={item} editable={false} onUpdate={noopItemUpdate} onRemove={noopItemRemove} />
-                                {item.status === "READY" || item.status === "PICKED_UP" ? (
+                              <OrderLineItem
+                                key={item.id}
+                                item={item}
+                                editable={false}
+                                onUpdate={noopItemUpdate}
+                                onRemove={noopItemRemove}
+                                actions={item.status === "READY" || item.status === "PICKED_UP" ? (
                                   <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
                                     <Button
                                       variant="primary"
                                       type="button"
+                                      className="nova-order-line-action"
                                       accessibleLabel={`${item.status === "READY" ? "Lấy món" : "Đã mang ra"} ${item.menu_item_name}`}
                                       busy={busyItemIds.has(item.id)}
                                       disabled={refreshing}
@@ -226,8 +228,8 @@ export function TableDetailPage() {
                                       {item.status === "READY" ? "Lấy món" : "Đã mang ra"}
                                     </Button>
                                   </RoleGuard>
-                                ) : null}
-                              </div>
+                                ) : undefined}
+                              />
                             ))}
                           </div>
                         ) : null}
