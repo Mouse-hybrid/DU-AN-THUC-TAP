@@ -6,6 +6,7 @@ import {
   listCategories,
   listMenu,
   updateCategory,
+  updateMenuItem,
   type MenuCategory,
   type MenuCategoryUpdate,
   type MenuItem,
@@ -13,6 +14,8 @@ import {
 import { consumeFlash, type FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
+import { Icon } from "../components/Icon";
+import { MenuThumb } from "../components/MenuThumb";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
@@ -95,7 +98,7 @@ function CategoryRow({ category, busy, disabled, onSave, onToggle }: CategoryRow
         {touched && orderError ? <p className="nova-field-error">{orderError}</p> : null}
       </div>
       <StatusBadge status={category.is_active ? "READY" : "UNAVAILABLE"} label={category.is_active ? "Đang bật" : "Đã tắt"} />
-      <div className="nova-admin-actions">
+      <div className="nova-admin-cell-actions">
         <Button
           variant="secondary"
           type="button"
@@ -134,6 +137,9 @@ export function AdminMenuPage() {
   const [createSubmitted, setCreateSubmitted] = useState(false);
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState<FlashMessage | null>(() => consumeFlash());
+  const [itemQuery, setItemQuery] = useState("");
+  const [itemCategory, setItemCategory] = useState<string | null>(null);
+  const [availFilter, setAvailFilter] = useState<"available" | "unavailable" | null>(null);
   const hasLoaded = useRef(false);
   const loadInFlight = useRef(false);
   const mutationInFlight = useRef(new Set<string>());
@@ -167,11 +173,22 @@ export function AdminMenuPage() {
   }, []);
 
   useEffect(() => {
-    document.title = "Quản lý nhóm món · NOVA POS";
+    document.title = "Thực đơn & danh mục · NOVA POS";
     void load();
   }, [load]);
 
   const categoryNames = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories]);
+  const availableCount = items.filter((item) => item.is_available).length;
+  const unavailableCount = items.length - availableCount;
+  const visibleItems = useMemo(() => {
+    const keyword = itemQuery.trim().toLowerCase();
+    return items.filter(
+      (item) =>
+        (itemCategory === null || item.category_id === itemCategory) &&
+        (availFilter === null || (availFilter === "available") === item.is_available) &&
+        (keyword === "" || item.name.toLowerCase().includes(keyword)),
+    );
+  }, [items, itemCategory, availFilter, itemQuery]);
   const nextSortOrder = useMemo(
     () => Math.min(MAX_SORT_ORDER, categories.reduce((max, category) => Math.max(max, category.sort_order), -1) + 1),
     [categories],
@@ -237,6 +254,13 @@ export function AdminMenuPage() {
     });
   }
 
+  function toggleItem(item: MenuItem) {
+    void runMutation(`item:${item.id}`, async () => {
+      await updateMenuItem(item.id, { is_available: !item.is_available }, createIdempotencyKey());
+      return item.is_available ? `Đã chuyển ${item.name} sang tạm hết.` : `Đã mở bán lại ${item.name}.`;
+    });
+  }
+
   const anyBusy = busyIds.size > 0;
 
   return (
@@ -252,8 +276,8 @@ export function AdminMenuPage() {
         <div className="nova-page-toolbar">
           <div className="nova-page-heading">
             <p className="nova-eyebrow">Quản trị · Thực đơn</p>
-            <h1>Quản lý nhóm món</h1>
-            <p>Thêm nhóm, đổi tên, đổi thứ tự hoặc bật/tắt nhóm món.</p>
+            <h1>Thực đơn &amp; danh mục</h1>
+            <p>{items.length} món · {categories.length} danh mục</p>
           </div>
           <div className="nova-toolbar-actions">
             <Button
@@ -266,6 +290,10 @@ export function AdminMenuPage() {
             >
               Làm mới
             </Button>
+            <Link className="nova-button nova-button--primary" to="/admin/menu/new" aria-label="Thêm món mới">
+              <Icon name="plus" />
+              Thêm món
+            </Link>
           </div>
         </div>
 
@@ -280,6 +308,91 @@ export function AdminMenuPage() {
 
         {state === "ready" ? (
           <>
+            <section className="nova-admin-menu" aria-label="Thực đơn">
+              <aside className="nova-admin-cats" aria-label="Danh mục">
+                <h2>Danh mục</h2>
+                <p>{categories.length} danh mục</p>
+                <ul>
+                  <li>
+                    <button type="button" className={`nova-admin-cat${itemCategory === null ? " nova-admin-cat--active" : ""}`} aria-pressed={itemCategory === null} onClick={() => setItemCategory(null)}>
+                      <span>Tất cả</span><strong>{items.length}</strong>
+                    </button>
+                  </li>
+                  {categories.map((category) => (
+                    <li key={category.id}>
+                      <button type="button" className={`nova-admin-cat${itemCategory === category.id ? " nova-admin-cat--active" : ""}`} aria-pressed={itemCategory === category.id} onClick={() => setItemCategory(category.id)}>
+                        <span>{category.name}</span><strong>{items.filter((item) => item.category_id === category.id).length}</strong>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+
+              <div className="nova-admin-items">
+                <div className="nova-admin-items-toolbar">
+                  <div className="nova-search-bar nova-search-bar--compact">
+                    <Icon name="search" />
+                    <input type="search" autoComplete="off" aria-label="Tìm món trong thực đơn" placeholder="Tìm món…" value={itemQuery} onChange={(event) => setItemQuery(event.target.value)} />
+                  </div>
+                  <button type="button" className={`nova-pill${availFilter === "available" ? " nova-pill--active" : ""}`} aria-pressed={availFilter === "available"} onClick={() => setAvailFilter(availFilter === "available" ? null : "available")}>
+                    Đang bán <strong>{availableCount}</strong>
+                  </button>
+                  <button type="button" className={`nova-pill${availFilter === "unavailable" ? " nova-pill--active" : ""}`} aria-pressed={availFilter === "unavailable"} onClick={() => setAvailFilter(availFilter === "unavailable" ? null : "unavailable")}>
+                    Tạm hết <strong>{unavailableCount}</strong>
+                  </button>
+                </div>
+
+                {items.length === 0 ? (
+                  <StateCard kind="empty" title="Chưa có món" message="Hãy thêm món đầu tiên." />
+                ) : visibleItems.length === 0 ? (
+                  <StateCard kind="empty" title="Không có món phù hợp" message="Hãy đổi từ khóa, danh mục hoặc bộ lọc." />
+                ) : (
+                  <div className="nova-admin-table-wrap">
+                    <table className="nova-admin-table">
+                      <thead>
+                        <tr><th scope="col">Món</th><th scope="col" className="nova-num">Giá bán</th><th scope="col">Hiển thị</th><th scope="col"><span className="nova-visually-hidden">Thao tác</span></th></tr>
+                      </thead>
+                      <tbody>
+                        {visibleItems.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <div className="nova-admin-item-cell">
+                                <MenuThumb name={item.name} className="nova-menu-row-thumb nova-menu-row-thumb--small" />
+                                <div>
+                                  <strong>{item.name}</strong>
+                                  <p>{item.category_id ? categoryNames.get(item.category_id) ?? "Nhóm không xác định" : "Chưa gán nhóm"}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="nova-num"><strong>{formatVnd(item.price)}</strong></td>
+                            <td>
+                              <button
+                                type="button"
+                                role="switch"
+                                className="nova-switch"
+                                aria-checked={item.is_available}
+                                aria-label={`${item.is_available ? "Tạm hết" : "Mở bán"} ${item.name}`}
+                                disabled={busyIds.has(`item:${item.id}`) || creating}
+                                onClick={() => toggleItem(item)}
+                              />
+                              <span className="nova-switch-label">{item.is_available ? "Đang bán" : "Tạm hết"}</span>
+                            </td>
+                            <td className="nova-admin-cell-actions">
+                              <Link className="nova-icon-button" to={`/admin/menu/${encodeURIComponent(item.id)}/edit`} aria-label={`Sửa món ${item.name}`}>
+                                <Icon name="pencil" />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="nova-admin-table-footer">Hiển thị {visibleItems.length} trên {items.length} món</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <h2 className="nova-admin-subheading">Quản lý nhóm món</h2>
             <section className="nova-admin-section" aria-labelledby="nova-add-category-title">
               <h2 id="nova-add-category-title">Thêm nhóm món</h2>
               <form className="nova-admin-add-form" noValidate onSubmit={(event) => void handleCreate(event)}>
@@ -334,35 +447,6 @@ export function AdminMenuPage() {
               )}
             </section>
 
-            <section className="nova-admin-section" aria-labelledby="nova-item-list-title">
-              <div className="nova-section-heading">
-                <div><h2 id="nova-item-list-title">Món ăn</h2><p>Chọn món để sửa giá, nhóm, trạm bếp hoặc bật/tắt bán.</p></div>
-                <Link className="nova-button nova-button--primary" to="/admin/menu/new" aria-label="Thêm món mới">Thêm món</Link>
-              </div>
-              {items.length === 0 ? (
-                <StateCard kind="empty" title="Chưa có món" message="Hãy thêm món đầu tiên." />
-              ) : (
-                <ul className="nova-admin-list">
-                  {items.map((item) => (
-                    <li key={item.id} className="nova-admin-item-row">
-                      <div>
-                        <strong>{item.name}</strong>
-                        <p>{item.category_id ? categoryNames.get(item.category_id) ?? "Nhóm không xác định" : "Chưa gán nhóm"}</p>
-                      </div>
-                      <strong>{formatVnd(item.price)}</strong>
-                      <StatusBadge status={item.is_available ? "READY" : "UNAVAILABLE"} label={item.is_available ? "Đang bán" : "Hết món"} />
-                      <Link
-                        className="nova-button nova-button--secondary"
-                        to={`/admin/menu/${encodeURIComponent(item.id)}/edit`}
-                        aria-label={`Sửa món ${item.name}`}
-                      >
-                        Sửa
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
           </>
         ) : null}
       </main>

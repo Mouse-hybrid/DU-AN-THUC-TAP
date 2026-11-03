@@ -13,9 +13,7 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { MenuCategoryTabs } from "../components/MenuCategoryTabs";
 import { MenuItemCard } from "../components/MenuItemCard";
-import { OrderSummary } from "../components/OrderSummary";
 import { StateCard } from "../components/StateCard";
-import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
 import { orderErrorMessage } from "../utils/errorMessages";
 import { addMenuItemToOrder, resolveTableOrder } from "../utils/orderComposer";
@@ -112,7 +110,7 @@ export function MenuSearchPage() {
   }, []);
 
   useEffect(() => {
-    document.title = "Tìm món nhanh · NOVA POS";
+    document.title = "Tìm món · NOVA POS";
     void loadTable();
     void listCategories(true)
       .then(setCategories)
@@ -160,18 +158,10 @@ export function MenuSearchPage() {
         {pageState === "error" ? <StateCard kind="error" title="Không thể mở màn tìm món" message={pageError} onRetry={() => void loadTable()} /> : null}
         {pageState === "ready" && table ? (
           <>
-            <header className="nova-order-page-header">
-              <div className="nova-page-heading">
-                <p className="nova-eyebrow">POS · Gọi món</p>
-                <h1>Tìm món nhanh</h1>
-                <p>Bàn {table.code} · {table.current_session?.guest_count ?? 0} khách</p>
-              </div>
-              <div className="nova-order-header-actions">
-                {order ? <StatusBadge status={order.status} /> : <StatusBadge status="NEW" label="Chưa tạo đơn" />}
-                <Link className="nova-button nova-button--secondary" to={orderPath} aria-label={`Mở màn gọi món bàn ${table.code}`}>
-                  Xem đơn
-                </Link>
-              </div>
+            <header className="nova-page-heading nova-search-heading">
+              <p className="nova-eyebrow">POS · Gọi món</p>
+              <h1>Tìm món</h1>
+              <p>Bàn {table.code} · {table.current_session?.guest_count ?? 0} khách</p>
             </header>
 
             {pageStale ? (
@@ -181,75 +171,66 @@ export function MenuSearchPage() {
               </section>
             ) : null}
 
-            <div className="nova-order-layout">
-              <section className="nova-menu-panel" aria-labelledby="nova-search-title">
-                <div className="nova-section-heading">
-                  <div><h2 id="nova-search-title">Kết quả tìm kiếm</h2><p>Tìm theo tên món, hoặc lọc theo nhóm món.</p></div>
-                </div>
-                <div className="nova-field nova-search-field">
-                  <label htmlFor="nova-menu-search">Tìm theo tên món</label>
-                  <input
-                    id="nova-menu-search"
-                    type="search"
-                    autoComplete="off"
-                    placeholder="Ví dụ: phở bò"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                </div>
-                <MenuCategoryTabs categories={categories} selectedId={selectedCategory} onChange={setSelectedCategory} />
-                {readOnly ? <p className="nova-readonly-note">{readOnlyNote}</p> : null}
-                {!canWrite && !readOnly ? <p className="nova-readonly-note">Bạn chỉ có quyền xem thực đơn.</p> : null}
-                {menuState === "ready" && menuStale ? (
-                  <section className="nova-stale-notice" role="alert">
-                    <div><strong>Dữ liệu có thể đã cũ</strong><p>{menuError}</p></div>
-                    <Button variant="secondary" type="button" accessibleLabel="Thử tải lại kết quả tìm món" onClick={() => void loadMenu(debouncedQuery, selectedCategory)}>Thử lại</Button>
-                  </section>
-                ) : null}
-                {menuState === "loading" ? <StateCard kind="loading" title="Đang tải thực đơn" message="Vui lòng chờ trong giây lát." /> : null}
-                {menuState === "error" ? <StateCard kind="error" title="Không thể tải thực đơn" message={menuError} onRetry={() => void loadMenu(debouncedQuery, selectedCategory)} /> : null}
+            <section className="nova-search-section" aria-label="Tìm món">
+              <div className="nova-search-bar">
+                <Icon name="search" />
+                <input
+                  id="nova-menu-search"
+                  type="search"
+                  autoComplete="off"
+                  aria-label="Tìm theo tên món"
+                  placeholder="Ví dụ: phở bò"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
                 {menuState === "ready" ? (
-                  <p className="nova-search-meta" role="status" aria-live="polite">
-                    {searching ? "Đang tìm…" : `${menuItems.length} món`}
-                  </p>
+                  <span className="nova-search-meta" role="status" aria-live="polite">
+                    {searching ? "Đang tìm…" : trimmedQuery ? `${menuItems.length} kết quả` : `${menuItems.length} món`}
+                  </span>
                 ) : null}
-                {menuState === "ready" && menuItems.length === 0 && !searching ? (
-                  <StateCard
-                    kind="empty"
-                    title="Không tìm thấy món"
-                    message={trimmedQuery ? `Không có món nào khớp "${trimmedQuery}". Hãy thử từ khóa hoặc nhóm món khác.` : "Chưa có món trong nhóm này."}
-                  />
+                {query ? (
+                  <button className="nova-icon-button nova-search-clear" type="button" aria-label="Xóa từ khóa tìm kiếm" onClick={() => setQuery("")}>
+                    <Icon name="x" />
+                  </button>
                 ) : null}
-                {menuState === "ready" && menuItems.length > 0 ? (
-                  <div className="nova-menu-grid">
-                    {menuItems.map((item) => (
-                      <MenuItemCard
-                        key={item.id}
-                        item={item}
-                        addLabel="Thêm vào đơn"
-                        busy={busyItemId === item.id}
-                        disabled={!canAdd || busyItemId !== null}
-                        showAddAction={canAdd}
-                        onAdd={(selected) => void addMenuItem(selected)}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-              </section>
-
-              <aside className="nova-order-panel" aria-labelledby="nova-search-order-title">
-                <div className="nova-section-heading">
-                  <div>
-                    <h2 id="nova-search-order-title">Đơn của bàn {table.code}</h2>
-                    <p>{order ? `${order.items.filter((line) => line.status !== "VOIDED").length} dòng món` : "Đơn chưa được tạo"}</p>
-                  </div>
+              </div>
+              <MenuCategoryTabs categories={categories} selectedId={selectedCategory} onChange={setSelectedCategory} />
+              {readOnly ? <p className="nova-readonly-note">{readOnlyNote}</p> : null}
+              {!canWrite && !readOnly ? <p className="nova-readonly-note">Bạn chỉ có quyền xem thực đơn.</p> : null}
+              {menuState === "ready" && menuStale ? (
+                <section className="nova-stale-notice" role="alert">
+                  <div><strong>Dữ liệu có thể đã cũ</strong><p>{menuError}</p></div>
+                  <Button variant="secondary" type="button" accessibleLabel="Thử tải lại kết quả tìm món" onClick={() => void loadMenu(debouncedQuery, selectedCategory)}>Thử lại</Button>
+                </section>
+              ) : null}
+              {menuState === "loading" ? <StateCard kind="loading" title="Đang tải thực đơn" message="Vui lòng chờ trong giây lát." /> : null}
+              {menuState === "error" ? <StateCard kind="error" title="Không thể tải thực đơn" message={menuError} onRetry={() => void loadMenu(debouncedQuery, selectedCategory)} /> : null}
+              {menuState === "ready" && menuItems.length === 0 && !searching ? (
+                <StateCard
+                  kind="empty"
+                  title="Không tìm thấy món"
+                  message={trimmedQuery ? `Không có món nào khớp "${trimmedQuery}". Hãy thử từ khóa hoặc nhóm món khác.` : "Chưa có món trong nhóm này."}
+                  {...(trimmedQuery || selectedCategory ? { actionLabel: "Xóa tìm kiếm", onAction: () => { setQuery(""); setSelectedCategory(null); } } : {})}
+                />
+              ) : null}
+              {menuState === "ready" && menuItems.length > 0 ? (
+                <div className="nova-menu-list">
+                  {menuItems.map((item) => (
+                    <MenuItemCard
+                      key={item.id}
+                      layout="row"
+                      item={item}
+                      categoryName={categories.find((category) => category.id === item.category_id)?.name}
+                      addLabel="Thêm món"
+                      busy={busyItemId === item.id}
+                      disabled={!canAdd || busyItemId !== null}
+                      showAddAction={canAdd}
+                      onAdd={(selected) => void addMenuItem(selected)}
+                    />
+                  ))}
                 </div>
-                <OrderSummary order={order} />
-                <Link className="nova-button nova-button--primary nova-button--full" to={orderPath} aria-label={`Mở màn gọi món bàn ${table.code} để chỉnh số lượng và gửi bếp`}>
-                  Mở màn gọi món
-                </Link>
-              </aside>
-            </div>
+              ) : null}
+            </section>
           </>
         ) : null}
       </main>

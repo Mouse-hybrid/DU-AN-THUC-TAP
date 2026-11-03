@@ -114,8 +114,31 @@ select:focus-visible {
 }
 
 .nova-brand-lockup--compact {
-  padding: var(--nova-space-3);
+  gap: 10px;
+  padding: 0 var(--nova-space-1);
   color: var(--nova-color-white);
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.nova-brand-lockup--compact .nova-brand-mark {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  font-size: 0.95rem;
+}
+
+.nova-brand-lockup--compact .nova-brand-mark::after {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--nova-color-ink);
+  border-radius: 50%;
+  background: var(--nova-color-accent);
+  content: "";
 }
 
 .nova-brand-mark {
@@ -196,6 +219,7 @@ select:focus-visible {
 .nova-login-panel {
   display: grid;
   place-items: center;
+  background: var(--nova-color-white);
   padding: var(--nova-space-6);
 }
 
@@ -224,6 +248,13 @@ select:focus-visible {
 .nova-nav {
   display: grid;
   gap: var(--nova-space-2);
+}
+
+.nova-sidebar-footer {
+  margin: auto 0 0;
+  padding: 0 var(--nova-space-1);
+  color: #b8cbc7;
+  font-size: var(--nova-font-size-xs);
 }
 
 .nova-nav-item {
@@ -275,12 +306,50 @@ select:focus-visible {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
-  padding: 0 var(--nova-space-3);
+  gap: var(--nova-space-2);
+  padding: 0 var(--nova-space-4) 0 6px;
   border-radius: var(--nova-radius-pill);
   color: var(--nova-color-primary-deep);
   background: var(--nova-color-soft);
   font-size: var(--nova-font-size-sm);
   font-weight: 700;
+}
+
+.nova-user-avatar {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--nova-color-white);
+  background: var(--nova-color-primary);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.nova-branch {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-3);
+}
+
+.nova-branch-icon {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+}
+
+.nova-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .nova-content {
@@ -332,7 +401,8 @@ select:focus-visible {
   }
 
   .nova-brand-lockup--compact span:last-child,
-  .nova-nav-item span {
+  .nova-nav-item span,
+  .nova-sidebar-footer {
     display: none;
   }
 
@@ -377,5 +447,145 @@ select:focus-visible {
 
   .nova-toolbar-actions {
     flex-direction: column;
+  }
+}
+
+/* Màn 29 — Đăng nhập bếp (KDS): nền tối, thẻ trắng ở giữa */
+.nova-login-shell--kitchen {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  gap: var(--nova-space-5);
+  padding: var(--nova-space-6) var(--nova-space-4);
+  background: var(--nova-color-ink);
+}
+
+.nova-login-shell--kitchen .nova-login-brand {
+  min-height: 0;
+  padding: 0;
+  gap: var(--nova-space-3);
+  align-items: center;
+  text-align: center;
+  background: transparent;
+}
+
+.nova-login-shell--kitchen .nova-login-brand > div:nth-child(2),
+.nova-login-shell--kitchen .nova-login-meta {
+  display: none;
+}
+
+.nova-login-shell--kitchen .nova-login-panel {
+  width: min(100%, 460px);
+  align-self: start;
+  padding: var(--nova-space-6);
+  border-radius: var(--nova-radius);
+  box-shadow: var(--nova-shadow-card);
+}
+
+.nova-login-kds-footer {
+  margin: 0;
+  color: #9cbab4;
+  font-size: var(--nova-font-size-sm);
+  text-align: center;
+}
+
+/* Màn 01 — Đăng nhập POS: nền gradient sáng, dấu chấm cam trên logo, 2 ảnh món nổi (theo Figma) */
+.nova-login-brand {
+  position: relative;
+  background: linear-gradient(40deg, #01352f 0%, #00554a 28%, #008573 62%, #01b299 100%);
+}
+
+.nova-brand-mark--large {
+  position: relative;
+  border-radius: 12px;
+}
+
+.nova-brand-mark--large::after {
+  position: absolute;
+  top: 12px;
+  right: 13px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nova-color-accent);
+  content: "";
+}
+
+.nova-login-photo {
+  position: absolute;
+  box-sizing: border-box;
+  border: 6px solid var(--nova-color-white);
+  border-radius: 28px;
+  background: var(--nova-color-white);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 22%);
+  object-fit: cover;
+}
+
+.nova-login-photo--top {
+  top: 114px;
+  right: 32px;
+  width: 152px;
+  height: 152px;
+}
+
+.nova-login-photo--bottom {
+  right: 20px;
+  bottom: 34px;
+  width: 242px;
+  height: 242px;
+}
+
+@media (min-width: 901px) {
+  .nova-login-shell {
+    min-height: max(100vh, 760px);
+  }
+}
+
+@media (max-width: 900px) {
+  .nova-login-photo {
+    display: none;
+  }
+}
+
+/* Màn 29 dùng nền tối riêng, không có ảnh */
+.nova-login-shell--kitchen .nova-login-photo {
+  display: none;
+}
+
+.nova-login-shell--kitchen .nova-login-brand {
+  background: transparent;
+}
+
+/* Màn 01/29 — khoảng cách tiêu đề form và lề panel theo Figma */
+.nova-login-brand {
+  padding: 64px;
+}
+
+.nova-login-copy {
+  max-width: 490px;
+}
+
+.nova-login-form .nova-page-heading {
+  margin-bottom: 24px;
+}
+
+.nova-login-form .nova-page-heading h2 {
+  line-height: 1.2;
+}
+
+.nova-login-form .nova-page-heading .nova-eyebrow {
+  margin-bottom: 8px;
+}
+
+.nova-login-form .nova-page-heading p:last-child {
+  margin-top: 8px;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .nova-login-brand {
+    padding: 32px;
   }
 }

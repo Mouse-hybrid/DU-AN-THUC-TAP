@@ -202,6 +202,8 @@ export function KitchenPage() {
     }
   }
 
+  const criticalEntries = activeTab === "late" ? entries.filter((entry) => entry.sla_status === "CRITICAL") : [];
+
   return (
     <AppShell
       topbar={
@@ -276,6 +278,19 @@ export function KitchenPage() {
             >
               Thử lại
             </Button>
+          </section>
+        ) : null}
+        {state === "ready" && activeTab === "late" && criticalEntries.length > 0 ? (
+          <section className="nova-kds-alert" role="alert">
+            <Icon name="alert-circle" />
+            <div>
+              <strong>{criticalEntries.length > 1 ? `${criticalEntries.length} phiếu trễ nghiêm trọng` : "Phiếu trễ nghiêm trọng"}</strong>
+              <p>
+                Bàn {criticalEntries[0]?.table_code}
+                {typeof criticalEntries[0]?.elapsed_minutes === "number" ? ` đã chờ ${Math.floor(criticalEntries[0].elapsed_minutes)} phút` : " đang chờ quá lâu"}
+                . Ưu tiên xử lý ngay.
+              </p>
+            </div>
           </section>
         ) : null}
         {state === "ready" ? (

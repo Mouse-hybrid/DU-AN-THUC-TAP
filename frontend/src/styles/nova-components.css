@@ -1070,3 +1070,967 @@ a.nova-button {
     align-items: stretch;
   }
 }
+
+/* Màn 12 · Tìm món (khớp Figma: một cột, ô tìm có biểu tượng, danh sách món có nút 48px) */
+.nova-search-heading {
+  margin-bottom: var(--nova-space-5);
+}
+
+.nova-search-section {
+  display: grid;
+  gap: var(--nova-space-4);
+}
+
+.nova-search-bar {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: var(--nova-space-3);
+  padding: 0 var(--nova-space-4);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  color: var(--nova-color-muted);
+  background: var(--nova-color-white);
+}
+
+.nova-search-bar:focus-within {
+  border-color: var(--nova-color-primary);
+  box-shadow: 0 0 0 3px rgb(0 133 115 / 16%);
+}
+
+.nova-search-bar input {
+  min-width: 0;
+  min-height: 48px;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: var(--nova-color-ink);
+  background: transparent;
+  font-size: var(--nova-font-size-md);
+  font-weight: 600;
+}
+
+.nova-search-bar input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.nova-search-bar .nova-search-meta {
+  flex: 0 0 auto;
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-search-clear {
+  width: 36px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+}
+
+.nova-search-section .nova-category-tabs {
+  margin: 0;
+}
+
+.nova-search-section .nova-category-tab {
+  min-height: 36px;
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-menu-list {
+  overflow: hidden;
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+}
+
+.nova-menu-row {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  gap: var(--nova-space-4);
+  padding: var(--nova-space-3) var(--nova-space-5) var(--nova-space-3) var(--nova-space-3);
+}
+
+.nova-menu-row + .nova-menu-row {
+  border-top: 1px solid var(--nova-color-border);
+}
+
+.nova-menu-row--unavailable {
+  background: var(--nova-color-canvas);
+}
+
+.nova-menu-row-thumb {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.nova-menu-row-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.nova-menu-row-copy h3,
+.nova-menu-row-copy p {
+  margin: 0;
+}
+
+.nova-menu-row-copy h3 {
+  font-size: var(--nova-font-size-md);
+}
+
+.nova-menu-row-copy p {
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-menu-row-price {
+  flex: 0 0 auto;
+  color: var(--nova-color-primary-deep);
+  font-size: var(--nova-font-size-md);
+  font-weight: 800;
+}
+
+.nova-menu-row-action {
+  width: 144px;
+  min-height: 48px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 620px) {
+  .nova-menu-row {
+    flex-wrap: wrap;
+  }
+
+  .nova-menu-row-action {
+    width: 100%;
+  }
+}
+
+/* Màn 04 · Sơ đồ bàn (khớp Figma: thẻ thống kê, thẻ bàn màu theo trạng thái, hình bàn) */
+.nova-table-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--nova-space-4);
+  margin-bottom: var(--nova-space-4);
+}
+
+.nova-table-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-3);
+  padding: var(--nova-space-3) var(--nova-space-4);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+}
+
+.nova-table-stat > strong {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--nova-radius-small);
+  font-size: var(--nova-font-size-lg);
+  font-weight: 800;
+}
+
+.nova-table-stat span {
+  display: block;
+  font-size: var(--nova-font-size-sm);
+  font-weight: 800;
+}
+
+.nova-table-stat small {
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-table-stat--available > strong { color: #15803d; background: #dcfce7; }
+.nova-table-stat--occupied > strong { color: #b45309; background: #fef3c7; }
+.nova-table-stat--billing > strong { color: #1d4ed8; background: #dbeafe; }
+.nova-table-stat--cleaning > strong { color: #7e22ce; background: #ede9fe; }
+
+.nova-table-card {
+  --tone: var(--nova-color-border);
+  --tone-bg: var(--nova-color-white);
+  --tone-edge: var(--nova-color-border);
+  border-color: var(--tone-edge);
+  border-top: 6px solid var(--tone);
+  background: var(--tone-bg);
+}
+
+.nova-table-card--available { --tone: #22c55e; --tone-bg: #f0fdf4; --tone-edge: #86efac; }
+.nova-table-card--occupied { --tone: #f59e0b; --tone-bg: #fffbeb; --tone-edge: #fcd34d; }
+.nova-table-card--billing { --tone: #3b82f6; --tone-bg: #eff6ff; --tone-edge: #93c5fd; }
+.nova-table-card--cleaning { --tone: #8b5cf6; --tone-bg: #f5f3ff; --tone-edge: #c4b5fd; }
+
+.nova-table-card:hover {
+  border-color: var(--tone);
+  border-top-color: var(--tone);
+}
+
+.nova-table-card-select {
+  justify-items: stretch;
+}
+
+.nova-table-figure {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: var(--nova-space-1) 0;
+}
+
+.nova-table-chairs {
+  display: flex;
+  gap: 10px;
+}
+
+.nova-table-chairs i {
+  width: 24px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--tone);
+  opacity: 0.45;
+}
+
+.nova-table-top {
+  width: calc(var(--per-side) * 34px);
+  height: 28px;
+  border-radius: 8px;
+  background: var(--tone);
+}
+
+.nova-table-meta {
+  color: var(--nova-color-ink);
+  font-weight: 700;
+}
+
+.nova-table-meta .nova-icon,
+.nova-table-session .nova-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.nova-table-session {
+  color: var(--tone);
+  filter: brightness(0.7);
+}
+
+.nova-table-session--idle {
+  color: var(--nova-color-muted);
+  font-weight: 500;
+  filter: none;
+}
+
+@media (max-width: 900px) {
+  .nova-table-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Màn 30–33 · Phiếu bếp (khớp Figma: huy hiệu bàn tối, đồng hồ, viền theo mức trễ, nút cam 48px) */
+.nova-kds-ticket {
+  gap: var(--nova-space-3);
+  border-width: 2px;
+}
+
+.nova-kds-ticket--warning,
+.nova-kds-ticket--delayed {
+  border-color: #fcd34d;
+}
+
+.nova-kds-ticket--critical {
+  border-color: var(--nova-color-danger);
+}
+
+.nova-kds-ticket-header {
+  align-items: center;
+}
+
+.nova-kds-ticket-id {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-2);
+}
+
+.nova-kds-ticket .nova-kds-table {
+  display: inline-grid;
+  min-width: 40px;
+  min-height: 28px;
+  place-items: center;
+  padding: 0 var(--nova-space-2);
+  border-radius: 6px;
+  color: var(--nova-color-white);
+  background: var(--nova-color-ink);
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-kds-ticket .nova-kds-order-code {
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-kds-ticket-status {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-2);
+}
+
+.nova-kds-timer {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  border-radius: var(--nova-radius-pill);
+  color: #b45309;
+  background: var(--nova-color-warning-soft);
+  font-size: var(--nova-font-size-sm);
+  font-weight: 800;
+}
+
+.nova-kds-timer .nova-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.nova-kds-ticket--critical .nova-kds-timer {
+  color: #b91c1c;
+  background: var(--nova-color-danger-soft);
+}
+
+.nova-kds-ticket--normal .nova-kds-timer {
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+}
+
+.nova-kds-item {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-3);
+}
+
+.nova-kds-thumb {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--nova-radius-small);
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+  font-weight: 800;
+}
+
+.nova-kds-item-copy {
+  gap: 2px;
+}
+
+.nova-kds-item-copy h2 {
+  font-size: var(--nova-font-size-md);
+}
+
+.nova-kds-note {
+  color: #b45309;
+}
+
+.nova-kds-station {
+  margin: 0;
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-kds-action {
+  min-height: 48px;
+  color: var(--nova-color-ink);
+  background: var(--nova-color-accent);
+}
+
+.nova-kds-action:hover:not(:disabled) {
+  background: #f27a0a;
+}
+
+.nova-kds-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nova-space-3);
+  margin-bottom: var(--nova-space-4);
+  padding: var(--nova-space-3) var(--nova-space-4);
+  border-radius: var(--nova-radius);
+  color: #b45309;
+  background: var(--nova-color-warning-soft);
+}
+
+.nova-kds-alert strong,
+.nova-kds-alert p {
+  display: block;
+  margin: 0;
+}
+
+.nova-kds-alert p {
+  font-size: var(--nova-font-size-sm);
+}
+
+/* Màn 102 · Thực đơn & danh mục (khớp Figma: cột danh mục + bảng món) */
+.nova-admin-menu {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--nova-space-5);
+  align-items: start;
+  margin-bottom: var(--nova-space-6);
+}
+
+.nova-admin-cats {
+  padding: var(--nova-space-4);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+}
+
+.nova-admin-cats h2,
+.nova-admin-cats p {
+  margin: 0;
+}
+
+.nova-admin-cats h2 {
+  font-size: var(--nova-font-size-md);
+}
+
+.nova-admin-cats p {
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-admin-cats ul {
+  display: grid;
+  gap: var(--nova-space-1);
+  margin: var(--nova-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nova-admin-cat {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--nova-space-3);
+  border: 0;
+  border-radius: var(--nova-radius-small);
+  color: var(--nova-color-ink);
+  background: transparent;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nova-admin-cat strong {
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-admin-cat:hover,
+.nova-admin-cat--active {
+  background: var(--nova-color-soft);
+}
+
+.nova-admin-cat--active {
+  color: var(--nova-color-primary-deep);
+}
+
+.nova-admin-items {
+  display: grid;
+  min-width: 0;
+  gap: var(--nova-space-3);
+}
+
+.nova-admin-items-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--nova-space-3);
+}
+
+.nova-search-bar--compact {
+  min-height: 44px;
+  width: 240px;
+}
+
+.nova-search-bar--compact input {
+  min-height: 40px;
+  font-size: var(--nova-font-size-sm);
+}
+
+.nova-pill {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: var(--nova-space-2);
+  padding: 0 var(--nova-space-4);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius-pill);
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-white);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nova-pill strong {
+  display: inline-grid;
+  min-width: 24px;
+  height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: var(--nova-radius-pill);
+  background: var(--nova-color-soft);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-pill--active {
+  border-color: var(--nova-color-primary);
+  color: var(--nova-color-white);
+  background: var(--nova-color-primary);
+}
+
+.nova-pill--active strong {
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-white);
+}
+
+.nova-admin-table-wrap {
+  overflow: hidden;
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+}
+
+.nova-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nova-admin-table th {
+  padding: var(--nova-space-3) var(--nova-space-4);
+  color: var(--nova-color-muted);
+  background: var(--nova-color-canvas);
+  font-size: var(--nova-font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.nova-admin-table td {
+  padding: var(--nova-space-2) var(--nova-space-4);
+  border-top: 1px solid var(--nova-color-border);
+}
+
+.nova-admin-table tbody tr:hover {
+  background: var(--nova-color-soft);
+}
+
+.nova-admin-table .nova-num {
+  text-align: right;
+}
+
+.nova-admin-item-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-3);
+}
+
+.nova-admin-item-cell strong,
+.nova-admin-item-cell p {
+  display: block;
+  margin: 0;
+}
+
+.nova-admin-item-cell p {
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-menu-row-thumb--small {
+  width: 40px;
+  height: 40px;
+  font-size: 1rem;
+}
+
+.nova-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--nova-radius-pill);
+  vertical-align: middle;
+  background: var(--nova-color-border);
+  cursor: pointer;
+  transition: background var(--nova-transition);
+}
+
+.nova-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--nova-color-white);
+  content: "";
+  transition: transform var(--nova-transition);
+}
+
+.nova-switch[aria-checked="true"] {
+  background: var(--nova-color-primary);
+}
+
+.nova-switch[aria-checked="true"]::after {
+  transform: translateX(18px);
+}
+
+.nova-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.nova-switch:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--nova-color-primary) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.nova-switch-label {
+  margin-left: var(--nova-space-2);
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-admin-cell-actions {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.nova-admin-table-footer {
+  margin: 0;
+  padding: var(--nova-space-3) var(--nova-space-4);
+  border-top: 1px solid var(--nova-color-border);
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-admin-subheading {
+  margin: 0 0 var(--nova-space-3);
+  font-size: var(--nova-font-size-lg);
+}
+
+@media (max-width: 900px) {
+  .nova-admin-menu {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Màn 103 · Chỉnh sửa món (khớp Figma: form 2 cột + khung xem trước; trường chưa có API ghi "CHỜ API") */
+.nova-item-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--nova-space-5);
+  align-items: start;
+}
+
+.nova-item-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: none;
+}
+
+.nova-item-span {
+  grid-column: 1 / -1;
+}
+
+.nova-item-photo {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-4);
+}
+
+.nova-item-photo p {
+  margin: var(--nova-space-1) 0 0;
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-item-photo-tile {
+  display: grid;
+  width: 96px;
+  height: 72px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--nova-radius);
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.nova-api-badge {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  margin-left: var(--nova-space-2);
+  padding: 0 8px;
+  border-radius: var(--nova-radius-pill);
+  color: #b45309;
+  background: var(--nova-color-warning-soft);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.nova-item-form :disabled {
+  background: var(--nova-color-canvas);
+}
+
+.nova-switch-field {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-3);
+  font-weight: 700;
+}
+
+.nova-switch-input {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex: 0 0 auto;
+  margin: 0;
+  border-radius: var(--nova-radius-pill);
+  background: var(--nova-color-border);
+  cursor: pointer;
+  appearance: none;
+  transition: background var(--nova-transition);
+}
+
+.nova-switch-input::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--nova-color-white);
+  content: "";
+  transition: transform var(--nova-transition);
+}
+
+.nova-switch-input:checked {
+  background: var(--nova-color-primary);
+}
+
+.nova-switch-input:checked::after {
+  transform: translateX(18px);
+}
+
+.nova-switch-input:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--nova-color-primary) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.nova-item-side {
+  display: grid;
+  gap: var(--nova-space-4);
+}
+
+.nova-item-side .nova-admin-section {
+  margin-bottom: 0;
+}
+
+.nova-item-side h2,
+.nova-item-side-note {
+  margin: 0;
+}
+
+.nova-item-side h2 {
+  font-size: var(--nova-font-size-md);
+}
+
+.nova-item-side-note {
+  color: var(--nova-color-muted);
+  font-size: var(--nova-font-size-xs);
+}
+
+.nova-item-preview {
+  display: grid;
+  gap: var(--nova-space-2);
+  padding: var(--nova-space-3);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+}
+
+.nova-item-preview .nova-menu-row-thumb {
+  width: 100%;
+  height: 96px;
+}
+
+.nova-item-preview-price {
+  color: var(--nova-color-primary-deep);
+  font-weight: 800;
+}
+
+.nova-item-preview-action {
+  width: 100%;
+  min-height: 48px;
+}
+
+.nova-item-preview--off {
+  opacity: 0.6;
+}
+
+@media (max-width: 900px) {
+  .nova-item-layout,
+  .nova-item-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nova-item-form {
+  align-items: start;
+}
+
+.nova-button > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nova-space-2);
+}
+
+/* Ảnh món (lấy từ Figma, ghép theo tên món) */
+.nova-thumb.nova-thumb--photo {
+  display: block;
+  object-fit: cover;
+  background: var(--nova-color-soft);
+}
+
+.nova-order-line-name {
+  display: flex;
+  align-items: center;
+  gap: var(--nova-space-3);
+}
+
+.nova-order-line-thumb {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--nova-radius-small);
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+  font-weight: 800;
+}
+
+/* Màn 09 — Gọi món: thẻ món có ảnh, 3 cột, nút "Gửi bếp" màu cam */
+.nova-menu-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.nova-menu-card {
+  min-height: 0;
+  align-content: start;
+  gap: var(--nova-space-2);
+  padding: var(--nova-space-3);
+}
+
+.nova-menu-card-photo {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  place-items: center;
+  border-radius: var(--nova-radius-small);
+  color: var(--nova-color-primary-deep);
+  background: var(--nova-color-soft);
+  font-size: var(--nova-font-size-xl, 1.5rem);
+  font-weight: 800;
+}
+
+.nova-menu-card-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.nova-menu-card-copy h3 {
+  margin: 0;
+  font-size: var(--nova-font-size-md);
+}
+
+.nova-menu-card .nova-button {
+  width: 100%;
+}
+
+.nova-button--accent,
+.nova-button--primary.nova-button--accent {
+  color: var(--nova-color-ink);
+  background: var(--nova-color-accent);
+  font-weight: 800;
+}
+
+.nova-button--accent:hover:not(:disabled),
+.nova-button--primary.nova-button--accent:hover:not(:disabled) {
+  background: #f07a0a;
+}
+
+/* Màn 19 — Tóm tắt đơn: 2 cột (món | tổng tiền + thao tác) */
+.nova-summary-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+  gap: var(--nova-space-5);
+  align-items: start;
+}
+
+.nova-summary-layout .nova-summary-card {
+  max-width: none;
+}
+
+.nova-summary-side {
+  position: sticky;
+  top: var(--nova-space-4);
+  display: grid;
+  gap: var(--nova-space-4);
+  padding: var(--nova-space-5);
+  border: 1px solid var(--nova-color-border);
+  border-radius: var(--nova-radius);
+  background: var(--nova-color-white);
+  box-shadow: var(--nova-shadow-card);
+}
+
+.nova-summary-side .nova-summary-actions {
+  display: grid;
+  gap: var(--nova-space-3);
+}
+
+.nova-summary-side .nova-summary-actions .nova-button {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .nova-summary-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .nova-summary-side {
+    position: static;
+  }
+}
+
+.nova-summary-side .nova-order-summary {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}

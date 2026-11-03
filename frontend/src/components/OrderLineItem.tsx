@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { components } from "../api/schema";
 import { formatVnd } from "../utils/format";
 import { Button } from "./Button";
+import { MenuThumb } from "./MenuThumb";
 import { QuantityStepper } from "./QuantityStepper";
 import { StatusBadge } from "./StatusBadge";
 
@@ -30,9 +31,12 @@ export function OrderLineItem({ item, editable, updating = false, removing = fal
   return (
     <article className={`nova-order-line${item.status === "VOIDED" ? " nova-order-line--voided" : ""}`}>
       <div className="nova-order-line-heading">
-        <div>
-          <h3>{item.menu_item_name}</h3>
-          <p>{formatVnd(item.unit_price)} / món</p>
+        <div className="nova-order-line-name">
+          <MenuThumb name={item.menu_item_name} className="nova-order-line-thumb" />
+          <div>
+            <h3>{item.menu_item_name}</h3>
+            <p>{formatVnd(item.unit_price)} / món</p>
+          </div>
         </div>
         <StatusBadge status={item.status} />
       </div>

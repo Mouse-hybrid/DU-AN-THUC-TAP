@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, getErrorMessage } from "../api/client";
@@ -27,13 +28,35 @@ interface TableCardProps {
   onMarkClean: (table: TableDashboardItem) => void;
 }
 
+type TableTone = "available" | "occupied" | "billing" | "cleaning" | "neutral";
+
+function toneOf(status: string): TableTone {
+  if (status === "AVAILABLE") return "available";
+  if (status === "OCCUPIED" || status === "DELAYED") return "occupied";
+  if (status === "BILLING") return "billing";
+  if (status === "CLEANING") return "cleaning";
+  return "neutral";
+}
+
+function TableFigure({ seats }: { seats: number }) {
+  const perSide = Math.max(1, Math.min(4, Math.ceil(seats / 2)));
+  const chairs = Array.from({ length: perSide }, (_, index) => <i key={index} />);
+  return (
+    <span className="nova-table-figure" style={{ "--per-side": perSide } as CSSProperties} aria-hidden="true">
+      <span className="nova-table-chairs">{chairs}</span>
+      <span className="nova-table-top" />
+      <span className="nova-table-chairs">{chairs}</span>
+    </span>
+  );
+}
+
 function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
   const session = table.opened_at
     ? `${table.guest_count ?? 0} khách · ${formatOpenDuration(table.opened_at)}`
     : "Chưa có phiên phục vụ";
 
   return (
-    <article className="nova-table-card">
+    <article className={`nova-table-card nova-table-card--${toneOf(table.status)}`}>
       <button
         className="nova-table-card-select"
         type="button"
@@ -44,8 +67,12 @@ function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
           <strong className="nova-table-code">{table.code}</strong>
           <StatusBadge status={table.status} />
         </span>
-        <span className="nova-table-meta">{table.seats} chỗ ngồi</span>
-        <span className="nova-table-session">{session}</span>
+        <TableFigure seats={table.seats} />
+        <span className="nova-table-meta"><Icon name="users" />{table.seats} chỗ ngồi</span>
+        <span className={`nova-table-session${table.opened_at ? "" : " nova-table-session--idle"}`}>
+          {table.opened_at ? <Icon name="clock" /> : null}
+          {session}
+        </span>
       </button>
       {table.status === "CLEANING" ? (
         <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
@@ -68,6 +95,13 @@ function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
     </article>
   );
 }
+
+const TABLE_STATS: { tone: TableTone; label: string }[] = [
+  { tone: "available", label: "Trống" },
+  { tone: "occupied", label: "Đang phục vụ" },
+  { tone: "billing", label: "Chờ thanh toán" },
+  { tone: "cleaning", label: "Đang dọn" },
+];
 
 const TABLE_EVENTS = new Set(["TABLE_SESSION_OPENED", "TABLE_STATUS_CHANGED", "ORDER_UPDATED"]);
 
@@ -208,6 +242,20 @@ export function TablesPage() {
             </button>
           </div>
         </div>
+
+        {state === "ready" && tables.length > 0 ? (
+          <section className="nova-table-stats" aria-label="Thống kê bàn">
+            {TABLE_STATS.map((stat) => (
+              <div key={stat.tone} className={`nova-table-stat nova-table-stat--${stat.tone}`}>
+                <strong aria-hidden="true">{tables.filter((table) => toneOf(table.status) === stat.tone).length}</strong>
+                <div>
+                  <span>{stat.label}</span>
+                  <small>trên {tables.length} bàn</small>
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
 
         {state === "loading" ? <StateCard kind="loading" title="Đang tải sơ đồ bàn" message="Vui lòng chờ trong giây lát." /> : null}
         {state === "error" ? <StateCard kind="error" title="Không thể tải sơ đồ bàn" message={error} onRetry={() => void loadTables()} /> : null}

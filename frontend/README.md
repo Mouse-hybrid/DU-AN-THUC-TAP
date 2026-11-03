@@ -134,3 +134,20 @@ Thời gian thực và mất mạng
 21. Mở `/tables` ở hai trình duyệt, đổi trạng thái bàn ở một bên: bên kia tự cập nhật trong vài giây mà không cần bấm “Làm mới”.
 22. Tắt mạng khi đang ở `/tables` hoặc `/kitchen`: banner offline hiện, dữ liệu cũ được giữ và có nhãn “Dữ liệu có thể đã cũ”, không có request nào bị gửi. Bật lại mạng thì tự tải lại.
 23. Mở DevTools, tab Network: không có hai kết nối WebSocket cùng lúc; chuyển sang màn khác thì kết nối cũ đóng. Console không in token.
+
+## Đối chiếu giao diện với Figma (NOVA POS — UI/UX Screen System)
+
+Đã chỉnh theo frame Figma: khung chung (sidebar tối 188px, topbar có chi nhánh và chip vai trò, bảng màu "POS code · Vibrant"), màn 04 (thẻ thống kê, thẻ bàn theo màu trạng thái), màn 09 (thẻ món có ảnh 3 cột, nút "Gửi bếp" màu cam), màn 12 (một cột, ô tìm có biểu tượng, danh sách món, nút "Thêm món" cao 48px), màn 30–33 (phiếu bếp: huy hiệu bàn, đồng hồ, viền theo mức trễ, banner phiếu trễ nghiêm trọng), màn 19 (tóm tắt đơn 2 cột: danh sách món | tổng tiền và thao tác), màn 29 (đăng nhập bếp nền tối, thẻ trắng giữa trang), màn 102 (cột danh mục + bảng món + công tắc hiển thị), màn 103 (form 2 cột + xem trước trên POS).
+
+Khác Figma có chủ đích (API chưa hỗ trợ, không giả dữ liệu):
+
+| Trong Figma | Trong code | Lý do |
+|---|---|---|
+| Ảnh món | Ảnh lấy từ Figma trong `public/menu-images/`, ghép theo tên món; món không có ảnh hiện ô chữ cái đầu | API món chưa có `image_url`; khi có thì sửa `src/components/MenuThumb.tsx` |
+| Khối "Có thể bạn cần" (màn 12) | Không hiển thị | Chưa có API gợi ý |
+| Nhập từ Excel, phân trang, "..." (màn 102) | Chưa có | Chưa có API / chưa có thiết kế chi tiết |
+| Mã món, VAT, thời gian chế biến, mô tả, giá vốn (màn 103) | Trường khóa, nhãn "CHỜ API" | API món chỉ có name, price, category_id, station_id, is_available |
+| Sidebar: Đặt chỗ, Đơn hàng, Thanh toán, Lịch sử, Ca làm việc, Tìm đơn, Hiệu suất, Máy in | Không hiển thị | Thuộc Pha 2 hoặc chưa có API |
+| Nút "Ưu tiên lại" (màn 33) | Không hiển thị | Chưa có API |
+| Chọn trạm bếp trước khi đăng nhập (màn 29) | Không hiển thị | Backend `/auth/login` chưa nhận `station_id`; cần PO/BE xác nhận cách chọn trạm |
+| Màu chính | #008573 (theo Figma) | Trước đây #147d6f; cần anh Thanh/Linh xác nhận lần cuối |
