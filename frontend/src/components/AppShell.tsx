@@ -8,16 +8,37 @@ interface AppShellProps {
   topbar?: ReactNode;
 }
 
+interface NavItem {
+  to: string;
+  prefix: string;
+  label: string;
+  glyph?: string;
+  icon?: string;
+}
+
+function navItemsFor(role: string | undefined): NavItem[] {
+  if (role === "KITCHEN") return [{ to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" }];
+  const items: NavItem[] = [{ to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" }];
+  if (role === "SUPERVISOR") {
+    items.push(
+      { to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" },
+      { to: "/admin/menu/categories", prefix: "/admin", label: "Thực đơn", glyph: "T" },
+    );
+  }
+  return items;
+}
+
 export function AppShell({ children, topbar }: AppShellProps) {
   const auth = getAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const isKitchenArea = location.pathname.startsWith("/kitchen");
-  const home = isKitchenArea ? "/kitchen" : "/tables";
+  const navItems = navItemsFor(auth?.staff.role);
+  const activeItem = navItems.find((item) => location.pathname.startsWith(item.prefix)) ?? navItems[0];
+  const home = activeItem?.to ?? "/tables";
 
   function logout() {
     clearAuth();
-    navigate("/login", { replace: true });
+    navigate(location.pathname.startsWith("/kitchen") ? "/login?area=kitchen" : "/login", { replace: true });
   }
 
   return (
@@ -28,14 +49,20 @@ export function AppShell({ children, topbar }: AppShellProps) {
           <span>NOVA POS</span>
         </Link>
         <nav className="nova-nav">
-          <Link
-            className="nova-nav-item nova-nav-item--active"
-            to={home}
-            aria-current={location.pathname.startsWith(home) ? "page" : undefined}
-          >
-            {isKitchenArea ? <span aria-hidden="true">K</span> : <Icon name="grid-2x2" />}
-            <span>{isKitchenArea ? "Bếp" : "Bàn"}</span>
-          </Link>
+          {navItems.map((item) => {
+            const active = item === activeItem;
+            return (
+              <Link
+                key={item.to}
+                className={`nova-nav-item${active ? " nova-nav-item--active" : ""}`}
+                to={item.to}
+                aria-current={active ? "page" : undefined}
+              >
+                {item.icon ? <Icon name={item.icon} /> : <span aria-hidden="true">{item.glyph}</span>}
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
       </aside>
 

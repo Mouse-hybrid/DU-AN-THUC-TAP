@@ -24,6 +24,16 @@ const PING_INTERVAL_MS = 25_000;
 const REFRESH_DEBOUNCE_MS = 300;
 const MAX_RECONNECT_DELAY_MS = 15_000;
 
+/** Backoff lũy thừa có jitter: nửa đầu cố định, nửa sau ngẫu nhiên để nhiều máy không nối lại cùng lúc. */
+function reconnectDelay(attempts: number): number {
+  const ceiling = Math.min(1_000 * 2 ** attempts, MAX_RECONNECT_DELAY_MS);
+  return Math.round(ceiling / 2 + Math.random() * (ceiling / 2));
+}
+
+function canConnectNow(): boolean {
+  return navigator.onLine && document.visibilityState === "visible";
+}
+
 function buildSocketUrl(channel: RealtimeChannel, token: string): string {
   // API_BASE_URL có thể là đường dẫn tương đối (/api/v1, cùng origin qua nginx)
   // hoặc URL đầy đủ khi FE chạy local trỏ vào staging.
@@ -60,6 +70,7 @@ export function useRealtime({ channel, onRefresh, filter }: UseRealtimeOptions):
     let attempts = 0;
     let hasOpened = false;
     let pendingWhileHidden = false;
+    let waitingToResume = false;
     let pingTimer: number | undefined;
     let reconnectTimer: number | undefined;
     let refreshTimer: number | undefined;
@@ -73,22 +84,44 @@ export function useRealtime({ channel, onRefresh, filter }: UseRealtimeOptions):
       refreshTimer = window.setTimeout(() => onRefreshRef.current(), REFRESH_DEBOUNCE_MS);
     }
 
+    // Tạm dừng nối lại khi mất mạng hoặc tab bị ẩn; tiếp tục ngay khi online/visible.
+    function resumeIfWaiting() {
+      if (disposed || !waitingToResume || !canConnectNow()) return;
+      waitingToResume = false;
+      attempts = 0;
+      window.clearTimeout(reconnectTimer);
+      connect();
+    }
+
     function handleVisibility() {
       if (document.visibilityState === "visible" && pendingWhileHidden) {
         pendingWhileHidden = false;
         scheduleRefresh();
       }
+      resumeIfWaiting();
     }
 
     function scheduleReconnect() {
       if (disposed) return;
-      const delay = Math.min(1_000 * 2 ** attempts, MAX_RECONNECT_DELAY_MS);
+      if (!canConnectNow()) {
+        waitingToResume = true;
+        return;
+      }
+      const delay = reconnectDelay(attempts);
       attempts += 1;
-      reconnectTimer = window.setTimeout(connect, delay);
+      window.clearTimeout(reconnectTimer);
+      reconnectTimer = window.setTimeout(() => {
+        if (canConnectNow()) connect();
+        else waitingToResume = true;
+      }, delay);
     }
 
     function connect() {
-      if (disposed) return;
+      if (disposed || socket) return; // Không bao giờ giữ hai socket cùng lúc.
+      if (!canConnectNow()) {
+        waitingToResume = true;
+        return;
+      }
       const auth = getAuth();
       if (!auth) return; // Hết phiên: ProtectedRoute sẽ đưa về màn đăng nhập.
 
@@ -133,10 +166,12 @@ export function useRealtime({ channel, onRefresh, filter }: UseRealtimeOptions):
 
     connect();
     document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("online", resumeIfWaiting);
 
     return () => {
       disposed = true;
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("online", resumeIfWaiting);
       window.clearInterval(pingTimer);
       window.clearTimeout(reconnectTimer);
       window.clearTimeout(refreshTimer);

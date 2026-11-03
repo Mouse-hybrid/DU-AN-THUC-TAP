@@ -6,18 +6,16 @@ export type KitchenStationResponse = paths["/api/v1/kitchen/stations"]["get"]["r
 export type StartCookingResponse = paths["/api/v1/orders/{order_id}/items/{item_id}/start-cooking"]["post"]["responses"][200]["content"]["application/json"];
 export type MarkReadyResponse = paths["/api/v1/orders/{order_id}/items/{item_id}/mark-ready"]["post"]["responses"][200]["content"]["application/json"];
 
-type QueueQuery = NonNullable<paths["/api/v1/kitchen/queue"]["get"]["parameters"]["query"]>;
+export type QueueQuery = NonNullable<paths["/api/v1/kitchen/queue"]["get"]["parameters"]["query"]>;
 
-export function listQueue(
-  status: QueueQuery["status"],
-  stationId?: QueueQuery["station_id"],
-  itemStatuses?: QueueQuery["item_status"],
-): Promise<KitchenQueueResponse> {
+export function listQueue({ status, station_id, item_status, delayed_only }: QueueQuery = {}): Promise<KitchenQueueResponse> {
   const query = new URLSearchParams();
   if (status) query.set("status", status);
-  if (stationId) query.set("station_id", stationId);
-  itemStatuses?.forEach((itemStatus) => query.append("item_status", itemStatus));
-  return apiRequest<KitchenQueueResponse>(`/kitchen/queue?${query.toString()}`);
+  if (station_id) query.set("station_id", station_id);
+  item_status?.forEach((itemStatus) => query.append("item_status", itemStatus));
+  if (delayed_only) query.set("delayed_only", "true");
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return apiRequest<KitchenQueueResponse>(`/kitchen/queue${suffix}`);
 }
 
 export function listStations(): Promise<KitchenStationResponse> {

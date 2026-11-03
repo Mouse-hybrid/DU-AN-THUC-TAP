@@ -85,6 +85,6 @@ export function consumeFlash(): FlashMessage | null {
 export function redirectToLogin(message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."): never {
   clearAuth();
   setFlash(message, "error");
-  window.location.assign("/login");
+  window.location.assign(window.location.pathname.startsWith("/kitchen") ? "/login?area=kitchen" : "/login");
   throw new Error("AUTH_REDIRECT");
 }

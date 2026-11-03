@@ -10,10 +10,11 @@ interface MenuItemCardProps {
   busy?: boolean;
   disabled?: boolean;
   showAddAction?: boolean;
+  addLabel?: string;
   onAdd: (item: MenuItem) => void;
 }
 
-export function MenuItemCard({ item, busy = false, disabled = false, showAddAction = true, onAdd }: MenuItemCardProps) {
+export function MenuItemCard({ item, busy = false, disabled = false, showAddAction = true, addLabel = "Thêm món", onAdd }: MenuItemCardProps) {
   const unavailable = !item.is_available;
   return (
     <article className={`nova-menu-card${unavailable ? " nova-menu-card--unavailable" : ""}`}>
@@ -32,7 +33,7 @@ export function MenuItemCard({ item, busy = false, disabled = false, showAddActi
           disabled={disabled || unavailable}
           onClick={() => onAdd(item)}
         >
-          Thêm món
+          {addLabel}
         </Button>
       ) : null}
     </article>

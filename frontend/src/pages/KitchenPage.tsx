@@ -7,6 +7,7 @@ import {
   startCooking,
   type KitchenQueueResponse,
   type KitchenStationResponse,
+  type QueueQuery,
 } from "../api/kitchen";
 import { hasRole } from "../auth/roles";
 import { getAuth, type FlashMessage } from "../auth/storage";
@@ -20,13 +21,43 @@ import { Toast } from "../components/Toast";
 import { useRealtime } from "../realtime/useRealtime";
 import { createIdempotencyKey } from "../utils/idempotency";
 
-type KitchenTab = "new" | "preparing" | "ready";
+type KitchenTab = "new" | "preparing" | "late" | "ready";
+type KitchenQueueEntry = KitchenQueueResponse[number];
 
-const TAB_CONFIG: Record<KitchenTab, { label: string; status: string | null; itemStatuses?: string[]; action: KdsAction }> = {
-  new: { label: "Món mới", status: "QUEUED", action: "start" },
-  preparing: { label: "Đang chế biến", status: "IN_PROGRESS", action: "ready" },
-  ready: { label: "Sẵn sàng", status: null, itemStatuses: ["READY"], action: null },
+interface TabConfig {
+  label: string;
+  query: Omit<QueueQuery, "station_id">;
+  /** "by-entry": hành động phụ thuộc trạng thái thật của từng món (tab Món trễ). */
+  action: KdsAction | "by-entry";
+}
+
+const TAB_CONFIG: Record<KitchenTab, TabConfig> = {
+  new: { label: "Món mới", query: { status: "QUEUED" }, action: "start" },
+  preparing: { label: "Đang chế biến", query: { status: "IN_PROGRESS" }, action: "ready" },
+  late: { label: "Món trễ", query: { delayed_only: true }, action: "by-entry" },
+  ready: { label: "Sẵn sàng", query: { item_status: ["READY"] }, action: null },
 };
+
+function resolveAction(tab: KitchenTab, entry: KitchenQueueEntry): KdsAction {
+  const configured = TAB_CONFIG[tab].action;
+  if (configured !== "by-entry") return configured;
+  if (entry.item_status === "READY") return null;
+  if (entry.status === "QUEUED") return "start";
+  if (entry.status === "IN_PROGRESS") return "ready";
+  return null;
+}
+
+/** Món trễ nhiều nhất lên đầu (backend chưa đảm bảo thứ tự này). */
+function sortByDelay(entries: KitchenQueueResponse): KitchenQueueResponse {
+  return [...entries].sort((a, b) => (b.elapsed_minutes ?? 0) - (a.elapsed_minutes ?? 0));
+}
+
+const KITCHEN_EVENTS = new Set([
+  "KITCHEN_QUEUE_UPDATED",
+  "ORDER_ITEM_STATUS_CHANGED",
+  "ORDER_ITEM_VOIDED",
+  "ORDER_ITEM_REFIRED",
+]);
 
 function queueKey(tab: KitchenTab, stationId: string): string {
   return `${tab}:${stationId || "all"}`;
@@ -76,9 +107,11 @@ export function KitchenPage() {
     }
 
     try {
-      const config = TAB_CONFIG[tab];
-      const data = await listQueue(config.status, selectedStationId || undefined, config.itemStatuses);
-      setQueueCache((current) => ({ ...current, [key]: data }));
+      const data = await listQueue(
+        selectedStationId ? { ...TAB_CONFIG[tab].query, station_id: selectedStationId } : TAB_CONFIG[tab].query,
+      );
+      const ordered = tab === "late" ? sortByDelay(data) : data;
+      setQueueCache((current) => ({ ...current, [key]: ordered }));
       loadedKeys.current.add(key);
       if (activeKeyRef.current === key) {
         setStale(false);
@@ -119,13 +152,16 @@ export function KitchenPage() {
 
   const realtimeConnected = useRealtime({
     channel: "kitchen",
-    onRefresh: () => void loadQueue(activeTab, stationId, true),
+    filter: (event) => KITCHEN_EVENTS.has(event.type),
+    onRefresh: () => {
+      if (actionInFlight.current.size === 0) void loadQueue(activeTab, stationId, true);
+    },
   });
 
   // Polling dự phòng: 5s khi chưa có WebSocket, 30s khi WebSocket đang chạy.
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible" && navigator.onLine) {
+      if (document.visibilityState === "visible" && navigator.onLine && actionInFlight.current.size === 0) {
         void loadQueue(activeTab, stationId, true);
       }
     }, realtimeConnected ? 30_000 : 5_000);
@@ -134,20 +170,21 @@ export function KitchenPage() {
 
   const activeStations = useMemo(() => stations.filter((station) => station.is_active), [stations]);
 
-  async function updateItem(entry: KitchenQueueResponse[number]) {
-    if (!tabConfig.action || actionInFlight.current.has(entry.order_item_id)) return;
+  async function updateItem(entry: KitchenQueueEntry) {
+    const action = resolveAction(activeTab, entry);
+    if (!action || actionInFlight.current.has(entry.order_item_id)) return;
     actionInFlight.current.add(entry.order_item_id);
     setBusyItemIds((current) => new Set(current).add(entry.order_item_id));
     try {
       const idempotencyKey = createIdempotencyKey();
-      if (tabConfig.action === "start") {
+      if (action === "start") {
         await startCooking(entry.order_id, entry.order_item_id, idempotencyKey);
       } else {
         await markReady(entry.order_id, entry.order_item_id, idempotencyKey);
       }
       await loadQueue(activeTab, stationId, true);
       setToast({
-        message: tabConfig.action === "start" ? "Đã bắt đầu nấu món." : "Đã đánh dấu món hoàn thành.",
+        message: action === "start" ? "Đã bắt đầu nấu món." : "Đã đánh dấu món hoàn thành.",
         type: "success",
       });
     } catch (actionError) {
@@ -245,7 +282,7 @@ export function KitchenPage() {
           <KdsBoard
             entries={entries}
             stations={stations}
-            action={tabConfig.action}
+            resolveAction={(entry) => resolveAction(activeTab, entry)}
             canAct={canAct}
             busyItemIds={busyItemIds}
             onAction={(entry) => void updateItem(entry)}

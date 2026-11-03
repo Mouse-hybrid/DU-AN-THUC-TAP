@@ -69,6 +69,8 @@ function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
   );
 }
 
+const TABLE_EVENTS = new Set(["TABLE_SESSION_OPENED", "TABLE_STATUS_CHANGED", "ORDER_UPDATED"]);
+
 function markCleanErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
@@ -90,8 +92,10 @@ export function TablesPage() {
   const [cleaningTableIds, setCleaningTableIds] = useState<Set<string>>(() => new Set());
   const hasSuccessfulLoad = useRef(false);
   const markCleanInFlight = useRef(new Set<string>());
+  const loadInFlight = useRef(false);
 
   const loadTables = useCallback(async (refresh = false) => {
+    loadInFlight.current = true;
     if (refresh) setRefreshing(true);
     else if (!hasSuccessfulLoad.current) setState("loading");
     setError("");
@@ -111,6 +115,7 @@ export function TablesPage() {
         setState("error");
       }
     } finally {
+      loadInFlight.current = false;
       setRefreshing(false);
     }
   }, []);
@@ -120,8 +125,24 @@ export function TablesPage() {
     void loadTables();
   }, [loadTables]);
 
-  // Sơ đồ bàn tự cập nhật khi có bàn mở/đổi trạng thái hoặc order thay đổi.
-  useRealtime({ channel: "tables", onRefresh: () => void loadTables(true) });
+  // Tự cập nhật khi có bàn mở/đổi trạng thái hoặc order thay đổi; không chồng request đang chạy.
+  const refreshInBackground = useCallback(() => {
+    if (!loadInFlight.current && markCleanInFlight.current.size === 0) void loadTables(true);
+  }, [loadTables]);
+
+  const realtimeConnected = useRealtime({
+    channel: "tables",
+    filter: (event) => TABLE_EVENTS.has(event.type),
+    onRefresh: refreshInBackground,
+  });
+
+  // Polling dự phòng: 5s khi chưa có WebSocket, 30s khi WebSocket đang chạy.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible" && navigator.onLine) refreshInBackground();
+    }, realtimeConnected ? 30_000 : 5_000);
+    return () => window.clearInterval(timer);
+  }, [realtimeConnected, refreshInBackground]);
 
   const visibleTables = useMemo(
     () => (filter === "ALL" ? tables : tables.filter((table) => table.status === filter)),

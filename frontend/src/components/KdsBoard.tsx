@@ -5,13 +5,14 @@ import { StateCard } from "./StateCard";
 interface KdsBoardProps {
   entries: KitchenQueueResponse;
   stations: KitchenStationResponse;
-  action: KdsAction;
+  /** Hành động của từng món (tab "Món trễ" có cả món chờ nấu lẫn đang nấu). */
+  resolveAction: (entry: KitchenQueueResponse[number]) => KdsAction;
   canAct: boolean;
   busyItemIds: ReadonlySet<string>;
   onAction: (entry: KitchenQueueResponse[number]) => void;
 }
 
-export function KdsBoard({ entries, stations, action, canAct, busyItemIds, onAction }: KdsBoardProps) {
+export function KdsBoard({ entries, stations, resolveAction, canAct, busyItemIds, onAction }: KdsBoardProps) {
   const stationNames = new Map(stations.map((station) => [station.id, station.name]));
 
   if (entries.length === 0) {
@@ -25,7 +26,7 @@ export function KdsBoard({ entries, stations, action, canAct, busyItemIds, onAct
           key={entry.id}
           entry={entry}
           stationName={stationNames.get(entry.station_id) ?? "Chưa xác định"}
-          action={action}
+          action={resolveAction(entry)}
           canAct={canAct}
           busy={busyItemIds.has(entry.order_item_id)}
           onAction={onAction}
