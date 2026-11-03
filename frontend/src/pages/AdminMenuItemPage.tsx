@@ -14,6 +14,7 @@ import { setFlash } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
+import { MenuThumb } from "../components/MenuThumb";
 import { StateCard } from "../components/StateCard";
 import { adminErrorMessage } from "../utils/errorMessages";
 import { formatVnd } from "../utils/format";
@@ -168,20 +169,42 @@ export function AdminMenuItemPage() {
     }
   }
 
+  const categoryName = categories.find((category) => category.id === categoryId)?.name;
+  const previewPrice = parsedPrice.normalized ? formatVnd(parsedPrice.normalized) : "—";
+
   return (
     <AppShell
       topbar={
         <Link className="nova-back-link" to="/admin/menu/categories">
           <Icon name="chevron-left" />
-          Quay lại danh sách
+          Quay lại thực đơn
         </Link>
       }
     >
       <main className="nova-content">
-        <div className="nova-page-heading">
-          <p className="nova-eyebrow">Quản trị · Thực đơn</p>
-          <h1>{isEdit ? "Sửa món" : "Thêm món"}</h1>
-          <p>{UNSUPPORTED_NOTE}</p>
+        <div className="nova-page-toolbar nova-item-header">
+          <div className="nova-page-heading">
+            <p className="nova-eyebrow">{isEdit ? "Chỉnh sửa món" : "Quản trị · Thực đơn"}</p>
+            <h1>{isEdit ? (original?.name ?? "Sửa món") : "Thêm món"}</h1>
+            <p>{categoryName ?? "Chưa gán nhóm"}</p>
+          </div>
+          {state === "ready" ? (
+            <div className="nova-toolbar-actions">
+              <Button
+                variant="secondary"
+                type="button"
+                accessibleLabel={isAvailable ? "Tạm ẩn món khỏi POS" : "Hiện lại món trên POS"}
+                disabled={busy}
+                onClick={() => setIsAvailable((current) => !current)}
+              >
+                <Icon name={isAvailable ? "eye-off" : "eye"} />
+                {isAvailable ? "Ẩn món" : "Hiện món"}
+              </Button>
+              <Button variant="primary" type="submit" form="nova-item-form" accessibleLabel={isEdit ? "Lưu thay đổi món" : "Thêm món mới"} busy={busy} busyLabel="Đang lưu…">
+                {isEdit ? "Lưu thay đổi" : "Thêm món"}
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         {state === "loading" ? <StateCard kind="loading" title="Đang tải dữ liệu" message="Vui lòng chờ trong giây lát." /> : null}
@@ -189,75 +212,111 @@ export function AdminMenuItemPage() {
         {state === "missing" ? <StateCard kind="empty" title="Không tìm thấy món" message="Món này không còn trong thực đơn. Hãy quay lại danh sách và chọn lại." /> : null}
 
         {state === "ready" ? (
-          <form className="nova-admin-section nova-admin-form" noValidate onSubmit={(event) => void handleSubmit(event)}>
-            {alert ? <div className="nova-alert" role="alert">{alert}</div> : null}
+          <div className="nova-item-layout">
+            <form id="nova-item-form" className="nova-admin-section nova-item-form" noValidate onSubmit={(event) => void handleSubmit(event)}>
+              {alert ? <div className="nova-alert nova-item-span" role="alert">{alert}</div> : null}
 
-            <div className="nova-field">
-              <label htmlFor="nova-item-name">Tên món</label>
-              <input
-                id="nova-item-name"
-                value={name}
-                autoComplete="off"
-                aria-invalid={submitted && Boolean(nameError)}
-                disabled={busy}
-                onChange={(event) => setName(event.target.value)}
-              />
-              {submitted && nameError ? <p className="nova-field-error">{nameError}</p> : null}
-            </div>
+              <div className="nova-item-photo nova-item-span">
+                <MenuThumb name={trimmedName || "?"} className="nova-item-photo-tile" />
+                <div>
+                  <strong>Ảnh món <span className="nova-api-badge">CHỜ API</span></strong>
+                  <p>Tải ảnh lên, mô tả, thuế VAT và thời gian chế biến sẽ có khi API hỗ trợ. Ảnh hiện tại là ảnh minh họa theo tên món. {UNSUPPORTED_NOTE}</p>
+                </div>
+              </div>
 
-            <div className="nova-field">
-              <label htmlFor="nova-item-price">Giá bán (₫)</label>
-              <input
-                id="nova-item-price"
-                inputMode="decimal"
-                value={price}
-                autoComplete="off"
-                aria-invalid={submitted && Boolean(parsedPrice.error)}
-                disabled={busy}
-                onChange={(event) => setPrice(event.target.value)}
-              />
-              {submitted && parsedPrice.error ? <p className="nova-field-error">{parsedPrice.error}</p> : null}
-              {parsedPrice.normalized ? <p className="nova-field-hint">Hiển thị: {formatVnd(parsedPrice.normalized)}</p> : null}
-            </div>
+              <div className="nova-field nova-item-span">
+                <label htmlFor="nova-item-name">Tên món</label>
+                <input
+                  id="nova-item-name"
+                  value={name}
+                  autoComplete="off"
+                  aria-invalid={submitted && Boolean(nameError)}
+                  disabled={busy}
+                  onChange={(event) => setName(event.target.value)}
+                />
+                {submitted && nameError ? <p className="nova-field-error">{nameError}</p> : null}
+              </div>
 
-            <div className="nova-field">
-              <label htmlFor="nova-item-category">Danh mục</label>
-              <select id="nova-item-category" value={categoryId} disabled={busy} onChange={(event) => setCategoryId(event.target.value)}>
-                <option value="">Chưa gán nhóm</option>
-                {categoryOptions.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}{category.is_active ? "" : " (đã tắt)"}</option>
-                ))}
-              </select>
-            </div>
+              <div className="nova-field">
+                <label htmlFor="nova-item-category">Danh mục</label>
+                <select id="nova-item-category" value={categoryId} disabled={busy} onChange={(event) => setCategoryId(event.target.value)}>
+                  <option value="">Chưa gán nhóm</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}{category.is_active ? "" : " (đã tắt)"}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="nova-field">
-              <label htmlFor="nova-item-station">Trạm bếp</label>
-              <select id="nova-item-station" value={stationId} disabled={busy} onChange={(event) => setStationId(event.target.value)}>
-                <option value="">Chưa gán trạm</option>
-                {stationOptions.map((station) => (
-                  <option key={station.id} value={station.id}>{station.name}{station.is_active ? "" : " (ngừng dùng)"}</option>
-                ))}
-              </select>
-            </div>
+              <div className="nova-field">
+                <label htmlFor="nova-item-price">Giá bán (₫)</label>
+                <input
+                  id="nova-item-price"
+                  inputMode="decimal"
+                  value={price}
+                  autoComplete="off"
+                  aria-invalid={submitted && Boolean(parsedPrice.error)}
+                  disabled={busy}
+                  onChange={(event) => setPrice(event.target.value)}
+                />
+                {submitted && parsedPrice.error ? <p className="nova-field-error">{parsedPrice.error}</p> : null}
+                {parsedPrice.normalized ? <p className="nova-field-hint">Hiển thị: {formatVnd(parsedPrice.normalized)}</p> : null}
+              </div>
 
-            <label className="nova-checkbox-field" htmlFor="nova-item-available">
-              <input
-                id="nova-item-available"
-                type="checkbox"
-                checked={isAvailable}
-                disabled={busy}
-                onChange={(event) => setIsAvailable(event.target.checked)}
-              />
-              <span>Cho phép bán</span>
-            </label>
+              <div className="nova-field">
+                <label htmlFor="nova-item-vat">Thuế VAT <span className="nova-api-badge">CHỜ API</span></label>
+                <select id="nova-item-vat" disabled><option>8%</option></select>
+              </div>
 
-            <div className="nova-admin-actions">
-              <Button variant="primary" type="submit" accessibleLabel={isEdit ? "Lưu thay đổi món" : "Thêm món mới"} busy={busy} busyLabel="Đang lưu…">
-                {isEdit ? "Lưu thay đổi" : "Thêm món"}
-              </Button>
-              <Link className="nova-button nova-button--secondary" to="/admin/menu/categories">Hủy</Link>
-            </div>
-          </form>
+              <div className="nova-field">
+                <label htmlFor="nova-item-prep">Thời gian chế biến <span className="nova-api-badge">CHỜ API</span></label>
+                <input id="nova-item-prep" disabled placeholder="Phút" />
+              </div>
+
+              <div className="nova-field nova-item-span">
+                <label htmlFor="nova-item-station">Trạm bếp</label>
+                <select id="nova-item-station" value={stationId} disabled={busy} onChange={(event) => setStationId(event.target.value)}>
+                  <option value="">Chưa gán trạm</option>
+                  {stationOptions.map((station) => (
+                    <option key={station.id} value={station.id}>{station.name}{station.is_active ? "" : " (ngừng dùng)"}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="nova-field nova-item-span">
+                <label htmlFor="nova-item-desc">Mô tả ngắn <span className="nova-api-badge">CHỜ API</span></label>
+                <input id="nova-item-desc" disabled placeholder="Mô tả hiển thị trên POS và QR" />
+              </div>
+
+              <label className="nova-switch-field nova-item-span" htmlFor="nova-item-available">
+                <input
+                  id="nova-item-available"
+                  className="nova-switch-input"
+                  type="checkbox"
+                  checked={isAvailable}
+                  disabled={busy}
+                  onChange={(event) => setIsAvailable(event.target.checked)}
+                />
+                <span>Cho phép bán</span>
+              </label>
+            </form>
+
+            <aside className="nova-item-side">
+              <section className="nova-admin-section" aria-label="Xem trước trên POS">
+                <h2>Xem trước trên POS</h2>
+                <p className="nova-item-side-note">Thẻ món như nhân viên thấy.</p>
+                <div className={`nova-item-preview${isAvailable ? "" : " nova-item-preview--off"}`}>
+                  <MenuThumb name={trimmedName || "?"} className="nova-menu-row-thumb" />
+                  <strong>{trimmedName || "Tên món"}</strong>
+                  <span className="nova-item-preview-price">{previewPrice}</span>
+                  <span className="nova-button nova-button--primary nova-item-preview-action" aria-hidden="true">{isAvailable ? "Thêm món" : "Hết món"}</span>
+                </div>
+              </section>
+              <section className="nova-admin-section" aria-label="Giá vốn và lợi nhuận">
+                <h2>Giá vốn &amp; lợi nhuận <span className="nova-api-badge">CHỜ API</span></h2>
+                <p className="nova-item-side-note">Chưa có công thức BOM từ API nên chưa tính giá vốn và lợi nhuận gộp.</p>
+              </section>
+            </aside>
+          </div>
         ) : null}
       </main>
     </AppShell>

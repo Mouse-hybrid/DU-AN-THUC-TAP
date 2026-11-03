@@ -16,6 +16,21 @@ interface NavItem {
   icon?: string;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  CASHIER: "Thu ngân",
+  WAITER: "Phục vụ",
+  KITCHEN: "Bếp",
+  SUPERVISOR: "Quản lý",
+};
+
+function initialsOf(fullName: string | undefined): string {
+  const words = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  const first = words[0] ?? "";
+  const last = words[words.length - 1] ?? "";
+  return (words.length === 1 ? first.slice(0, 2) : `${first.charAt(0)}${last.charAt(0)}`).toUpperCase();
+}
+
 function navItemsFor(role: string | undefined): NavItem[] {
   if (role === "KITCHEN") return [{ to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" }];
   const items: NavItem[] = [{ to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" }];
@@ -64,18 +79,26 @@ export function AppShell({ children, topbar }: AppShellProps) {
             );
           })}
         </nav>
+        <p className="nova-sidebar-footer">Phiên bản thử nghiệm</p>
       </aside>
 
       <div className="nova-app-main">
         <header className="nova-topbar">
           {topbar ?? (
-            <div>
-              <p className="nova-topbar-label">Chi nhánh hiện tại</p>
-              <strong>Chi nhánh Quận 1</strong>
+            <div className="nova-branch">
+              <span className="nova-branch-icon" aria-hidden="true"><Icon name="map-pin" /></span>
+              <div>
+                <p className="nova-topbar-label">Chi nhánh hiện tại</p>
+                <strong>Chi nhánh Quận 1</strong>
+              </div>
             </div>
           )}
           <div className="nova-user-actions">
-            <span className="nova-user-chip">{auth?.staff.full_name}</span>
+            <span className="nova-user-chip" title={auth?.staff.full_name}>
+              <span className="nova-user-avatar" aria-hidden="true">{initialsOf(auth?.staff.full_name)}</span>
+              <span>{ROLE_LABELS[auth?.staff.role ?? ""] ?? auth?.staff.full_name}</span>
+              <span className="nova-visually-hidden">{auth?.staff.full_name}</span>
+            </span>
             <button className="nova-icon-button" type="button" onClick={logout} aria-label="Đăng xuất">
               <Icon name="log-out" />
             </button>

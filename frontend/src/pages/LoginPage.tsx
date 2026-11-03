@@ -15,6 +15,7 @@ const LOGIN_COPY = {
     formEyebrow: "Đăng nhập bằng mã nhân viên",
     formTitle: "Chào mừng trở lại",
     formCopy: "Nhập thông tin được cấp để bắt đầu ca làm việc.",
+    submit: "Đăng nhập",
   },
   kitchen: {
     eyebrow: "Hệ thống bếp (KDS)",
@@ -23,13 +24,15 @@ const LOGIN_COPY = {
     formEyebrow: "Đăng nhập màn bếp",
     formTitle: "Sẵn sàng cho ca bếp",
     formCopy: "Nhập mã nhân viên và mã PIN được cấp để mở màn bếp.",
+    submit: "Đăng nhập vào bếp",
   },
 } as const;
 
 export function LoginPage() {
   const navigate = useNavigate();
   // Chỉ đổi lời dẫn cho ngữ cảnh bếp (màn 29); form, API và chuyển hướng theo role dùng chung.
-  const copy = LOGIN_COPY[useSearchParams()[0].get("area") === "kitchen" ? "kitchen" : "pos"];
+  const isKitchen = useSearchParams()[0].get("area") === "kitchen";
+  const copy = LOGIN_COPY[isKitchen ? "kitchen" : "pos"];
   const existingAuth = getAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -73,7 +76,7 @@ export function LoginPage() {
 
   return (
     <>
-      <main className="nova-login-shell">
+      <main className={`nova-login-shell${isKitchen ? " nova-login-shell--kitchen" : ""}`}>
         <section className="nova-login-brand" aria-label="NOVA POS">
           <div className="nova-brand-lockup">
             <span className="nova-brand-mark nova-brand-mark--large" aria-hidden="true">N</span>
@@ -85,6 +88,9 @@ export function LoginPage() {
             <p className="nova-login-copy">{copy.copy}</p>
           </div>
           <p className="nova-login-meta">Đồng bộ bảo mật · Phiên bản thử nghiệm</p>
+          {/* Ảnh trang trí lấy từ Figma màn 01 (cùng bộ ảnh món trong public/menu-images). */}
+          <img className="nova-login-photo nova-login-photo--top" src="/menu-images/goi-cuon.jpg" alt="" aria-hidden="true" />
+          <img className="nova-login-photo nova-login-photo--bottom" src="/menu-images/pho-bo.jpg" alt="" aria-hidden="true" />
         </section>
 
         <section className="nova-login-panel">
@@ -144,10 +150,12 @@ export function LoginPage() {
 
             <button className="nova-button nova-button--primary nova-button--full" type="submit" disabled={busy}>
               {busy ? <span className="nova-spinner" aria-hidden="true" /> : null}
-              <span>{busy ? "Đang đăng nhập…" : "Đăng nhập"}</span>
+              <span>{busy ? "Đang đăng nhập…" : copy.submit}</span>
             </button>
           </form>
         </section>
+        {/* Figma màn 29 có chọn trạm bếp trước khi đăng nhập; backend login chưa nhận station_id nên chưa làm (CẦN PO/BE XÁC NHẬN). */}
+        {isKitchen ? <p className="nova-login-kds-footer">Phiên bản thử nghiệm · NOVA KDS</p> : null}
       </main>
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </>

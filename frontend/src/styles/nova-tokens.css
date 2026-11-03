@@ -1,17 +1,17 @@
 :root {
-  --nova-color-primary: #147d6f;
-  --nova-color-primary-deep: #0c5b52;
-  --nova-color-accent: #f4a340;
-  --nova-color-ink: #16302b;
-  --nova-color-canvas: #f4f6f5;
-  --nova-color-danger: #d85b59;
+  --nova-color-primary: #008573;
+  --nova-color-primary-deep: #006b5c;
+  --nova-color-accent: #ff8a1f;
+  --nova-color-ink: #0f2a26;
+  --nova-color-canvas: #f3f7f6;
+  --nova-color-danger: #dc2626;
   --nova-color-white: #ffffff;
-  --nova-color-muted: #6c7c78;
-  --nova-color-border: #d7e0dd;
-  --nova-color-soft: #e9f3f1;
-  --nova-color-warning-soft: #fff2dd;
-  --nova-color-danger-soft: #fdeceb;
-  --nova-color-info-soft: #e8f0fb;
+  --nova-color-muted: #5b706c;
+  --nova-color-border: #d3e2df;
+  --nova-color-soft: #ddf5f0;
+  --nova-color-warning-soft: #fef3c7;
+  --nova-color-danger-soft: #fee2e2;
+  --nova-color-info-soft: #dbeafe;
 
   --nova-space-1: 4px;
   --nova-space-2: 8px;

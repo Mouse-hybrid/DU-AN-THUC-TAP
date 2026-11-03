@@ -1,6 +1,8 @@
 import type { KitchenQueueResponse } from "../api/kitchen";
 import { parseApiTimestamp } from "../utils/format";
 import { Button } from "./Button";
+import { Icon } from "./Icon";
+import { MenuThumb } from "./MenuThumb";
 import { StatusBadge } from "./StatusBadge";
 
 export type KdsAction = "start" | "ready" | null;
@@ -49,30 +51,39 @@ function waitDuration(entry: KitchenQueueEntry): string {
 export function KdsTicket({ entry, stationName, action, busy, canAct, onAction }: KdsTicketProps) {
   const actionLabel = action === "start" ? "Bắt đầu nấu" : "Món xong";
 
+  const waited = waitDuration(entry);
   return (
-    <article className="nova-kds-ticket">
+    <article className={`nova-kds-ticket nova-kds-ticket--${entry.sla_status.toLowerCase()}`}>
       <header className="nova-kds-ticket-header">
-        <div>
-          <p className="nova-kds-order-code">#{temporaryOrderCode(entry)}</p>
-          <strong className="nova-kds-table">Bàn {entry.table_code}</strong>
+        <div className="nova-kds-ticket-id">
+          <strong className="nova-kds-table"><span className="nova-visually-hidden">Bàn </span>{entry.table_code}</strong>
+          <span className="nova-kds-order-code">#{temporaryOrderCode(entry)}</span>
         </div>
-        <StatusBadge status={entry.sla_status} label={SLA_LABELS[entry.sla_status] ?? entry.sla_status} />
+        <div className="nova-kds-ticket-status">
+          <StatusBadge status={entry.sla_status} label={SLA_LABELS[entry.sla_status] ?? entry.sla_status} />
+          <span className="nova-kds-timer">
+            <Icon name="clock" />
+            <span className="nova-visually-hidden">{entry.item_status === "READY" ? "Đã chờ lấy " : "Thời gian chờ "}</span>
+            {waited}
+          </span>
+        </div>
       </header>
 
-      <div className="nova-kds-item-copy">
-        <h2>{entry.quantity}× {entry.menu_item_name}</h2>
-        {entry.note ? <p><strong>Ghi chú:</strong> {entry.note}</p> : <p>Không có ghi chú</p>}
+      <div className="nova-kds-item">
+        <MenuThumb name={entry.menu_item_name} className="nova-kds-thumb" />
+        <div className="nova-kds-item-copy">
+          <h2>{entry.quantity}× {entry.menu_item_name}</h2>
+          {entry.note ? <p className="nova-kds-note"><strong>Ghi chú:</strong> {entry.note}</p> : null}
+        </div>
       </div>
 
-      <dl className="nova-kds-meta">
-        <div><dt>Trạm</dt><dd>{stationName}</dd></div>
-        <div><dt>{entry.item_status === "READY" ? "Đã chờ lấy" : "Thời gian chờ"}</dt><dd>{waitDuration(entry)}</dd></div>
-      </dl>
+      <p className="nova-kds-station">Trạm: {stationName}</p>
 
       {action && canAct ? (
         <Button
           variant="primary"
           type="button"
+          className="nova-kds-action"
           accessibleLabel={`${actionLabel} ${entry.menu_item_name} bàn ${entry.table_code}`}
           busy={busy}
           busyLabel="Đang cập nhật…"

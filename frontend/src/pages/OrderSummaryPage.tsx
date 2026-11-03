@@ -174,29 +174,33 @@ export function OrderSummaryPage() {
             </header>
 
             {!order ? <StateCard kind="empty" title="Bàn chưa có đơn phù hợp" message="Không tìm thấy đơn đang mở hoặc đang chờ thanh toán." /> : (
-              <section className="nova-summary-card" aria-labelledby="nova-summary-items-title">
-                <div className="nova-section-heading">
-                  <div><h2 id="nova-summary-items-title">Các món trong đơn</h2><p>{activeItems.length} dòng món đang được tính tiền</p></div>
-                </div>
-                {activeItems.length === 0 ? <p className="nova-readonly-note">Đơn chưa có món để thanh toán.</p> : (
-                  <div className="nova-order-lines">
-                    {activeItems.map((item: OrderItemDetail) => (
-                      <OrderLineItem key={item.id} item={item} editable={false} onUpdate={noopItemUpdate} onRemove={noopItemRemove} />
-                    ))}
+              <div className="nova-summary-layout">
+                <section className="nova-summary-card" aria-labelledby="nova-summary-items-title">
+                  <div className="nova-section-heading">
+                    <div><h2 id="nova-summary-items-title">Các món trong đơn</h2><p>{activeItems.length} dòng món đang được tính tiền</p></div>
                   </div>
-                )}
-                <OrderSummary order={order} />
-                <div className="nova-summary-actions">
-                  {canRequestBilling ? (
-                    <Button variant="primary" type="button" accessibleLabel="Yêu cầu thanh toán đơn" disabled={mutation !== null} onClick={() => setConfirmation("billing")}>Yêu cầu thanh toán</Button>
-                  ) : null}
-                  {canPay ? (
-                    <Button variant="primary" type="button" accessibleLabel="Xác nhận đơn đã thanh toán" disabled={mutation !== null} onClick={() => setConfirmation("pay")}>Xác nhận đã thanh toán</Button>
-                  ) : null}
-                  {paid || order.status === "PAID" ? <Link className="nova-button nova-button--secondary" to="/tables">Về sơ đồ bàn</Link> : null}
-                </div>
-                {order.status === "BILLING" && !canPay ? <p className="nova-readonly-note">Đơn đang chờ nhân viên thu ngân xác nhận thanh toán.</p> : null}
-              </section>
+                  {activeItems.length === 0 ? <p className="nova-readonly-note">Đơn chưa có món để thanh toán.</p> : (
+                    <div className="nova-order-lines">
+                      {activeItems.map((item: OrderItemDetail) => (
+                        <OrderLineItem key={item.id} item={item} editable={false} onUpdate={noopItemUpdate} onRemove={noopItemRemove} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+                <aside className="nova-summary-side" aria-label="Tổng tiền">
+                  <OrderSummary order={order} />
+                  <div className="nova-summary-actions">
+                    {canRequestBilling ? (
+                      <Button variant="primary" type="button" accessibleLabel="Yêu cầu thanh toán đơn" disabled={mutation !== null} onClick={() => setConfirmation("billing")}>Yêu cầu thanh toán</Button>
+                    ) : null}
+                    {canPay ? (
+                      <Button variant="primary" type="button" accessibleLabel="Xác nhận đơn đã thanh toán" disabled={mutation !== null} onClick={() => setConfirmation("pay")}>Xác nhận đã thanh toán</Button>
+                    ) : null}
+                    {paid || order.status === "PAID" ? <Link className="nova-button nova-button--secondary" to="/tables">Về sơ đồ bàn</Link> : null}
+                  </div>
+                  {order.status === "BILLING" && !canPay ? <p className="nova-readonly-note">Đơn đang chờ nhân viên thu ngân xác nhận thanh toán.</p> : null}
+                </aside>
+              </div>
             )}
           </>
         ) : null}

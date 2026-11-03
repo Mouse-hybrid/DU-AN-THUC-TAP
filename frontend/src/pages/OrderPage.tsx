@@ -348,7 +348,7 @@ export function OrderPage() {
                 {readOnlyOrder ? <p className="nova-readonly-note">Bàn đang chờ thanh toán</p> : null}
                 {canWrite && !readOnlyOrder && order && hasPendingItems ? (
                   <Button
-                    className="nova-button--full"
+                    className="nova-button--full nova-button--accent"
                     variant="primary"
                     type="button"
                     accessibleLabel="Gửi các món mới xuống bếp"

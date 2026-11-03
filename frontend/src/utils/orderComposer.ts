@@ -1,5 +1,5 @@
 import { ApiError } from "../api/client";
-import { addItems, createOrder, getOrder, type OrderDetail } from "../api/orders";
+import { addItems, createOrder, getOrder, updateItem, type OrderDetail } from "../api/orders";
 import type { components } from "../api/schema";
 import type { TableDetailResponse } from "../api/tables";
 import { createIdempotencyKey } from "./idempotency";
@@ -43,11 +43,21 @@ interface AddMenuItemParams {
 
 /**
  * Thêm 1 phần món vào đơn đang mở của bàn; tạo đơn ở lần thêm đầu tiên.
- * Mỗi POST dùng một Idempotency-Key riêng; luôn tải lại GET /orders/{id} sau khi ghi.
+ * Nếu đơn đã có dòng cùng món, chưa gửi bếp (CREATED) và không có ghi chú thì tăng số lượng dòng đó
+ * (PATCH quantity) thay vì tạo thêm một dòng mới.
+ * Mỗi lần ghi dùng một Idempotency-Key riêng; luôn tải lại GET /orders/{id} sau khi ghi.
  */
 export async function addMenuItemToOrder({ table, order, item, onOrderCreated }: AddMenuItemParams): Promise<OrderDetail> {
   if (!navigator.onLine) throw new ApiError("Bạn đang ngoại tuyến. Thao tác chưa được gửi.", 0);
   if (!table.current_session) throw new ApiError("Bàn chưa có phiên phục vụ đang mở.", 409);
+
+  const sameLine = order?.items.find(
+    (line) => line.menu_item_id === item.id && line.status === "CREATED" && !(line.note ?? "").trim(),
+  );
+  if (order && sameLine) {
+    await updateItem(order.id, sameLine.id, { quantity: sameLine.quantity + 1 }, createIdempotencyKey());
+    return getOrder(order.id);
+  }
 
   let orderId = order?.id;
   if (!orderId) {
