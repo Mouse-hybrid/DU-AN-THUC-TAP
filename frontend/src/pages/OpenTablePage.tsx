@@ -82,15 +82,13 @@ export function OpenTablePage() {
   }
 
   return (
-    <AppShell
-      topbar={
-        <Link className="nova-back-link" to="/tables">
-          <Icon name="chevron-left" />
+    <AppShell>
+      <main className="nova-content nova-content--centered">
+        <div className="nova-open-wrap">
+        <Link className="nova-back-link nova-back-link--inline" to="/tables">
+          <Icon name="arrow-left" />
           Quay lại sơ đồ bàn
         </Link>
-      }
-    >
-      <main className="nova-content nova-content--centered">
         <section className="nova-open-card">
           {state === "loading" ? <StateCard kind="loading" title="Đang tải thông tin bàn" message="Vui lòng chờ trong giây lát." /> : null}
           {state === "error" ? <StateCard kind="error" title="Không thể tải bàn" message={error} onRetry={() => void loadTable()} /> : null}
@@ -155,6 +153,7 @@ export function OpenTablePage() {
             </form>
           ) : null}
         </section>
+        </div>
       </main>
     </AppShell>
   );
