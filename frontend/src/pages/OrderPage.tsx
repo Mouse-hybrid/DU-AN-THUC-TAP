@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ApiError, getErrorMessage } from "../api/client";
+import { ApiError } from "../api/client";
 import { listCategories, listMenu, type MenuCategoryListResponse, type MenuListResponse } from "../api/menu";
 import {
-  addItems,
-  createOrder,
   getOrder,
   removeItem,
   sendToKitchen,
@@ -27,26 +25,14 @@ import { OrderSummary } from "../components/OrderSummary";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
+import { orderErrorMessage } from "../utils/errorMessages";
 import { createIdempotencyKey } from "../utils/idempotency";
-import { countOpenOrders, isClosedOrderStatus, selectCurrentOrder } from "../utils/orders";
+import { addMenuItemToOrder, resolveTableOrder } from "../utils/orderComposer";
+import { isClosedOrderStatus } from "../utils/orders";
 
 type MenuItem = components["schemas"]["MenuItemOut"];
 
 const ORDER_WRITE_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
-function orderErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
-    if (error.status === 404) return "Không tìm thấy bàn, đơn hoặc món cần thao tác.";
-    if (error.status === 409) return "Dữ liệu đơn đã thay đổi. Đơn đã được tải lại để bạn kiểm tra.";
-    if (error.status === 422) return error.message || "Số lượng, ghi chú hoặc thông tin trạm bếp chưa hợp lệ.";
-    if (error.status >= 500) return "Máy chủ đang gặp sự cố. Dữ liệu hiện có vẫn được giữ lại.";
-    if (error.status === 0) return navigator.onLine
-      ? "Không thể kết nối hoặc máy chủ phản hồi quá chậm. Vui lòng thử lại."
-      : "Bạn đang ngoại tuyến. Thao tác chưa được gửi.";
-  }
-  return getErrorMessage(error);
-}
-
 function shortOrderCode(tableCode: string, orderId: string): string {
   return `${tableCode}-${orderId.replaceAll("-", "").slice(-4).toUpperCase()}`;
 }
@@ -96,15 +82,11 @@ export function OrderPage() {
     setPageError("");
     try {
       const detail = await getTable(tableId);
-      if (!detail.current_session && detail.orders.length === 0) {
-        throw new ApiError("Bàn chưa có phiên phục vụ hoặc đơn để hiển thị.", 409);
-      }
+      const view = resolveTableOrder(detail);
       setTable(detail);
-      const openOrderCount = countOpenOrders(detail.orders);
-      const selectedOrder = selectCurrentOrder(detail.orders);
-      setOrder(selectedOrder);
-      setClosedOnlyMode(openOrderCount === 0 && detail.orders.length > 0);
-      setMultipleOpenOrders(openOrderCount > 1);
+      setOrder(view.order);
+      setClosedOnlyMode(view.closedOnly);
+      setMultipleOpenOrders(view.multipleOpenOrders);
       hasLoadedPage.current = true;
       setStale(false);
       setPageState("ready");
@@ -193,20 +175,9 @@ export function OrderPage() {
   function addMenuItem(item: MenuItem) {
     const actionKey = `add:${item.id}`;
     void runItemMutation(actionKey, async () => {
-      if (!navigator.onLine) throw new ApiError("Bạn đang ngoại tuyến. Thao tác chưa được gửi.", 0);
-      if (!table?.current_session) throw new ApiError("Bàn chưa có phiên phục vụ đang mở.", 409);
-
-      let orderId = order?.id;
-      if (!orderId) {
-        const createKey = createIdempotencyKey();
-        const created = await createOrder({ table_session_id: table.current_session.id }, createKey);
-        orderId = created.id;
-        await loadOrder(orderId);
-      }
-
-      const addKey = createIdempotencyKey();
-      await addItems(orderId, { items: [{ menu_item_id: item.id, quantity: 1, note: null }] }, addKey);
-      await loadOrder(orderId);
+      if (!table) throw new ApiError("Bàn chưa được tải xong.", 409);
+      const updated = await addMenuItemToOrder({ table, order, item, onOrderCreated: setOrder });
+      setOrder(updated);
       setToast({ message: `Đã thêm ${item.name}.`, type: "success" });
     }, "Không thể thêm món vì trạng thái bàn hoặc đơn đã thay đổi. Đã tải lại dữ liệu.");
   }
@@ -275,6 +246,15 @@ export function OrderPage() {
               </div>
               <div className="nova-order-header-actions">
                 {order ? <StatusBadge status={order.status} /> : <StatusBadge status="NEW" label="Chưa tạo đơn" />}
+                {canAdd ? (
+                  <Link
+                    className="nova-button nova-button--secondary"
+                    to={`/tables/${encodeURIComponent(table.id)}/search`}
+                    aria-label={`Tìm món nhanh cho bàn ${table.code}`}
+                  >
+                    Tìm món
+                  </Link>
+                ) : null}
                 {order ? (
                   <Link
                     className="nova-button nova-button--secondary"

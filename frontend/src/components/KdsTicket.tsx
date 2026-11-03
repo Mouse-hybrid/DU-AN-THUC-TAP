@@ -27,7 +27,15 @@ function temporaryOrderCode(entry: KitchenQueueEntry): string {
   return `${entry.table_code}-${suffix}`;
 }
 
+function formatMinutes(minutes: number): string {
+  return minutes < 60 ? `${minutes}p` : `${Math.floor(minutes / 60)}g ${minutes % 60}p`;
+}
+
 function waitDuration(entry: KitchenQueueEntry): string {
+  // Món đang nấu: ưu tiên số phút do API tính (cùng nguồn với sla_status).
+  if (entry.item_status !== "READY" && entry.status === "IN_PROGRESS" && typeof entry.elapsed_minutes === "number") {
+    return formatMinutes(Math.max(0, Math.floor(entry.elapsed_minutes)));
+  }
   const source = entry.item_status === "READY"
     ? entry.done_at
     : entry.status === "QUEUED"
@@ -35,8 +43,7 @@ function waitDuration(entry: KitchenQueueEntry): string {
       : (entry.started_at ?? entry.queued_at);
   const startedAt = parseApiTimestamp(source);
   if (startedAt === null) return "—";
-  const minutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60_000));
-  return minutes < 60 ? `${minutes}p` : `${Math.floor(minutes / 60)}g ${minutes % 60}p`;
+  return formatMinutes(Math.max(0, Math.floor((Date.now() - startedAt) / 60_000)));
 }
 
 export function KdsTicket({ entry, stationName, action, busy, canAct, onAction }: KdsTicketProps) {

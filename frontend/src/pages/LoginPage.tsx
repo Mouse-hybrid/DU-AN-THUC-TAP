@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { apiRequest, getErrorMessage } from "../api/client";
 import type { LoginRequest, LoginResponse } from "../api/types";
 import { consumeFlash, getAuth, getHomePath, saveAuth, type FlashMessage } from "../auth/storage";
@@ -7,8 +7,29 @@ import { Icon } from "../components/Icon";
 import { Toast } from "../components/Toast";
 import { createIdempotencyKey } from "../utils/idempotency";
 
+const LOGIN_COPY = {
+  pos: {
+    eyebrow: "Hệ thống bán hàng",
+    title: ["Vận hành nhà hàng", "nhẹ nhàng hơn."],
+    copy: "Đăng nhập để quản lý bàn và phục vụ khách hàng.",
+    formEyebrow: "Đăng nhập bằng mã nhân viên",
+    formTitle: "Chào mừng trở lại",
+    formCopy: "Nhập thông tin được cấp để bắt đầu ca làm việc.",
+  },
+  kitchen: {
+    eyebrow: "Hệ thống bếp (KDS)",
+    title: ["Điều phối món", "nhịp nhàng hơn."],
+    copy: "Đăng nhập để nhận món và cập nhật tiến độ chế biến.",
+    formEyebrow: "Đăng nhập màn bếp",
+    formTitle: "Sẵn sàng cho ca bếp",
+    formCopy: "Nhập mã nhân viên và mã PIN được cấp để mở màn bếp.",
+  },
+} as const;
+
 export function LoginPage() {
   const navigate = useNavigate();
+  // Chỉ đổi lời dẫn cho ngữ cảnh bếp (màn 29); form, API và chuyển hướng theo role dùng chung.
+  const copy = LOGIN_COPY[useSearchParams()[0].get("area") === "kitchen" ? "kitchen" : "pos"];
   const existingAuth = getAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -59,9 +80,9 @@ export function LoginPage() {
             <span>NOVA POS</span>
           </div>
           <div>
-            <p className="nova-eyebrow">Hệ thống bán hàng</p>
-            <h1>Vận hành nhà hàng<br />nhẹ nhàng hơn.</h1>
-            <p className="nova-login-copy">Đăng nhập để quản lý bàn và phục vụ khách hàng.</p>
+            <p className="nova-eyebrow">{copy.eyebrow}</p>
+            <h1>{copy.title[0]}<br />{copy.title[1]}</h1>
+            <p className="nova-login-copy">{copy.copy}</p>
           </div>
           <p className="nova-login-meta">Đồng bộ bảo mật · Phiên bản thử nghiệm</p>
         </section>
@@ -69,9 +90,9 @@ export function LoginPage() {
         <section className="nova-login-panel">
           <form className="nova-login-form" noValidate onSubmit={handleSubmit}>
             <header className="nova-page-heading">
-              <p className="nova-eyebrow">Đăng nhập bằng mã nhân viên</p>
-              <h2>Chào mừng trở lại</h2>
-              <p>Nhập thông tin được cấp để bắt đầu ca làm việc.</p>
+              <p className="nova-eyebrow">{copy.formEyebrow}</p>
+              <h2>{copy.formTitle}</h2>
+              <p>{copy.formCopy}</p>
             </header>
 
             {alert ? <div className="nova-alert" role="alert">{alert}</div> : null}

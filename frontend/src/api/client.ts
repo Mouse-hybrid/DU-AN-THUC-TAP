@@ -39,6 +39,12 @@ function fieldLabel(field: string): string {
     menu_item_id: "Món",
     quantity: "Số lượng",
     note: "Ghi chú",
+    name: "Tên",
+    price: "Giá bán",
+    category_id: "Nhóm món",
+    station_id: "Trạm bếp",
+    sort_order: "Thứ tự",
+    q: "Từ khóa tìm kiếm",
   };
   return labels[field] ?? field;
 }
@@ -49,6 +55,14 @@ function validationMessage(message: string): string {
   if (normalized === "Input should be a valid integer") return "phải là số nguyên hợp lệ";
   if (normalized.includes("greater than or equal to 1")) return "phải lớn hơn hoặc bằng 1";
   if (normalized.includes("less than or equal to 100")) return "phải nhỏ hơn hoặc bằng 100";
+  if (normalized.includes("greater than 0")) return "phải lớn hơn 0";
+  if (normalized.includes("greater than or equal to 0")) return "không được âm";
+  if (normalized.includes("less than or equal to 10000")) return "phải nhỏ hơn hoặc bằng 10.000";
+  if (normalized.includes("at least 1 character")) return "không được để trống";
+  if (normalized.includes("at most 100 characters")) return "tối đa 100 ký tự";
+  if (normalized.includes("at most 255 characters")) return "tối đa 255 ký tự";
+  if (normalized.includes("valid decimal") || normalized.includes("valid number")) return "phải là số hợp lệ";
+  if (normalized.includes("valid UUID")) return "không hợp lệ";
   return normalized;
 }
 
