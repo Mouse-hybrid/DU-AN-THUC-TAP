@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import type { KitchenQueueResponse } from "../api/kitchen";
 import { parseApiTimestamp } from "../utils/format";
+import { SLA_LABELS, ticketCode } from "../utils/kds";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 import { MenuThumb } from "./MenuThumb";
@@ -15,18 +17,6 @@ interface KdsTicketProps {
   busy: boolean;
   canAct: boolean;
   onAction: (entry: KitchenQueueEntry) => void;
-}
-
-const SLA_LABELS: Record<string, string> = {
-  NORMAL: "Đúng tiến độ",
-  WARNING: "Sắp trễ",
-  DELAYED: "Trễ",
-  CRITICAL: "Rất trễ",
-};
-
-function temporaryOrderCode(entry: KitchenQueueEntry): string {
-  const suffix = entry.order_id.replaceAll("-", "").slice(-4).toUpperCase();
-  return `${entry.table_code}-${suffix}`;
 }
 
 function formatMinutes(minutes: number): string {
@@ -57,7 +47,7 @@ export function KdsTicket({ entry, stationName, action, busy, canAct, onAction }
       <header className="nova-kds-ticket-header">
         <div className="nova-kds-ticket-id">
           <strong className="nova-kds-table"><span className="nova-visually-hidden">Bàn </span>{entry.table_code}</strong>
-          <span className="nova-kds-order-code">#{temporaryOrderCode(entry)}</span>
+          <span className="nova-kds-order-code">#{ticketCode(entry.table_code, entry.order_id)}</span>
         </div>
         <div className="nova-kds-ticket-status">
           <StatusBadge status={entry.sla_status} label={SLA_LABELS[entry.sla_status] ?? entry.sla_status} />
@@ -77,7 +67,17 @@ export function KdsTicket({ entry, stationName, action, busy, canAct, onAction }
         </div>
       </div>
 
-      <p className="nova-kds-station">Trạm: {stationName}</p>
+      <div className="nova-kds-ticket-footer">
+        <p className="nova-kds-station">Trạm: {stationName}</p>
+        <Link
+          className="nova-kds-detail-link"
+          to={`/kitchen/orders/${encodeURIComponent(entry.order_id)}/items/${encodeURIComponent(entry.order_item_id)}`}
+          aria-label={`Chi tiết ${entry.menu_item_name} bàn ${entry.table_code}`}
+        >
+          Chi tiết
+          <Icon name="chevron-right" />
+        </Link>
+      </div>
 
       {action && canAct ? (
         <Button

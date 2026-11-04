@@ -300,6 +300,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--nova-space-2);
+  margin-left: auto;
 }
 
 .nova-user-chip {
@@ -325,22 +326,6 @@ select:focus-visible {
   background: var(--nova-color-primary);
   font-size: 0.6875rem;
   font-weight: 800;
-}
-
-.nova-branch {
-  display: flex;
-  align-items: center;
-  gap: var(--nova-space-3);
-}
-
-.nova-branch-icon {
-  display: inline-grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--nova-color-primary-deep);
-  background: var(--nova-color-soft);
 }
 
 .nova-visually-hidden {

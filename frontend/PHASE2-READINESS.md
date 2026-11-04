@@ -1,14 +1,39 @@
 # Mức sẵn sàng cho Pha 2
 
-Tài liệu này chỉ liệt kê những gì Pha 2 cần và backend đã có hay chưa. **Không có code Pha 2 trong repo**: không route, không màn, không hàm gọi API cho các mục dưới đây. Khi backend có endpoint thật, chạy `npm run gen:api` rồi mới làm màn tương ứng.
+Tài liệu này liệt kê những gì Pha 2 cần và backend đã có hay chưa. Chỉ làm phần backend **đã có endpoint thật** (xem mục “Đã làm”); các mục trong bảng thiếu API **chưa có code**: không route, không màn, không hàm gọi API. Khi backend có endpoint thật, chạy `npm run gen:api` rồi mới làm màn tương ứng.
+
+## Đã làm (backend có API)
+
+| Màn / tính năng | Route / vị trí | API dùng | Role |
+|---|---|---|---|
+| 25 Lịch sử đơn | `/history` | `GET /orders` (lọc `created_from`, phân trang `limit/offset`) | CASHIER, WAITER, SUPERVISOR |
+| Đóng đơn (PAID → CLOSED) | `/history`, `/tables/:id/summary` | `POST /orders/{id}/close` | CASHIER, SUPERVISOR |
+| Hủy món (bắt buộc nhập lý do) | `/tables/:id`, `/tables/:id/summary`, `/kitchen/orders/:orderId/items/:itemId` | `POST /orders/{id}/items/{item_id}/void` | SUPERVISOR |
+| Làm lại món | `/tables/:id`, `/tables/:id/summary`, `/kitchen/orders/:orderId/items/:itemId` | `POST /orders/{id}/items/{item_id}/refire` | SUPERVISOR |
+| 97 Nhật ký hệ thống | `/admin/audit-logs` | `GET /audit-logs` | SUPERVISOR |
+
+Màn 35 (Chi tiết món, KDS) thuộc Pha 1 và đã làm: `/kitchen/orders/:orderId/items/:itemId`, dùng `GET /orders/{id}`, `GET /kitchen/queue`, `start-cooking`, `mark-ready`, `void`, `refire` (xem `README.md`).
+
+Chưa làm dù đã có API:
+
+| Màn / tính năng | API đã có | Ghi chú cho FE |
+|---|---|---|
+| Xem phiên bản đơn | `GET /orders/{id}/versions` (SUPERVISOR) | Chưa có thiết kế |
+| 93 Quản trị nhân viên | `GET/POST /staff`, `GET/PATCH /staff/{staff_id}`, `POST /staff/{staff_id}/lock`, `/unlock`, `/reset-password` | Backend đã gộp (PR #50). FE chưa làm. Chạy `npm run gen:api` rồi mới làm màn |
+| 94 Phân quyền | `GET /staff/permissions`; `GET /auth/me` (trả `permissions[]`) | FE chưa làm; chưa có role “System Admin” riêng trong FE |
+| Đổi mật khẩu | `POST /auth/change-password` | FE chưa làm |
+
+Lưu ý khi làm màn 93, 94: đổi mật khẩu, khóa tài khoản hoặc đổi vai trò làm token cũ trả `401`. FE phải quay về `/login`; `src/api/client.ts` đã tự gọi `redirectToLogin()` khi gặp `401` ở request cần đăng nhập, nhưng cần kiểm thử lại luồng này khi có màn thật.
 
 Nguồn đối chiếu: danh sách endpoint trong `src/api/schema.d.ts` (sinh từ `docs/api/openapi.json`) và `docs/api/api-catalog.md`. Số màn là số màn trong Figma (110 màn, chốt ngày 30/10/2026).
 
 ## Endpoint backend đang có (Pha 1)
 
-`/auth/login`, `/tables`, `/tables/{id}`, `/tables/{id}/open-session`, `/tables/{id}/mark-clean`, `/menu`, `/menu/{id}`, `/menu/categories`, `/menu/categories/{id}`, `/orders`, `/orders/{id}`, `/orders/{id}/items`, `/orders/{id}/items/{item_id}`, `/orders/{id}/send-to-kitchen`, `/orders/{id}/request-billing`, `/orders/{id}/pay`, `/orders/{id}/close`, `/orders/{id}/items/{item_id}/void|refire|start-cooking|mark-ready|pickup|served`, `/kitchen/queue`, `/kitchen/stations`, `/audit-logs`, `/orders/{id}/versions`, và WebSocket `/ws`.
+`/auth/login`, `/auth/me`, `/auth/change-password`, `/staff`, `/staff/{id}`, `/staff/{id}/lock|unlock|reset-password`, `/staff/permissions`, `/tables`, `/tables/{id}`, `/tables/{id}/open-session`, `/tables/{id}/mark-clean`, `/menu`, `/menu/{id}`, `/menu/categories`, `/menu/categories/{id}`, `/orders`, `/orders/{id}`, `/orders/{id}/items`, `/orders/{id}/items/{item_id}`, `/orders/{id}/send-to-kitchen`, `/orders/{id}/request-billing`, `/orders/{id}/pay`, `/orders/{id}/close`, `/orders/{id}/items/{item_id}/void|refire|start-cooking|mark-ready|pickup|served`, `/kitchen/queue`, `/kitchen/stations`, `/audit-logs`, `/orders/{id}/versions`, và WebSocket `/ws`.
 
-Đã có API nhưng chưa có màn Pha 1 nối vào: `void`, `refire`, `close`, `audit-logs`, `versions`. Đây không phải việc của Pha 2 trong danh sách dưới; nhóm cần quyết định khi nào làm.
+Đã có API nhưng chưa có màn: `versions`, `/staff*`, `/auth/me`, `/auth/change-password` (xem mục “Đã làm” cho `void`, `refire`, `close`, `audit-logs`, `GET /orders`).
+
+Trong `openapi.json` còn có nhóm `areas`, `modifiers`, `rewards`, `qr-session` và `public/qr`. Theo nhóm backend, QR, Rewards và thanh toán v2 chưa có API dùng được cho FE, nên chưa làm màn nào trong nhóm này; hỏi lại backend khi nào dùng được.
 
 ## Bảng thiếu API
 
@@ -21,9 +46,8 @@ Nguồn đối chiếu: danh sách endpoint trong `src/api/schema.d.ts` (sinh t�
 | 21, 50 | Thanh toán QR | Tạo phiên thanh toán, mã QR/token, trạng thái nhà cung cấp, hạn dùng, làm mới, hủy, webhook | Chưa có | Màn 50 là phía khách quét QR; màn 21 là phía POS |
 | 22 | Ưu đãi và điểm thưởng | Tra cứu hội viên, áp dụng/gỡ ưu đãi, trừ/cộng điểm | Chưa có | Phải có khách hàng và quy tắc điểm trước |
 | 23 | Hóa đơn VAT / hóa đơn điện tử | Xuất hóa đơn, thông tin người mua, tra cứu trạng thái | Chưa có | Giá trong thiết kế đã gồm VAT 8%, cần kế toán xác nhận |
-| 25 | Lịch sử đơn | Danh sách đơn đã đóng có lọc và phân trang | Chưa có `GET /orders` dạng danh sách có lọc | `GET /orders/{id}` chỉ lấy từng đơn |
+| 25 | Lịch sử đơn: phương thức thanh toán, nhân viên, hoàn tiền, xuất ca | Thêm vào `GET /orders` (hoặc API ca/hoàn tiền) | `GET /orders` dạng danh sách có bộ lọc đã có từ 12/10 và FE đã dùng cho màn 25; chỉ thiếu các trường này (hiện trả mã, bàn, giờ, số món, tiền, trạng thái) | Cột Thanh toán/Nhân viên, chip Hoàn tiền và “Xuất ca” chờ backend |
 | 41–54 | Khách quét QR tại bàn | API dành cho khách (thực đơn, giỏ hàng, đặt món, thanh toán QR) | Chưa có API dành cho khách; API hiện tại dùng token nhân viên | Cần backend chốt cách xác thực khách |
-| 93 | Quản trị nhân viên | Danh sách, tạo, sửa, khóa/mở khóa, đặt lại mật khẩu | Chưa có (chỉ có `/auth/login`) | Chưa có role “System Admin” riêng trong FE |
 
 ## Màn 79, 80, 81 (CRM)
 

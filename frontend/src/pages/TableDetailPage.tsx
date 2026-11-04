@@ -12,6 +12,7 @@ import { RoleGuard } from "../components/RoleGuard";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
+import { useItemOverrides } from "../components/useItemOverrides";
 import { formatOpenDuration, formatVnd } from "../utils/format";
 import { useRealtime } from "../realtime/useRealtime";
 import { createIdempotencyKey } from "../utils/idempotency";
@@ -106,6 +107,12 @@ export function TableDetailPage() {
     }, realtimeConnected ? 30_000 : 5_000);
     return () => window.clearInterval(timer);
   }, [loadTable, realtimeConnected]);
+
+  const overrides = useItemOverrides({
+    reload: () => loadTable(true),
+    notify: setToast,
+    inFlight: mutationInFlight,
+  });
 
   const readyCount = useMemo(
     () => table?.orders.reduce(
@@ -213,22 +220,27 @@ export function TableDetailPage() {
                                 editable={false}
                                 onUpdate={noopItemUpdate}
                                 onRemove={noopItemRemove}
-                                actions={item.status === "READY" || item.status === "PICKED_UP" ? (
-                                  <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
-                                    <Button
-                                      variant="primary"
-                                      type="button"
-                                      className="nova-order-line-action"
-                                      accessibleLabel={`${item.status === "READY" ? "Lấy món" : "Đã mang ra"} ${item.menu_item_name}`}
-                                      busy={busyItemIds.has(item.id)}
-                                      disabled={refreshing}
-                                      busyLabel="Đang cập nhật…"
-                                      onClick={() => void updateItemStatus(order.id, item, item.status === "READY" ? "pickup" : "served")}
-                                    >
-                                      {item.status === "READY" ? "Lấy món" : "Đã mang ra"}
-                                    </Button>
-                                  </RoleGuard>
-                                ) : undefined}
+                                actions={(
+                                  <>
+                                    {overrides.actionsFor(order.id, order.status, item)}
+                                    {item.status === "READY" || item.status === "PICKED_UP" ? (
+                                      <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
+                                        <Button
+                                          variant="primary"
+                                          type="button"
+                                          className="nova-order-line-action"
+                                          accessibleLabel={`${item.status === "READY" ? "Lấy món" : "Đã mang ra"} ${item.menu_item_name}`}
+                                          busy={busyItemIds.has(item.id)}
+                                          disabled={refreshing || overrides.busy}
+                                          busyLabel="Đang cập nhật…"
+                                          onClick={() => void updateItemStatus(order.id, item, item.status === "READY" ? "pickup" : "served")}
+                                        >
+                                          {item.status === "READY" ? "Lấy món" : "Đã mang ra"}
+                                        </Button>
+                                      </RoleGuard>
+                                    ) : null}
+                                  </>
+                                )}
                               />
                             ))}
                           </div>
@@ -242,6 +254,7 @@ export function TableDetailPage() {
           </>
         ) : null}
       </main>
+      {overrides.dialog}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );

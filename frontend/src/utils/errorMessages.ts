@@ -34,3 +34,14 @@ export function adminErrorMessage(error: unknown, context: AdminErrorContext): s
   }
   return getErrorMessage(error);
 }
+
+/** Lỗi khi bếp bắt đầu nấu / đánh dấu sẵn sàng một món. */
+export function kitchenActionErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return "Bạn không có quyền cập nhật món này.";
+    if (error.status === 404) return "Không tìm thấy món trong đơn.";
+    if (error.status === 409) return "Trạng thái món vừa thay đổi. Dữ liệu đã được tải lại.";
+    if (error.status === 0 && !navigator.onLine) return "Không thể cập nhật khi đang ngoại tuyến.";
+  }
+  return getErrorMessage(error);
+}

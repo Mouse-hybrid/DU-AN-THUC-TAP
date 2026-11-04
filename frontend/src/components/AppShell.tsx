@@ -33,11 +33,15 @@ function initialsOf(fullName: string | undefined): string {
 
 function navItemsFor(role: string | undefined): NavItem[] {
   if (role === "KITCHEN") return [{ to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" }];
-  const items: NavItem[] = [{ to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" }];
+  const items: NavItem[] = [
+    { to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" },
+    { to: "/history", prefix: "/history", label: "Lịch sử", icon: "history" },
+  ];
   if (role === "SUPERVISOR") {
     items.push(
       { to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" },
-      { to: "/admin/menu/categories", prefix: "/admin", label: "Thực đơn", glyph: "T" },
+      { to: "/admin/menu/categories", prefix: "/admin/menu", label: "Thực đơn", glyph: "T" },
+      { to: "/admin/audit-logs", prefix: "/admin/audit-logs", label: "Nhật ký", icon: "scroll-text" },
     );
   }
   return items;
@@ -84,15 +88,7 @@ export function AppShell({ children, topbar }: AppShellProps) {
 
       <div className="nova-app-main">
         <header className="nova-topbar">
-          {topbar ?? (
-            <div className="nova-branch">
-              <span className="nova-branch-icon" aria-hidden="true"><Icon name="map-pin" /></span>
-              <div>
-                <p className="nova-topbar-label">Chi nhánh hiện tại</p>
-                <strong>Chi nhánh Quận 1</strong>
-              </div>
-            </div>
-          )}
+          {topbar}
           <div className="nova-user-actions">
             <span className="nova-user-chip" title={auth?.staff.full_name}>
               <span className="nova-user-avatar" aria-hidden="true">{initialsOf(auth?.staff.full_name)}</span>
