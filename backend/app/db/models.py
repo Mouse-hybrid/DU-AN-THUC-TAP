@@ -79,6 +79,8 @@ ORDER_ITEM_STATUS = (
     "REFIRED",
 )
 
+ORDER_ITEM_SOURCE = ("POS", "QR")
+
 KITCHEN_QUEUE_STATUS = ("QUEUED", "IN_PROGRESS", "DONE", "CANCELLED")
 
 # Đúng theo bảng Role trong BRD (mục "Role || Description || Key
@@ -194,6 +196,7 @@ class TableSession(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # session token tạm cho khách quét QR gọi món — không cần login (theo BRD auth)
     qr_session_token: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    qr_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     table: Mapped["RestaurantTable"] = relationship(back_populates="sessions")
     orders: Mapped[list["Order"]] = relationship(back_populates="table_session")
@@ -303,7 +306,10 @@ class Order(Base):
 
 class OrderItem(Base):
     __tablename__ = "order_item"
-    __table_args__ = (_check(ORDER_ITEM_STATUS, "status", "ck_order_item_status"),)
+    __table_args__ = (
+        _check(ORDER_ITEM_STATUS, "status", "ck_order_item_status"),
+        _check(ORDER_ITEM_SOURCE, "source", "ck_order_item_source"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
     order_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order.id"), nullable=False)
@@ -316,6 +322,9 @@ class OrderItem(Base):
         Numeric(12, 2), nullable=False
     )  # snapshot giá lúc order
     note: Mapped[str | None] = mapped_column(Text, nullable=True)  # ghi chú món, vd "không hành"
+    source: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="POS", server_default="POS"
+    )  # POS = nhân viên nhập, QR = khách tự gọi
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

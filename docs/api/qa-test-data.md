@@ -133,6 +133,7 @@ Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 
 | **Q2-1** (chi nhánh "Chi nhánh QA 2 (không menu)"): order NEW rỗng | Truy cập chéo chi nhánh (TC_EXT_019): tài khoản chi nhánh 1 gọi `GET /orders/{id}` → `404` |
 | **Khu thử nghiệm QA 3**: món `Nước cam` hết hàng (`is_available=false`) | Gọi món hết hàng mà không đụng dữ liệu demo. Đăng nhập `qa3_waiter` |
 | **Q3-3** (khu thử nghiệm QA 3): order NEW rỗng, 5 dòng audit `QA_FIXTURE_EQUAL_TIMESTAMP` cùng `created_at` | Phân trang audit khi trùng thời điểm (P2-AUD-002). Đăng nhập `qa3_admin`, gọi `GET /api/v1/audit-logs?order_id=<id>&limit=2&offset=0`. Thứ tự bảo đảm: `created_at` tăng dần, rồi `id` tăng dần (không theo `sequence` trong payload). `order_id` lấy ở log của lần Reset; `audit_log` không bị xóa khi reset nên mỗi lần có thêm 1 bộ, order cũ không còn tra theo `order_id` được |
+| **Q3-3**: mã QR đã hết hạn, `token` in trong log của lần Reset | `GET /api/v1/public/qr/<token>` trả `410` (màn 54). Mã hợp lệ thì tự cấp: `qa3_waiter` mở Q3-1 rồi gọi `POST /api/v1/tables/{id}/qr-session`; thu hồi bằng `DELETE`, cấp lại thì mã cũ trả `401`. Quy tắc và mã lỗi: mục A10 của `api-catalog.md` |
 | **B1–B4** trống | Test thủ công mở bàn → gọi món |
 
 Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).

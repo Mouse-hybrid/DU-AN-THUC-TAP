@@ -75,6 +75,11 @@ KDS_SLA_WARNING_MINUTES = int(os.getenv("KDS_SLA_WARNING_MINUTES", "8"))
 KDS_SLA_DELAYED_MINUTES = int(os.getenv("KDS_SLA_DELAYED_MINUTES", "12"))
 KDS_SLA_CRITICAL_MINUTES = int(os.getenv("KDS_SLA_CRITICAL_MINUTES", "15"))
 
+# QR Ordering: hạn dùng của mã QR, và số món khách gọi được chờ phục vụ xác nhận trong
+# một phiên bàn (chống đặt bậy; phục vụ xác nhận xong thì khách gọi tiếp được).
+QR_SESSION_TTL_MINUTES = int(os.getenv("QR_SESSION_TTL_MINUTES", "240"))
+QR_MAX_PENDING_ITEMS = int(os.getenv("QR_MAX_PENDING_ITEMS", "30"))
+
 # --- Bản đang chạy (GET /version) ---------------------------------------------
 # Gắn lúc build image (Dockerfile ARG GIT_COMMIT/BUILT_AT, deploy-staging.sh truyền
 # vào) để QA/mentor biết staging đang chạy đúng commit nào.

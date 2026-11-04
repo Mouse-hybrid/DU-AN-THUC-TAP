@@ -45,6 +45,7 @@ class OrderItemOut(BaseModel):
     quantity: int
     unit_price: Decimal
     note: str | None
+    source: str = "POS"
 
     model_config = {"from_attributes": True}
 

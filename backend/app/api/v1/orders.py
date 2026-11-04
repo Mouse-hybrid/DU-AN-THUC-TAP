@@ -177,6 +177,7 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
             quantity=item.quantity,
             unit_price=item.unit_price,
             note=item.note,
+            source=item.source,
             line_total=item.unit_price * item.quantity,
         )
         for item in sorted(order.items, key=lambda i: i.created_at)
