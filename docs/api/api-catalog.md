@@ -158,7 +158,33 @@ Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. 
 | `422` | Dữ liệu không hợp lệ |
 | `429` | Vượt giới hạn request theo IP (Nginx: 10 request/giây, burst 40) |
 
-Chưa có: modifier (size, topping theo B7), khách tự yêu cầu thanh toán và thanh toán QR (49–51, làm cùng VNPay), định danh hội viên (làm cùng Rewards).
+Chưa có: khách tự yêu cầu thanh toán và thanh toán QR (49–51, làm cùng VNPay), định danh hội viên (làm cùng Rewards).
+
+### A11. Tùy chọn món (từ 04/11)
+
+Theo phiếu B7: size và topping có giá cộng thêm, chưa có combo. Tùy chọn gắn theo từng món.
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 57 | GET | `/api/v1/menu/{id}/modifiers?active_only=` | mọi role | 10 Tùy chọn món; `GET /menu` có `has_modifiers` để biết có cần gọi không | ✅ |
+| 58 | POST | `/api/v1/menu/{id}/modifiers` (cần `Idempotency-Key`) | S | 104 Thêm nhóm kèm tùy chọn: `name`, `min_select`, `max_select`, `options[]` | ✅ |
+| 59 | PATCH | `/api/v1/menu/modifiers/{group_id}` | S | Sửa nhóm, ẩn bằng `is_active: false` | ✅ |
+| 60 | POST | `/api/v1/menu/modifiers/{group_id}/options` (cần `Idempotency-Key`) | S | Thêm tùy chọn: `name`, `price_delta` | ✅ |
+| 61 | PATCH | `/api/v1/menu/modifier-options/{id}` | S | Sửa tùy chọn, hết hàng bằng `is_available: false` | ✅ |
+
+**Khi gọi món:** thêm `modifier_option_ids` vào từng dòng của `POST /orders/{id}/items` và `POST /public/qr/{token}/orders`. Không có nhóm bắt buộc thì không cần gửi, luồng cũ vẫn chạy.
+
+- `unit_price` của dòng món **đã gồm** giá cộng thêm, các tổng tiền tính như cũ. Dòng món, phiếu bếp và API QR có thêm `modifiers[]` (`group_name`, `option_name`, `price_delta`), lưu theo lúc gọi nên sửa tùy chọn sau đó không đổi đơn cũ.
+- Thực đơn QR (`GET /public/qr/{token}/menu`) có sẵn `modifier_groups` trong từng món.
+- `min_select` ≥ 1 là nhóm bắt buộc. Muốn đổi tùy chọn của dòng đã gọi thì bỏ dòng rồi gọi lại, `PATCH` món chỉ đổi số lượng và ghi chú.
+- FE không được cộng dồn 2 dòng cùng món nhưng khác tùy chọn.
+
+| Mã | Khi nào |
+|---|---|
+| `409` | Tùy chọn hết hàng; trùng tên nhóm hoặc tùy chọn |
+| `422` | Thiếu nhóm bắt buộc, chọn quá `max_select`, chọn trùng, tùy chọn không thuộc món hoặc thuộc nhóm đang ẩn; `min_select` > `max_select` |
+
+**Lưu ý khi bật nhóm bắt buộc:** FE chưa gửi `modifier_option_ids` thì gọi món đó sẽ nhận `422`. Seed món demo chỉ dùng nhóm tùy ý; món `Trà đá` của khu QA 3 có `Size` bắt buộc để test.
 
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
@@ -218,7 +244,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
 | **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10). Còn: `POST /public/qr/{token}/request-bill`, thanh toán QR | Làm cùng VNPay |
-| **Modifier cơ bản** (cho QR + POS) | `GET /menu/{id}/modifiers`, `POST/PATCH /menu/{id}/modifiers`, field `modifiers[]` trong `POST /orders/{id}/items` | Chưa có schema; QA/PO hỏi về combo/size/topping, chờ PO chốt |
+| ~~**Modifier cơ bản** (cho QR + POS)~~ | **Đã có từ 04/11** (mục A11) | Chưa có combo |
 | **Rewards / CRM** (Key Focus BRD) | `GET /customers?phone=`, `POST /customers`, `GET /customers/{id}/rewards`, `POST /orders/{id}/apply-reward`, `DELETE /orders/{id}/rewards/{reward_id}` | Cần bảng khách hàng/điểm thưởng mới (migration), PO chốt luật tích/đổi điểm |
 
 ### Pha 3 · SIT/UAT (23/11 – 04/12) — chỉ làm nếu còn thời gian

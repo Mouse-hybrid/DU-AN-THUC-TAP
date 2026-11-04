@@ -988,6 +988,332 @@
         }
       }
     },
+    "/api/v1/menu/{item_id}/modifiers": {
+      "get": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "List Modifiers",
+        "operationId": "list_modifiers_api_v1_menu__item_id__modifiers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Chỉ trả nhóm đang is_active=True",
+              "default": false,
+              "title": "Active Only"
+            },
+            "description": "Chỉ trả nhóm đang is_active=True"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModifierGroupOut"
+                  },
+                  "title": "Response List Modifiers Api V1 Menu  Item Id  Modifiers Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "Create Modifier Group",
+        "operationId": "create_modifier_group_api_v1_menu__item_id__modifiers_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierGroupCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModifierGroupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/menu/modifiers/{group_id}": {
+      "patch": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "Update Modifier Group",
+        "operationId": "update_modifier_group_api_v1_menu_modifiers__group_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierGroupUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModifierGroupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/menu/modifiers/{group_id}/options": {
+      "post": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "Create Modifier Option",
+        "operationId": "create_modifier_option_api_v1_menu_modifiers__group_id__options_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierOptionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModifierOptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/menu/modifier-options/{option_id}": {
+      "patch": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "Update Modifier Option",
+        "operationId": "update_modifier_option_api_v1_menu_modifier_options__option_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "option_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Option Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierOptionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModifierOptionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders": {
       "get": {
         "tags": [
@@ -3725,6 +4051,14 @@
             ],
             "title": "Note"
           },
+          "modifiers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemModifierOut"
+            },
+            "type": "array",
+            "title": "Modifiers",
+            "default": []
+          },
           "station_id": {
             "type": "string",
             "format": "uuid",
@@ -4088,6 +4422,11 @@
               }
             ],
             "title": "Category Id"
+          },
+          "has_modifiers": {
+            "type": "boolean",
+            "title": "Has Modifiers",
+            "default": false
           }
         },
         "type": "object",
@@ -4171,6 +4510,304 @@
         "type": "object",
         "title": "MenuItemUpdate",
         "description": "PATCH: chỉ field nào gửi lên mới được đổi. `station_id: null` /\n`category_id: null` = bỏ gán; không gửi field = giữ nguyên."
+      },
+      "ModifierGroupCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "min_select": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Min Select",
+            "default": 0
+          },
+          "max_select": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Max Select",
+            "default": 1
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ModifierOptionCreate"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "options"
+        ],
+        "title": "ModifierGroupCreate",
+        "description": "Nhóm bắt buộc chọn 1 (Size): min_select=1, max_select=1.\nNhóm tùy ý (Topping): min_select=0, max_select=số tối đa."
+      },
+      "ModifierGroupOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "min_select": {
+            "type": "integer",
+            "title": "Min Select"
+          },
+          "max_select": {
+            "type": "integer",
+            "title": "Max Select"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ModifierOptionOut"
+            },
+            "type": "array",
+            "title": "Options",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "min_select",
+          "max_select",
+          "sort_order",
+          "is_active"
+        ],
+        "title": "ModifierGroupOut"
+      },
+      "ModifierGroupUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "min_select": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Select"
+          },
+          "max_select": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Select"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "ModifierGroupUpdate"
+      },
+      "ModifierOptionCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "price_delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              }
+            ],
+            "title": "Price Delta",
+            "default": "0"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          },
+          "is_available": {
+            "type": "boolean",
+            "title": "Is Available",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ModifierOptionCreate"
+      },
+      "ModifierOptionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price_delta": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price Delta"
+          },
+          "is_available": {
+            "type": "boolean",
+            "title": "Is Available"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "price_delta",
+          "is_available",
+          "sort_order"
+        ],
+        "title": "ModifierOptionOut"
+      },
+      "ModifierOptionUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "price_delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Delta"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "is_available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Available"
+          }
+        },
+        "type": "object",
+        "title": "ModifierOptionUpdate"
       },
       "OpenSessionRequest": {
         "properties": {
@@ -4271,6 +4908,15 @@
               }
             ],
             "title": "Note"
+          },
+          "modifier_option_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Modifier Option Ids"
           }
         },
         "type": "object",
@@ -4320,6 +4966,14 @@
             "title": "Source",
             "default": "POS"
           },
+          "modifiers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemModifierOut"
+            },
+            "type": "array",
+            "title": "Modifiers",
+            "default": []
+          },
           "menu_item_name": {
             "type": "string",
             "title": "Menu Item Name"
@@ -4343,6 +4997,30 @@
         ],
         "title": "OrderItemDetailOut",
         "description": "Dòng món kèm tên món và thành tiền — đủ để FE vẽ màn order mà không phải\ngọi thêm GET /menu."
+      },
+      "OrderItemModifierOut": {
+        "properties": {
+          "group_name": {
+            "type": "string",
+            "title": "Group Name"
+          },
+          "option_name": {
+            "type": "string",
+            "title": "Option Name"
+          },
+          "price_delta": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price Delta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_name",
+          "option_name",
+          "price_delta"
+        ],
+        "title": "OrderItemModifierOut"
       },
       "OrderItemOut": {
         "properties": {
@@ -4384,6 +5062,14 @@
             "type": "string",
             "title": "Source",
             "default": "POS"
+          },
+          "modifiers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemModifierOut"
+            },
+            "type": "array",
+            "title": "Modifiers",
+            "default": []
           }
         },
         "type": "object",
@@ -4682,6 +5368,14 @@
           "is_available": {
             "type": "boolean",
             "title": "Is Available"
+          },
+          "modifier_groups": {
+            "items": {
+              "$ref": "#/components/schemas/ModifierGroupOut"
+            },
+            "type": "array",
+            "title": "Modifier Groups",
+            "default": []
           }
         },
         "type": "object",
@@ -4760,6 +5454,14 @@
           "source": {
             "type": "string",
             "title": "Source"
+          },
+          "modifiers": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemModifierOut"
+            },
+            "type": "array",
+            "title": "Modifiers",
+            "default": []
           }
         },
         "type": "object",
@@ -4800,6 +5502,15 @@
               }
             ],
             "title": "Note"
+          },
+          "modifier_option_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Modifier Option Ids"
           }
         },
         "type": "object",

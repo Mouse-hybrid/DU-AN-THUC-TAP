@@ -17,6 +17,7 @@ class OrderItemCreate(BaseModel):
     menu_item_id: uuid.UUID
     quantity: int = Field(default=1, ge=1, le=50)
     note: str | None = None
+    modifier_option_ids: list[uuid.UUID] = Field(default_factory=list, max_length=30)
 
 
 class AddItemsRequest(BaseModel):
@@ -38,14 +39,23 @@ class UpdateOrderItemRequest(BaseModel):
         return self
 
 
+class OrderItemModifierOut(BaseModel):
+    group_name: str
+    option_name: str
+    price_delta: Decimal
+
+    model_config = {"from_attributes": True}
+
+
 class OrderItemOut(BaseModel):
     id: uuid.UUID
     menu_item_id: uuid.UUID
     status: str
     quantity: int
-    unit_price: Decimal
+    unit_price: Decimal  # đã gồm giá cộng thêm của các tùy chọn
     note: str | None
     source: str = "POS"
+    modifiers: list[OrderItemModifierOut] = []
 
     model_config = {"from_attributes": True}
 

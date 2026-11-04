@@ -9,6 +9,9 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.menu import ModifierGroupOut
+from app.schemas.orders import OrderItemModifierOut
+
 
 class QrSessionOut(BaseModel):
     table_id: uuid.UUID
@@ -40,8 +43,7 @@ class QrMenuItemOut(BaseModel):
     price: Decimal
     category_id: uuid.UUID | None = None
     is_available: bool
-
-    model_config = {"from_attributes": True}
+    modifier_groups: list[ModifierGroupOut] = []  # chỉ nhóm đang hiển thị
 
 
 class QrMenuOut(BaseModel):
@@ -53,6 +55,7 @@ class QrOrderLine(BaseModel):
     menu_item_id: uuid.UUID
     quantity: int = Field(default=1, ge=1, le=20)
     note: str | None = Field(default=None, max_length=200)
+    modifier_option_ids: list[uuid.UUID] = Field(default_factory=list, max_length=30)
 
 
 class QrSubmitRequest(BaseModel):
@@ -68,6 +71,7 @@ class QrOrderItemOut(BaseModel):
     note: str | None
     status: str  # CREATED = chờ phục vụ xác nhận, VOIDED = đã hủy
     source: str
+    modifiers: list[OrderItemModifierOut] = []
 
 
 class QrOrderOut(BaseModel):

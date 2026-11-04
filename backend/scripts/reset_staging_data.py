@@ -2,7 +2,7 @@
 """Reset dữ liệu giao dịch trên staging/local về trạng thái sạch để QA test lại
 và để diễn tập/demo (sơ đồ bàn trống, hàng đợi bếp trống).
 
-XÓA: table_session, order, order_item, order_version, kitchen_queue,
+XÓA: table_session, order, order_item, order_item_modifier, order_version, kitchen_queue,
 idempotency_key (tức mọi phiên bàn, đơn, món, phiếu bếp đã tạo khi test).
 ĐƯA VỀ: mọi bàn AVAILABLE, mọi món menu is_available = true.
 GIỮ NGUYÊN: outlet, tài khoản staff, menu/nhóm món/trạm bếp, audit_log (lịch sử
@@ -64,6 +64,7 @@ from app.db.models import (  # noqa: E402
     MenuItem,
     Order,
     OrderItem,
+    OrderItemModifier,
     OrderVersion,
     Outlet,
     RestaurantTable,
@@ -77,6 +78,7 @@ ALLOWED_ENVS = ("development", "staging", "test")
 _WIPE_ORDER = (
     ("kitchen_queue", KitchenQueue),
     ("order_version", OrderVersion),
+    ("order_item_modifier", OrderItemModifier),
     ("order_item", OrderItem),
     ("order", Order),
     ("table_session", TableSession),

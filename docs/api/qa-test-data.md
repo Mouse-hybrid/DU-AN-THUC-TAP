@@ -15,6 +15,7 @@ Dành cho QA. Mọi payload dưới đây đã được chạy thử trên DB v�
 | Trạm bếp | Bếp chính, Quầy bar |
 | Nhóm món | Món khai vị (1), Món chính (2), Đồ uống (3) |
 | Món | Gỏi cuốn 35.000, Chả giò 40.000, Phở bò 45.000, Bún chả 50.000, Cơm tấm sườn 55.000 (Bếp chính); Trà đá 5.000, Cà phê sữa đá 25.000, Nước cam 30.000 (Quầy bar) |
+| Tùy chọn món | Phở bò: `Thêm topping` (tùy ý, tối đa 2: Thêm trứng +5.000, Thêm thịt +15.000). Cà phê sữa đá: `Độ ngọt` (tùy ý, tối đa 1: Ít đường, Không đường). Riêng khu QA 3, Trà đá: `Size` **bắt buộc** chọn 1 (Vừa, Lớn +3.000) |
 | Bàn | 14 bàn, đều AVAILABLE. Tầng 1: B1, B2 (4 ghế), B3, B4 (2 ghế), B5, B6 (6 ghế). Tầng 2: B7–B9 (4 ghế), B10, B11 (6 ghế). Sân vườn: B12, B13 (4 ghế), B14 (2 ghế). Sơ đồ chỉ để minh họa. Khu QA 3: Tầng 1 có Q3-1, Q3-2; Sân vườn có Q3-3. Khu QA 2 không chia khu |
 
 **Header bắt buộc**

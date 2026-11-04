@@ -267,6 +267,72 @@ class MenuItem(Base):
     outlet: Mapped["Outlet"] = relationship(back_populates="menu_items")
     station: Mapped["KitchenStation | None"] = relationship(back_populates="menu_items")
     category: Mapped["MenuCategory | None"] = relationship(back_populates="menu_items")
+    modifier_groups: Mapped[list["ModifierGroup"]] = relationship(
+        back_populates="menu_item",
+        cascade="all, delete-orphan",
+        order_by="ModifierGroup.sort_order, ModifierGroup.name",
+    )
+
+    @property
+    def active_modifier_groups(self) -> list["ModifierGroup"]:
+        return [group for group in self.modifier_groups if group.is_active]
+
+    @property
+    def has_modifiers(self) -> bool:
+        return bool(self.active_modifier_groups)
+
+
+# ---------------------------------------------------------------------------
+# ModifierGroup / ModifierOption — tùy chọn của 1 món (vd nhóm "Size" có "Vừa", "Lớn").
+# min_select >= 1 là nhóm bắt buộc chọn. Không có xóa, chỉ ẩn, để đơn cũ vẫn tra được.
+# ---------------------------------------------------------------------------
+
+
+class ModifierGroup(Base):
+    __tablename__ = "modifier_group"
+    __table_args__ = (
+        UniqueConstraint("menu_item_id", "name", name="uq_modifier_group_item_name"),
+        CheckConstraint(
+            "min_select >= 0 AND max_select >= 1 AND min_select <= max_select",
+            name="ck_modifier_group_select_range",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    menu_item_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("menu_item.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    min_select: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_select: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    menu_item: Mapped["MenuItem"] = relationship(back_populates="modifier_groups")
+    options: Mapped[list["ModifierOption"]] = relationship(
+        back_populates="group",
+        cascade="all, delete-orphan",
+        order_by="ModifierOption.sort_order, ModifierOption.name",
+    )
+
+
+class ModifierOption(Base):
+    __tablename__ = "modifier_option"
+    __table_args__ = (
+        UniqueConstraint("group_id", "name", name="uq_modifier_option_group_name"),
+        CheckConstraint("price_delta >= 0", name="ck_modifier_option_price_delta"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("modifier_group.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    price_delta: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    group: Mapped["ModifierGroup"] = relationship(back_populates="options")
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +386,7 @@ class OrderItem(Base):
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     unit_price: Mapped[Numeric] = mapped_column(
         Numeric(12, 2), nullable=False
-    )  # snapshot giá lúc order
+    )  # snapshot giá lúc order, ĐÃ gồm giá cộng thêm của tùy chọn
     note: Mapped[str | None] = mapped_column(Text, nullable=True)  # ghi chú món, vd "không hành"
     source: Mapped[str] = mapped_column(
         String(10), nullable=False, default="POS", server_default="POS"
@@ -333,6 +399,24 @@ class OrderItem(Base):
     order: Mapped["Order"] = relationship(back_populates="items")
     menu_item: Mapped["MenuItem"] = relationship()
     kitchen_queue_entries: Mapped[list["KitchenQueue"]] = relationship(back_populates="order_item")
+    modifiers: Mapped[list["OrderItemModifier"]] = relationship(cascade="all, delete-orphan")
+
+
+class OrderItemModifier(Base):
+    """Tùy chọn khách đã chọn cho 1 dòng món; lưu lại tên và giá lúc gọi."""
+
+    __tablename__ = "order_item_modifier"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    order_item_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("order_item.id"), nullable=False
+    )
+    option_id: Mapped[uuid.UUID] = mapped_column(
+        GUID, ForeignKey("modifier_option.id"), nullable=False
+    )
+    group_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    option_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    price_delta: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
 
 
 # ---------------------------------------------------------------------------

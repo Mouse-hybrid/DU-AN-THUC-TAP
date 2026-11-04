@@ -46,6 +46,7 @@ from app.core.deps import (
     require_idempotency_key,
     require_permission,
 )
+from app.core.modifiers import resolve_modifiers
 from app.core.permissions import Permission
 from app.core.realtime import manager
 from app.db.base import get_session
@@ -65,6 +66,7 @@ from app.schemas.orders import (
     CreateOrderRequest,
     OrderDetailOut,
     OrderItemDetailOut,
+    OrderItemModifierOut,
     OrderOut,
     OrderSummaryOut,
     SendToKitchenResponse,
@@ -149,6 +151,9 @@ def _snapshot_order(order: Order) -> str:
                     "quantity": item.quantity,
                     "unit_price": str(item.unit_price),
                     "note": item.note,
+                    "modifiers": [
+                        {"group": m.group_name, "option": m.option_name} for m in item.modifiers
+                    ],
                 }
                 for item in order.items
             ],
@@ -178,6 +183,7 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
             unit_price=item.unit_price,
             note=item.note,
             source=item.source,
+            modifiers=[OrderItemModifierOut.model_validate(m) for m in item.modifiers],
             line_total=item.unit_price * item.quantity,
         )
         for item in sorted(order.items, key=lambda i: i.created_at)
@@ -386,6 +392,7 @@ def add_order_items(
             raise HTTPException(
                 status.HTTP_409_CONFLICT, detail=f"Món '{menu_item.name}' hiện không khả dụng"
             )
+        modifiers, modifier_total = resolve_modifiers(menu_item, line.modifier_option_ids)
 
         session.add(
             OrderItem(
@@ -394,8 +401,9 @@ def add_order_items(
                 status="CREATED",
                 quantity=line.quantity,
                 # snapshot giá tại thời điểm order — đổi giá menu sau không ảnh hưởng order cũ
-                unit_price=menu_item.price,
+                unit_price=menu_item.price + modifier_total,
                 note=line.note,
+                modifiers=modifiers,
             )
         )
 

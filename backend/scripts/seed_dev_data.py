@@ -42,6 +42,8 @@ from app.db.models import (  # noqa: E402
     KitchenStation,
     MenuCategory,
     MenuItem,
+    ModifierGroup,
+    ModifierOption,
     Outlet,
     RestaurantTable,
     Staff,
@@ -75,6 +77,17 @@ SEED_MENU: dict[str, tuple[int, list[tuple[str, str, str]]]] = {
             ("Nước cam", "30000.00", "Quầy bar"),
         ],
     ),
+}
+# món -> [(nhóm, min_select, max_select, [(tùy chọn, giá cộng thêm)])]. Bản demo chỉ dùng
+# nhóm tùy ý: nhóm bắt buộc sẽ làm luồng gọi món hiện tại (chưa gửi tùy chọn) nhận 422.
+SEED_MODIFIERS: dict[str, list[tuple[str, int, int, list[tuple[str, str]]]]] = {
+    "Phở bò": [("Thêm topping", 0, 2, [("Thêm trứng", "5000.00"), ("Thêm thịt", "15000.00")])],
+    "Cà phê sữa đá": [("Độ ngọt", 0, 1, [("Ít đường", "0.00"), ("Không đường", "0.00")])],
+}
+# Riêng khu QA 3 có thêm nhóm bắt buộc để test thiếu tùy chọn.
+QA3_MODIFIERS: dict[str, list[tuple[str, int, int, list[tuple[str, str]]]]] = {
+    **SEED_MODIFIERS,
+    "Trà đá": [("Size", 1, 1, [("Vừa", "0.00"), ("Lớn", "3000.00")])],
 }
 # (mã bàn, số ghế)
 SEED_TABLES = (
@@ -293,6 +306,35 @@ def _ensure_areas(session, outlet, areas) -> None:
     session.flush()
 
 
+def _ensure_modifiers(session, outlet, spec) -> None:
+    """Chỉ tạo nhóm chưa có theo tên; không sửa nhóm đã tồn tại vì Supervisor có thể đã
+    cấu hình lại, và seed chạy sau mỗi lần deploy."""
+    for item_name, groups in spec.items():
+        item = session.execute(
+            select(MenuItem).where(MenuItem.outlet_id == outlet.id, MenuItem.name == item_name)
+        ).scalar_one_or_none()
+        if item is None:
+            continue
+        existing = {group.name for group in item.modifier_groups}
+        for sort_order, (name, min_select, max_select, options) in enumerate(groups):
+            if name in existing:
+                continue
+            item.modifier_groups.append(
+                ModifierGroup(
+                    name=name,
+                    min_select=min_select,
+                    max_select=max_select,
+                    sort_order=sort_order,
+                    options=[
+                        ModifierOption(name=option, price_delta=price, sort_order=index)
+                        for index, (option, price) in enumerate(options)
+                    ],
+                )
+            )
+            print(f"+ modifier_group {item_name} / {name}")
+    session.flush()
+
+
 def _ensure_qa_third_outlet(session, password, explicit) -> None:
     """Khu thử nghiệm QA 3: đủ menu mẫu, trạm bếp, bàn Q3-1..Q3-3 và 4 vai, để QA chạy
     trọn luồng có ghi dữ liệu mà không đụng dữ liệu demo."""
@@ -308,6 +350,7 @@ def _ensure_qa_third_outlet(session, password, explicit) -> None:
         _ensure_staff(session, outlet, username, role, full_name, password, explicit)
     _ensure_menu_and_tables(session, outlet, QA3_OUTLET_TABLES, label=" (khu thử nghiệm QA 3)")
     _ensure_areas(session, outlet, QA3_AREAS)
+    _ensure_modifiers(session, outlet, QA3_MODIFIERS)
 
 
 def main() -> None:
@@ -334,6 +377,7 @@ def main() -> None:
 
         _ensure_menu_and_tables(session, outlet, SEED_TABLES)
         _ensure_areas(session, outlet, SEED_AREAS)
+        _ensure_modifiers(session, outlet, SEED_MODIFIERS)
 
         _ensure_qa_second_outlet(session, password, explicit)
         _ensure_qa_third_outlet(session, password, explicit)
