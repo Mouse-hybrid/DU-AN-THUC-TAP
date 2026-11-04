@@ -42,33 +42,15 @@ test.describe('POS System - API Smoke Test', () => {
   });
 
 
-  test('API-003 - Mock Summary API', async ({ request, page }, testInfo) => {
+  test('API-003 - Legacy Mock Summary endpoint retired', async ({ request, page }, testInfo) => {
+    // Backend removed the Sprint 0 mock endpoint; the shared staging origin
+    // serves React at /, while /api/v1/mock/summary must return 404.
     const response = await request.get('/api/v1/mock/summary');
-
-    expect(response.status()).toBe(200);
-
-    const body = await response.json();
-
-    expect(body).toHaveProperty('environment');
-    expect(body).toHaveProperty('data_mode');
-    expect(body).toHaveProperty('screens');
-    expect(body).toHaveProperty('message');
-
-    expect(body.data_mode).toBe('mock');
-
-    expect(body.screens).toEqual(
-      expect.arrayContaining([
-        'landing',
-        'pos',
-        'kitchen',
-        'customer',
-        'admin',
-      ])
-    );
+    expect(response.status()).toBe(404);
 
     await screenshotSuccess(page, {
       testId: 'API-003',
-      testName: 'Mock Summary API',
+      testName: 'Legacy Mock Summary Retired',
       statusCode: response.status(),
       testInfo,
     });
