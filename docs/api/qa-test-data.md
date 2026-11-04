@@ -132,6 +132,7 @@ Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 
 | **B5**: order `SENT`, 1 món chờ bếp (`QUEUED`), 1 món đang nấu 9 phút (`WARNING`), 1 món đang nấu 16 phút (`CRITICAL`) | Hàng đợi bếp, SLA (TC_EXT_014), `?delayed_only=true` |
 | **Q2-1** (chi nhánh "Chi nhánh QA 2 (không menu)"): order NEW rỗng | Truy cập chéo chi nhánh (TC_EXT_019): tài khoản chi nhánh 1 gọi `GET /orders/{id}` → `404` |
 | **Khu thử nghiệm QA 3**: món `Nước cam` hết hàng (`is_available=false`) | Gọi món hết hàng mà không đụng dữ liệu demo. Đăng nhập `qa3_waiter` |
+| **Q3-3** (khu thử nghiệm QA 3): order NEW rỗng, 5 dòng audit `QA_FIXTURE_EQUAL_TIMESTAMP` cùng `created_at` | Phân trang audit khi trùng thời điểm (P2-AUD-002). Đăng nhập `qa3_admin`, gọi `GET /api/v1/audit-logs?order_id=<id>&limit=2&offset=0`. Thứ tự bảo đảm: `created_at` tăng dần, rồi `id` tăng dần (không theo `sequence` trong payload). `order_id` lấy ở log của lần Reset; `audit_log` không bị xóa khi reset nên mỗi lần có thêm 1 bộ, order cũ không còn tra theo `order_id` được |
 | **B1–B4** trống | Test thủ công mở bàn → gọi món |
 
 Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).

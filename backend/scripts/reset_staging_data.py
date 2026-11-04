@@ -20,7 +20,10 @@ khó dựng tay (refire TC_EXT_012/013, SLA TC_EXT_014):
 - bàn Q2-1 (chi nhánh QA 2, không có menu): order NEW rỗng để test truy cập
   chéo chi nhánh.
 - khu thử nghiệm QA 3: món QA3_SOLD_OUT_ITEM (seed_dev_data.py) đặt hết hàng, để test
-  gọi món hết hàng mà không đụng dữ liệu demo.
+  gọi món hết hàng mà không đụng dữ liệu demo;
+- bàn Q3-3 (khu thử nghiệm QA 3): order NEW rỗng kèm 5 dòng audit cùng created_at để
+  test phân trang audit khi trùng thời điểm (P2-AUD-002). audit_log không bị xóa khi
+  reset, nên mỗi lần reset có thêm 1 bộ; lọc theo order_id của lần reset mới nhất.
 B1–B4 để trống cho test thủ công.
 
 Không bao giờ chạy với APP_ENV=production. Mặc định chỉ in ra sẽ xóa gì
@@ -52,6 +55,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from app.core.audit import write_audit_log  # noqa: E402
 from app.core.config import APP_ENV  # noqa: E402
 from app.db.models import (  # noqa: E402
+    AuditLog,
     IdempotencyKey,
     KitchenQueue,
     MenuCategory,
@@ -81,6 +85,9 @@ _WIPE_ORDER = (
 FIXTURE_SERVED_TABLE = "B6"
 FIXTURE_KITCHEN_TABLE = "B5"
 FIXTURE_OTHER_OUTLET_TABLE = "Q2-1"  # bàn của chi nhánh QA 2 (seed_dev_data.py)
+FIXTURE_AUDIT_TABLE = "Q3-3"  # bàn của khu thử nghiệm QA 3 (seed_dev_data.py)
+FIXTURE_AUDIT_ACTION = "QA_FIXTURE_EQUAL_TIMESTAMP"
+FIXTURE_AUDIT_ROWS = 5
 
 
 @dataclass
@@ -348,6 +355,37 @@ def create_fixtures(session: Session) -> list[str]:
         sold_out.is_available = False
         lines.append(
             f"Khu thử nghiệm QA 3: món hết hàng '{sold_out.name}' menu_item_id={sold_out.id}"
+        )
+
+    # Qua API mỗi thao tác chỉ ghi 1 dòng audit nên không dựng được các dòng trùng thời
+    # điểm; ghi trực tiếp, cùng 1 created_at, để test phân trang GET /audit-logs.
+    audit_table = session.scalar(
+        select(RestaurantTable)
+        .join(Outlet, RestaurantTable.outlet_id == Outlet.id)
+        .where(Outlet.name == seed.QA3_OUTLET_NAME, RestaurantTable.code == FIXTURE_AUDIT_TABLE)
+    )
+    if audit_table is not None:
+        audit_staff = session.scalar(
+            select(Staff.id).where(
+                Staff.outlet_id == audit_table.outlet_id, Staff.role == "SUPERVISOR"
+            )
+        )
+        _, audit_order = _open_fixture_order(session, audit_table, audit_staff, order_status="NEW")
+        for sequence in range(1, FIXTURE_AUDIT_ROWS + 1):
+            session.add(
+                AuditLog(
+                    outlet_id=audit_table.outlet_id,
+                    staff_id=audit_staff,
+                    action=FIXTURE_AUDIT_ACTION,
+                    entity_type="order",
+                    entity_id=str(audit_order.id),
+                    payload=json.dumps({"sequence": sequence}),
+                    created_at=now,
+                )
+            )
+        lines.append(
+            f"{FIXTURE_AUDIT_TABLE} (khu thử nghiệm QA 3): {FIXTURE_AUDIT_ROWS} dòng audit "
+            f"cùng created_at order_id={audit_order.id}"
         )
     return lines
 
