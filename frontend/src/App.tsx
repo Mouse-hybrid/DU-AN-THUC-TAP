@@ -3,10 +3,13 @@ import { getAuth, getHomePath } from "./auth/storage";
 import { OfflineBanner } from "./components/OfflineBanner";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminMenuItemPage } from "./pages/AdminMenuItemPage";
+import { AdminAuditLogPage } from "./pages/AdminAuditLogPage";
 import { AdminMenuPage } from "./pages/AdminMenuPage";
+import { KitchenItemDetailPage } from "./pages/KitchenItemDetailPage";
 import { KitchenPage } from "./pages/KitchenPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MenuSearchPage } from "./pages/MenuSearchPage";
+import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
 import { OrderPage } from "./pages/OrderPage";
 import { OrderSummaryPage } from "./pages/OrderSummaryPage";
@@ -50,8 +53,16 @@ export default function App() {
           element={<ProtectedRoute area="pos"><OrderSummaryPage /></ProtectedRoute>}
         />
         <Route
+          path="/history"
+          element={<ProtectedRoute area="pos"><OrderHistoryPage /></ProtectedRoute>}
+        />
+        <Route
           path="/kitchen"
           element={<ProtectedRoute area="kitchen"><KitchenPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/kitchen/orders/:orderId/items/:itemId"
+          element={<ProtectedRoute area="kitchen"><KitchenItemDetailPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/menu/categories"
@@ -64,6 +75,10 @@ export default function App() {
         <Route
           path="/admin/menu/:id/edit"
           element={<ProtectedRoute area="admin"><AdminMenuItemPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={<ProtectedRoute area="admin"><AdminAuditLogPage /></ProtectedRoute>}
         />
         <Route path="*" element={<HomeRedirect />} />
       </Routes>

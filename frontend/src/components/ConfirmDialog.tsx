@@ -5,6 +5,8 @@ interface ConfirmDialogProps {
   title: string;
   children: ReactNode;
   confirmLabel: string;
+  /** "danger" cho thao tác hủy/xóa. */
+  variant?: "primary" | "danger";
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -14,6 +16,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  variant = "primary",
   busy = false,
   onCancel,
   onConfirm,
@@ -25,7 +28,7 @@ export function ConfirmDialog({
         <div>{children}</div>
         <div className="nova-confirm-actions">
           <Button variant="secondary" type="button" accessibleLabel="Hủy thao tác" disabled={busy} onClick={onCancel}>Hủy</Button>
-          <Button variant="primary" type="button" accessibleLabel={confirmLabel} busy={busy} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant={variant} type="button" accessibleLabel={confirmLabel} busy={busy} onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </section>
     </div>

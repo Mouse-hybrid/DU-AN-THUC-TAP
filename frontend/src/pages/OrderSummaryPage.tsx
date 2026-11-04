@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, getErrorMessage } from "../api/client";
 import {
+  closeOrder,
   getOrder,
   payOrder,
   requestBilling,
@@ -21,13 +22,14 @@ import { OrderSummary } from "../components/OrderSummary";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
+import { useItemOverrides } from "../components/useItemOverrides";
 import { createIdempotencyKey } from "../utils/idempotency";
 import { selectCurrentOrder } from "../utils/orders";
 
 const BILLING_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 const PAY_ROLES = ["CASHIER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 
-type Confirmation = "billing" | "pay" | null;
+type Confirmation = "billing" | "pay" | "close" | null;
 
 function summaryErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -116,10 +118,13 @@ export function OrderSummaryPage() {
       if (kind === "billing") {
         await requestBilling(currentOrderId, key);
         setToast({ message: "Đã gửi yêu cầu thanh toán.", type: "success" });
-      } else {
+      } else if (kind === "pay") {
         await payOrder(currentOrderId, key);
         setPaid(true);
         setToast({ message: "Đã thanh toán.", type: "success" });
+      } else {
+        await closeOrder(currentOrderId, key);
+        setToast({ message: "Đã đóng đơn.", type: "success" });
       }
       setConfirmation(null);
       await loadData(true, currentOrderId);
@@ -134,11 +139,17 @@ export function OrderSummaryPage() {
     }
   }
 
+  const overrides = useItemOverrides({
+    reload: () => loadData(true, order?.id),
+    notify: setToast,
+  });
+
   const activeItems = order?.items.filter((item) => item.status !== "VOIDED") ?? [];
   const canRequestBilling = Boolean(
     order && (order.status === "SENT" || order.status === "SERVED") && hasRole(role, BILLING_ROLES),
   );
   const canPay = Boolean(order?.status === "BILLING" && hasRole(role, PAY_ROLES));
+  const canClose = Boolean(order?.status === "PAID" && hasRole(role, PAY_ROLES));
 
   return (
     <AppShell
@@ -182,7 +193,14 @@ export function OrderSummaryPage() {
                   {activeItems.length === 0 ? <p className="nova-readonly-note">Đơn chưa có món để thanh toán.</p> : (
                     <div className="nova-order-lines">
                       {activeItems.map((item: OrderItemDetail) => (
-                        <OrderLineItem key={item.id} item={item} editable={false} onUpdate={noopItemUpdate} onRemove={noopItemRemove} />
+                        <OrderLineItem
+                          key={item.id}
+                          item={item}
+                          editable={false}
+                          onUpdate={noopItemUpdate}
+                          onRemove={noopItemRemove}
+                          actions={overrides.actionsFor(order.id, order.status, item)}
+                        />
                       ))}
                     </div>
                   )}
@@ -196,7 +214,10 @@ export function OrderSummaryPage() {
                     {canPay ? (
                       <Button variant="primary" type="button" accessibleLabel="Xác nhận đơn đã thanh toán" disabled={mutation !== null} onClick={() => setConfirmation("pay")}>Xác nhận đã thanh toán</Button>
                     ) : null}
-                    {paid || order.status === "PAID" ? <Link className="nova-button nova-button--secondary" to="/tables">Về sơ đồ bàn</Link> : null}
+                    {canClose ? (
+                      <Button variant="secondary" type="button" accessibleLabel="Đóng đơn đã thanh toán" disabled={mutation !== null} onClick={() => setConfirmation("close")}>Đóng đơn</Button>
+                    ) : null}
+                    {paid || order.status === "PAID" || order.status === "CLOSED" ? <Link className="nova-button nova-button--secondary" to="/tables">Về sơ đồ bàn</Link> : null}
                   </div>
                   {order.status === "BILLING" && !canPay ? <p className="nova-readonly-note">Đơn đang chờ nhân viên thu ngân xác nhận thanh toán.</p> : null}
                 </aside>
@@ -216,6 +237,12 @@ export function OrderSummaryPage() {
           <p>Hãy chỉ xác nhận sau khi đã nhận đủ tiền từ khách.</p>
         </ConfirmDialog>
       ) : null}
+      {confirmation === "close" ? (
+        <ConfirmDialog title="Đóng đơn?" confirmLabel="Đóng đơn" busy={mutation === "close"} onCancel={() => setConfirmation(null)} onConfirm={() => void confirmMutation("close")}>
+          <p>Đơn đã thanh toán sẽ được chốt sổ và không thể chỉnh sửa nữa.</p>
+        </ConfirmDialog>
+      ) : null}
+      {overrides.dialog}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );

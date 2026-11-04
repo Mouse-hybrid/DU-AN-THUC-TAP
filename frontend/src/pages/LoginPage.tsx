@@ -12,7 +12,7 @@ const LOGIN_COPY = {
     eyebrow: "Hệ thống bán hàng",
     title: ["Vận hành nhà hàng", "nhẹ nhàng hơn."],
     copy: "Đăng nhập để quản lý bàn và phục vụ khách hàng.",
-    formEyebrow: "Đăng nhập bằng mã nhân viên",
+    formEyebrow: "Đăng nhập tài khoản nhân viên",
     formTitle: "Chào mừng trở lại",
     formCopy: "Nhập thông tin được cấp để bắt đầu ca làm việc.",
     submit: "Đăng nhập",
@@ -23,7 +23,7 @@ const LOGIN_COPY = {
     copy: "Đăng nhập để nhận món và cập nhật tiến độ chế biến.",
     formEyebrow: "Đăng nhập màn bếp",
     formTitle: "Sẵn sàng cho ca bếp",
-    formCopy: "Nhập mã nhân viên và mã PIN được cấp để mở màn bếp.",
+    formCopy: "Nhập tên đăng nhập và mật khẩu được cấp để mở màn bếp.",
     submit: "Đăng nhập vào bếp",
   },
 } as const;
@@ -104,31 +104,30 @@ export function LoginPage() {
             {alert ? <div className="nova-alert" role="alert">{alert}</div> : null}
 
             <div className="nova-field">
-              <label htmlFor="nova-username">Mã nhân viên</label>
+              <label htmlFor="nova-username">Tên đăng nhập</label>
               <input
                 id="nova-username"
                 name="username"
                 type="text"
                 autoComplete="username"
-                placeholder="Ví dụ: NV-2048"
+                placeholder="Nhập tên đăng nhập"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 aria-invalid={submitted && !username.trim()}
                 disabled={busy}
               />
-              {submitted && !username.trim() ? <p className="nova-field-error">Vui lòng nhập mã nhân viên.</p> : null}
+              {submitted && !username.trim() ? <p className="nova-field-error">Vui lòng nhập tên đăng nhập.</p> : null}
             </div>
 
             <div className="nova-field">
-              <label htmlFor="nova-password">Mã PIN</label>
+              <label htmlFor="nova-password">Mật khẩu</label>
               <div className="nova-password-wrap">
                 <input
                   id="nova-password"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  inputMode="numeric"
                   autoComplete="current-password"
-                  placeholder="Nhập mã PIN"
+                  placeholder="Nhập mật khẩu"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   aria-invalid={submitted && !password}
@@ -137,7 +136,7 @@ export function LoginPage() {
                 <button
                   className="nova-icon-button"
                   type="button"
-                  aria-label={showPassword ? "Ẩn mã PIN" : "Hiện mã PIN"}
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   aria-pressed={showPassword}
                   onClick={() => setShowPassword((visible) => !visible)}
                   disabled={busy}
@@ -145,7 +144,7 @@ export function LoginPage() {
                   <Icon name={showPassword ? "eye-off" : "eye"} />
                 </button>
               </div>
-              {submitted && !password ? <p className="nova-field-error">Vui lòng nhập mã PIN.</p> : null}
+              {submitted && !password ? <p className="nova-field-error">Vui lòng nhập mật khẩu.</p> : null}
             </div>
 
             <button className="nova-button nova-button--primary nova-button--full" type="submit" disabled={busy}>
@@ -154,7 +153,7 @@ export function LoginPage() {
             </button>
           </form>
         </section>
-        {/* Figma màn 29 có chọn trạm bếp trước khi đăng nhập; backend login chưa nhận station_id nên chưa làm (CẦN PO/BE XÁC NHẬN). */}
+        {/* Màn 29: nhóm đã chốt giữ cách lọc trạm ngay trên màn bếp, không chọn trạm lúc đăng nhập. */}
         {isKitchen ? <p className="nova-login-kds-footer">Phiên bản thử nghiệm · NOVA KDS</p> : null}
       </main>
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}

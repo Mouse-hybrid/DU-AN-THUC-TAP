@@ -31,8 +31,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function fieldLabel(field: string): string {
   const labels: Record<string, string> = {
-    username: "Mã nhân viên",
-    password: "Mã PIN",
+    username: "Tên đăng nhập",
+    password: "Mật khẩu",
     guest_count: "Số khách",
     table_id: "Bàn",
     items: "Danh sách món",
@@ -78,7 +78,7 @@ function parseValidationDetail(detail: unknown[]): string {
 }
 
 function errorMessage(payload: unknown, status: number): string {
-  if (status === 401) return "Mã nhân viên hoặc mã PIN không đúng.";
+  if (status === 401) return "Tên đăng nhập hoặc mật khẩu không đúng.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
   if (status === 409) return "Dữ liệu đã thay đổi hoặc thao tác bị trùng. Vui lòng tải lại.";
   if (status >= 500) return "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.";
