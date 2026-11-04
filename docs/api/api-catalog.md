@@ -188,7 +188,7 @@ Theo phiếu B7: size và topping có giá cộng thêm, chưa có combo. Tùy c
 
 ### A12. Rewards đợt 1 (từ 04/11)
 
-Khách hàng, luật điểm và tích điểm khi thanh toán. Chưa có ưu đãi và đổi điểm (đợt 2), mã thành viên trên QR và hoàn điểm (đợt 3). Quyền `C, S` là Cashier, Supervisor.
+Khách hàng, luật điểm và tích điểm khi thanh toán. Ưu đãi và đổi điểm ở mục A13; mã thành viên trên QR và hoàn điểm là đợt 3. Quyền `C, S` là Cashier, Supervisor.
 
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
@@ -208,6 +208,32 @@ Khách hàng, luật điểm và tích điểm khi thanh toán. Chưa có ưu đ
 - Đơn không gắn khách, khách bị khóa, chưa có luật hoặc chưa đủ tiền cho 1 điểm: thanh toán vẫn thành công, không tích.
 - `expires_at` chỉ được lưu trên dòng tích điểm, **chưa có job tự trừ điểm hết hạn**.
 - Luật mặc định lúc seed (tạm, chờ PO chốt): 10.000đ = 1 điểm, 1 điểm = 100đ, đổi tối đa 50% đơn, điểm hết hạn sau 365 ngày.
+
+### A13. Rewards đợt 2: ưu đãi và đổi điểm (từ 04/11)
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 71 | GET | `/api/v1/rewards?active_only=` | C, S | Danh sách ưu đãi | ✅ |
+| 72 | POST | `/api/v1/rewards` (cần `Idempotency-Key`) | S | `reward_type`: `PERCENT`, `FIXED`, `POINTS`; `value`, `min_order_amount`, `max_discount`, `valid_from`, `valid_to`, `max_uses` | ✅ |
+| 73 | PATCH | `/api/v1/rewards/{id}` | S | Sửa, tắt bằng `is_active: false`; không có API xóa | ✅ |
+| 74 | GET | `/api/v1/orders/{id}/eligible-rewards` | C, S | 22, 81: dùng được hay không, `reason_code`, `reason`, `discount_amount`, `max_points` | ✅ |
+| 75 | POST | `/api/v1/orders/{id}/rewards` (cần `Idempotency-Key`) | C, S | Áp ưu đãi: `reward_id`, `points` (chỉ đổi điểm), `override_reason` (chỉ S). Trả chi tiết đơn | ✅ |
+| 76 | DELETE | `/api/v1/orders/{id}/rewards/{order_reward_id}` (cần `Idempotency-Key`) | C, S | Gỡ trước khi thanh toán | ✅ |
+| 77 | GET | `/api/v1/customers/{id}/reward-usage` | C, S | Lịch sử dùng ưu đãi đã thanh toán | ✅ |
+
+**Quy tắc:**
+- `GET /orders/{id}` và `GET /tables/{id}` có thêm `discount_total`, `total`, `applied_reward`. **`total` là số phải trả**, `subtotal` vẫn là tổng món. API thanh toán lấy tiền theo `total`. `GET /orders` (danh sách) vẫn chỉ có `subtotal`.
+- Tiền giảm do server tính, gửi kèm số tiền trả 422. Mỗi đơn 1 ưu đãi, chưa cộng dồn.
+- **Trước khi thanh toán, tiền giảm được tính lại theo hóa đơn hiện tại.** Không còn hợp lệ thì `discount_total = 0`, `applied_reward.invalid_reason` có mã lý do, và `/pay` trả 409 tới khi gỡ ưu đãi.
+- **Điểm chỉ bị trừ khi thanh toán**, không giữ chỗ lúc áp. Hai đơn cùng đổi một số điểm: đơn trả sau nhận 409. Giá trị điểm theo phiên bản luật lúc áp; điểm tích theo số tiền thực trả.
+- Đổi điểm: tối đa theo `max_redeem_percent` của luật và `max_discount` của ưu đãi. Vượt lúc áp trả 409 kèm số tối đa; hóa đơn giảm sau đó thì tự giảm số điểm dùng theo trần mới.
+- `override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt, có ghi audit. Không bỏ qua được số dư và trần đổi điểm.
+- Đang đổi điểm thì không đổi hoặc bỏ khách được (409).
+- Đã thanh toán thì `COMMITTED`: số giảm, điểm và tên ưu đãi không đổi khi sửa ưu đãi, không gỡ được. **Hoàn điểm chưa có**, làm cùng VNPay.
+
+`reason_code`: `INACTIVE`, `NOT_STARTED`, `EXPIRED`, `MIN_ORDER`, `USAGE_LIMIT`, `NO_CUSTOMER`, `CUSTOMER_LOCKED`, `NO_RULE`, `INSUFFICIENT_POINTS`, `ZERO_DISCOUNT`.
+
+Seed: `Đổi điểm` và `Giảm 10% đơn từ 200.000đ` (tối đa 50.000đ) ở khu demo và khu QA 3. Số liệu tạm, chờ PO chốt.
 
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
@@ -268,7 +294,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
 | **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10). Còn: `POST /public/qr/{token}/request-bill`, thanh toán QR | Làm cùng VNPay |
 | ~~**Modifier cơ bản** (cho QR + POS)~~ | **Đã có từ 04/11** (mục A11) | Chưa có combo |
-| **Rewards / CRM** (Key Focus BRD) | Đợt 1 **đã có từ 04/11** (mục A12). Đợt 2: `GET/POST/PATCH /rewards`, `GET /orders/{id}/eligible-rewards`, `POST /orders/{id}/rewards`, `DELETE /orders/{id}/rewards/{id}`. Đợt 3: `POST /public/qr/{token}/member`, hoàn điểm | PO chốt con số của luật; khách trên QR chỉ tích điểm, đổi điểm qua thu ngân |
+| **Rewards / CRM** (Key Focus BRD) | Đợt 1, 2 **đã có từ 04/11** (mục A12, A13). Đợt 3: `POST /public/qr/{token}/member`, hoàn điểm | PO chốt con số của luật; khách trên QR chỉ tích điểm, đổi điểm qua thu ngân |
 
 ### Pha 3 · SIT/UAT (23/11 – 04/12) — chỉ làm nếu còn thời gian
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 
 
 def normalize_phone(value: str) -> str:
@@ -87,3 +87,93 @@ class PointsEntryOut(BaseModel):
 class PointsAdjustRequest(BaseModel):
     points: int = Field(ge=-1_000_000, le=1_000_000)
     reason: str = Field(min_length=1, max_length=500)
+
+
+class RewardOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    reward_type: Literal["PERCENT", "FIXED", "POINTS"]
+    value: Decimal | None
+    min_order_amount: Decimal
+    max_discount: Decimal | None
+    valid_from: datetime | None
+    valid_to: datetime | None
+    max_uses: int | None
+    used_count: int
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class RewardCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    reward_type: Literal["PERCENT", "FIXED", "POINTS"]
+    value: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    min_order_amount: Decimal = Field(default=Decimal("0"), ge=0, max_digits=12, decimal_places=2)
+    max_discount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+    max_uses: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _check_value(self) -> RewardCreate:
+        if self.reward_type == "POINTS" and self.value is not None:
+            raise ValueError("Ưu đãi đổi điểm lấy giá trị từ luật điểm, không truyền value")
+        if self.reward_type != "POINTS" and self.value is None:
+            raise ValueError("Cần value")
+        if self.reward_type == "PERCENT" and self.value > 100:
+            raise ValueError("Phần trăm không được quá 100")
+        if self.valid_from and self.valid_to and self.valid_from >= self.valid_to:
+            raise ValueError("valid_from phải trước valid_to")
+        return self
+
+
+class RewardUpdate(BaseModel):
+    """Không đổi được reward_type. Đơn chưa thanh toán tính theo giá trị mới; đơn đã thanh
+    toán giữ nguyên số đã chốt."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    value: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    min_order_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    max_discount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+    max_uses: int | None = Field(default=None, ge=1)
+    is_active: bool | None = None
+
+
+class EligibleRewardOut(BaseModel):
+    reward_id: uuid.UUID
+    name: str
+    reward_type: str
+    eligible: bool
+    reason_code: str | None = None
+    reason: str | None = None
+    discount_amount: Decimal = Decimal("0")
+    points: int = 0  # ưu đãi đổi điểm: số điểm dùng nếu áp mức cao nhất
+    max_points: int = 0
+
+
+class ApplyRewardRequest(BaseModel):
+    """Không có trường số tiền: server tự tính (RW-020). `points` chỉ dùng cho ưu đãi đổi điểm.
+    `override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt."""
+
+    reward_id: uuid.UUID
+    points: int | None = Field(default=None, ge=1)
+    override_reason: str | None = Field(default=None, min_length=1, max_length=500)
+
+    model_config = {"extra": "forbid"}
+
+
+class RewardUsageOut(BaseModel):
+    id: uuid.UUID
+    order_id: uuid.UUID
+    reward_id: uuid.UUID
+    reward_name: str
+    reward_type: str
+    discount_amount: Decimal
+    points_used: int
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

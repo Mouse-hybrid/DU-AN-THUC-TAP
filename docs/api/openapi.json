@@ -2005,6 +2005,209 @@
         }
       }
     },
+    "/api/v1/orders/{order_id}/eligible-rewards": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "List Eligible Rewards",
+        "description": "Mọi ưu đãi đang bật, kèm dùng được hay không và lý do (RW-004). Ưu đãi đổi điểm báo số\nđiểm tối đa dùng được cho đơn này.",
+        "operationId": "list_eligible_rewards_api_v1_orders__order_id__eligible_rewards_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EligibleRewardOut"
+                  },
+                  "title": "Response List Eligible Rewards Api V1 Orders  Order Id  Eligible Rewards Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/rewards": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Apply Reward",
+        "description": "Mỗi đơn chỉ 1 ưu đãi (RW-007). Điểm chỉ bị trừ khi thanh toán, nên gỡ ưu đãi không phải\nhoàn gì; số dư được kiểm tra lại lúc đó.",
+        "operationId": "apply_reward_api_v1_orders__order_id__rewards_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyRewardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/rewards/{order_reward_id}": {
+      "delete": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Remove Reward",
+        "description": "Gỡ trước khi thanh toán (RW-014). Đã thanh toán thì phải hoàn, chưa có ở đợt này.",
+        "operationId": "remove_reward_api_v1_orders__order_id__rewards__order_reward_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "order_reward_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Reward Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{order_id}/pay": {
       "post": {
         "tags": [
@@ -3821,6 +4024,82 @@
         }
       }
     },
+    "/api/v1/customers/{customer_id}/reward-usage": {
+      "get": {
+        "tags": [
+          "rewards"
+        ],
+        "summary": "List Reward Usage",
+        "description": "Lịch sử dùng ưu đãi: chỉ các lần đã thanh toán, mới nhất trước.",
+        "operationId": "list_reward_usage_api_v1_customers__customer_id__reward_usage_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RewardUsageOut"
+                  },
+                  "title": "Response List Reward Usage Api V1 Customers  Customer Id  Reward Usage Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/loyalty-rules": {
       "get": {
         "tags": [
@@ -3898,6 +4177,181 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LoyaltyRuleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rewards": {
+      "get": {
+        "tags": [
+          "rewards"
+        ],
+        "summary": "List Rewards",
+        "operationId": "list_rewards_api_v1_rewards_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Chỉ trả ưu đãi đang bật",
+              "default": false,
+              "title": "Active Only"
+            },
+            "description": "Chỉ trả ưu đãi đang bật"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RewardOut"
+                  },
+                  "title": "Response List Rewards Api V1 Rewards Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rewards"
+        ],
+        "summary": "Create Reward",
+        "operationId": "create_reward_api_v1_rewards_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RewardCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rewards/{reward_id}": {
+      "patch": {
+        "tags": [
+          "rewards"
+        ],
+        "summary": "Update Reward",
+        "description": "Không có API xóa, tắt bằng `is_active: false`. Gửi null cho max_discount, valid_from,\nvalid_to, max_uses để bỏ giới hạn đó.",
+        "operationId": "update_reward_api_v1_rewards__reward_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reward_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reward Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RewardUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardOut"
                 }
               }
             }
@@ -4344,6 +4798,105 @@
         ],
         "title": "AddItemsRequest"
       },
+      "AppliedRewardOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reward Id"
+          },
+          "reward_name": {
+            "type": "string",
+            "title": "Reward Name"
+          },
+          "reward_type": {
+            "type": "string",
+            "title": "Reward Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "discount_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount"
+          },
+          "points_used": {
+            "type": "integer",
+            "title": "Points Used"
+          },
+          "invalid_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invalid Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reward_id",
+          "reward_name",
+          "reward_type",
+          "status",
+          "discount_amount",
+          "points_used"
+        ],
+        "title": "AppliedRewardOut",
+        "description": "Ưu đãi đang áp vào đơn. `invalid_reason` có giá trị khi hóa đơn đổi làm ưu đãi không\ncòn dùng được: tiền giảm về 0 và phải gỡ ưu đãi mới thanh toán được."
+      },
+      "ApplyRewardRequest": {
+        "properties": {
+          "reward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reward Id"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "override_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reward_id"
+        ],
+        "title": "ApplyRewardRequest",
+        "description": "Không có trường số tiền: server tự tính (RW-020). `points` chỉ dùng cho ưu đãi đổi điểm.\n`override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt."
+      },
       "AreaCreate": {
         "properties": {
           "name": {
@@ -4705,6 +5258,73 @@
         },
         "type": "object",
         "title": "CustomerUpdate"
+      },
+      "EligibleRewardOut": {
+        "properties": {
+          "reward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reward Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "reward_type": {
+            "type": "string",
+            "title": "Reward Type"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "discount_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "default": "0"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points",
+            "default": 0
+          },
+          "max_points": {
+            "type": "integer",
+            "title": "Max Points",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "reward_id",
+          "name",
+          "reward_type",
+          "eligible"
+        ],
+        "title": "EligibleRewardOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -5698,6 +6318,27 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Subtotal"
+          },
+          "discount_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "default": "0"
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total"
+          },
+          "applied_reward": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedRewardOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5709,10 +6350,11 @@
           "status",
           "current_version",
           "created_at",
-          "subtotal"
+          "subtotal",
+          "total"
         ],
         "title": "OrderDetailOut",
-        "description": "Chi tiết 1 order cho màn POS ordering / order summary / table detail.\n`subtotal` = tổng các món chưa bị VOIDED (chưa có thuế/giảm giá — Pha 2)."
+        "description": "Chi tiết 1 order cho màn POS ordering / order summary / table detail.\n`subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả."
       },
       "OrderItemCreate": {
         "properties": {
@@ -6485,13 +7127,25 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Subtotal"
+          },
+          "discount_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "default": "0"
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total"
           }
         },
         "type": "object",
         "required": [
           "table_code",
           "items",
-          "subtotal"
+          "subtotal",
+          "total"
         ],
         "title": "QrOrderOut",
         "description": "Toàn bộ món của phiên bàn: khách cùng bàn dùng chung một hóa đơn."
@@ -6549,6 +7203,395 @@
           "items"
         ],
         "title": "QrSubmitRequest"
+      },
+      "RewardCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "reward_type": {
+            "type": "string",
+            "enum": [
+              "PERCENT",
+              "FIXED",
+              "POINTS"
+            ],
+            "title": "Reward Type"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "min_order_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              }
+            ],
+            "title": "Min Order Amount",
+            "default": "0"
+          },
+          "max_discount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Discount"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "max_uses": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "reward_type"
+        ],
+        "title": "RewardCreate"
+      },
+      "RewardOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "reward_type": {
+            "type": "string",
+            "enum": [
+              "PERCENT",
+              "FIXED",
+              "POINTS"
+            ],
+            "title": "Reward Type"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "min_order_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Min Order Amount"
+          },
+          "max_discount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Discount"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "max_uses": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uses"
+          },
+          "used_count": {
+            "type": "integer",
+            "title": "Used Count"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "reward_type",
+          "value",
+          "min_order_amount",
+          "max_discount",
+          "valid_from",
+          "valid_to",
+          "max_uses",
+          "used_count",
+          "is_active"
+        ],
+        "title": "RewardOut"
+      },
+      "RewardUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "min_order_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Order Amount"
+          },
+          "max_discount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Discount"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "max_uses": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uses"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "RewardUpdate",
+        "description": "Không đổi được reward_type. Đơn chưa thanh toán tính theo giá trị mới; đơn đã thanh\ntoán giữ nguyên số đã chốt."
+      },
+      "RewardUsageOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          },
+          "reward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reward Id"
+          },
+          "reward_name": {
+            "type": "string",
+            "title": "Reward Name"
+          },
+          "reward_type": {
+            "type": "string",
+            "title": "Reward Type"
+          },
+          "discount_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount"
+          },
+          "points_used": {
+            "type": "integer",
+            "title": "Points Used"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "order_id",
+          "reward_id",
+          "reward_name",
+          "reward_type",
+          "discount_amount",
+          "points_used",
+          "status",
+          "created_at"
+        ],
+        "title": "RewardUsageOut"
       },
       "SendToKitchenResponse": {
         "properties": {

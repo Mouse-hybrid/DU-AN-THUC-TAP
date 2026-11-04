@@ -83,6 +83,10 @@ ORDER_ITEM_SOURCE = ("POS", "QR")
 
 POINTS_ENTRY_TYPE = ("EARN", "REDEEM", "REVERSAL", "ADJUST")
 
+REWARD_TYPE = ("PERCENT", "FIXED", "POINTS")
+
+ORDER_REWARD_STATUS = ("APPLIED", "REMOVED", "COMMITTED", "REVERSED")
+
 KITCHEN_QUEUE_STATUS = ("QUEUED", "IN_PROGRESS", "DONE", "CANCELLED")
 
 # Đúng theo bảng Role trong BRD (mục "Role || Description || Key
@@ -544,6 +548,66 @@ class PointsLedger(Base):
     staff_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("staff.id"), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Reward(Base):
+    """Ưu đãi. PERCENT: `value` là %, FIXED: `value` là số tiền, POINTS: đổi điểm thành tiền
+    theo loyalty_rule nên không có `value`."""
+
+    __tablename__ = "reward"
+    __table_args__ = (
+        UniqueConstraint("outlet_id", "name", name="uq_reward_outlet_name"),
+        _check(REWARD_TYPE, "reward_type", "ck_reward_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    reward_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    value: Mapped[Numeric | None] = mapped_column(Numeric(12, 2), nullable=True)
+    min_order_amount: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    max_discount: Mapped[Numeric | None] = mapped_column(Numeric(12, 2), nullable=True)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class OrderReward(Base):
+    """Ưu đãi đã áp vào đơn. Khi APPLIED, tiền giảm được tính lại theo hóa đơn hiện tại;
+    khi COMMITTED (đã thanh toán), discount_amount và points_used là số cuối cùng."""
+
+    __tablename__ = "order_reward"
+    __table_args__ = (_check(ORDER_REWARD_STATUS, "status", "ck_order_reward_status"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    order_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order.id"), nullable=False)
+    reward_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("reward.id"), nullable=False)
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("customer.id"), nullable=True
+    )
+    reward_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    reward_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    points_requested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rule_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    discount_amount: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    points_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="APPLIED")
+    applied_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    reward: Mapped["Reward"] = relationship()
 
 
 # ---------------------------------------------------------------------------

@@ -86,9 +86,23 @@ class OrderItemDetailOut(OrderItemOut):
     line_total: Decimal
 
 
+class AppliedRewardOut(BaseModel):
+    """Ưu đãi đang áp vào đơn. `invalid_reason` có giá trị khi hóa đơn đổi làm ưu đãi không
+    còn dùng được: tiền giảm về 0 và phải gỡ ưu đãi mới thanh toán được."""
+
+    id: uuid.UUID
+    reward_id: uuid.UUID
+    reward_name: str
+    reward_type: str
+    status: str
+    discount_amount: Decimal
+    points_used: int
+    invalid_reason: str | None = None
+
+
 class OrderDetailOut(BaseModel):
     """Chi tiết 1 order cho màn POS ordering / order summary / table detail.
-    `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế/giảm giá — Pha 2)."""
+    `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả."""
 
     id: uuid.UUID
     table_session_id: uuid.UUID
@@ -100,6 +114,9 @@ class OrderDetailOut(BaseModel):
     customer_id: uuid.UUID | None = None
     items: list[OrderItemDetailOut] = []
     subtotal: Decimal
+    discount_total: Decimal = Decimal("0")
+    total: Decimal
+    applied_reward: AppliedRewardOut | None = None
 
 
 class OrderSummaryOut(BaseModel):

@@ -40,6 +40,7 @@ from app.core.deps import (
     require_idempotency_key,
     require_permission,
 )
+from app.core.loyalty import price_order
 from app.core.modifiers import resolve_modifiers
 from app.core.permissions import Permission
 from app.core.realtime import manager
@@ -238,10 +239,18 @@ def _order_view(session: Session, table_session: TableSession) -> QrOrderOut:
         )
         for item, name in rows
     ]
+    subtotal = sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0"))
+    discount = Decimal("0")
+    for order in session.scalars(select(Order).where(Order.table_session_id == table_session.id)):
+        # Món vừa thêm chưa nằm trong order.items đã nạp sẵn.
+        session.expire(order, ["items"])
+        discount += price_order(session, order).discount
     return QrOrderOut(
         table_code=table_session.table.code,
         items=items,
-        subtotal=sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0")),
+        subtotal=subtotal,
+        discount_total=discount,
+        total=subtotal - discount,
     )
 
 

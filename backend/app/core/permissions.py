@@ -46,6 +46,7 @@ class Permission(str, Enum):
     AUDIT_READ = "AUDIT_READ"
     STAFF_MANAGE = "STAFF_MANAGE"
     CUSTOMER_ACCESS = "CUSTOMER_ACCESS"
+    REWARD_APPLY = "REWARD_APPLY"
     LOYALTY_MANAGE = "LOYALTY_MANAGE"
 
 
@@ -98,9 +99,13 @@ PERMISSION_MATRIX: dict[Permission, PermissionRule] = {
     Permission.AUDIT_READ: PermissionRule(("SUPERVISOR",), "Xem nhật ký, lịch sử phiên bản đơn"),
     # Rollout board Pha 2 "Role Management"; dự án chưa có role Admin riêng.
     Permission.STAFF_MANAGE: PermissionRule(("SUPERVISOR",), "Quản lý tài khoản nhân viên"),
-    # = "Apply Reward" (Cashier, Supervisor). Có dữ liệu cá nhân nên không mở rộng hơn.
+    # Đi cùng "Apply Reward". Có dữ liệu cá nhân nên không mở rộng hơn.
     Permission.CUSTOMER_ACCESS: PermissionRule(
         ("CASHIER", "SUPERVISOR"), "Tra cứu, tạo khách hàng và gắn khách vào đơn"
+    ),
+    # = "Apply Reward". Bỏ qua điều kiện ưu đãi là "Override Actions", kiểm tra riêng trong API.
+    Permission.REWARD_APPLY: PermissionRule(
+        ("CASHIER", "SUPERVISOR"), "Xem và áp ưu đãi vào đơn"
     ),
     # Không có trong BRD Matrix; ảnh hưởng tới tiền nên theo "Override Actions".
     Permission.LOYALTY_MANAGE: PermissionRule(
