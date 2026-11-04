@@ -118,6 +118,17 @@ Ma trận quyền nằm ở một chỗ: `backend/app/core/permissions.py`.
 
 Không ai được tự đổi role, tự khóa hay tự đặt lại mật khẩu của chính mình qua `/staff` (trả 409). Token bị thu hồi trả 401 như token hết hạn.
 
+### A9. Tầng/khu (từ 04/11)
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 46 | GET | `/api/v1/areas?active_only=` | mọi role | 03 Tổng quan khu vực: mỗi khu có `table_count`, `status_counts` | ✅ |
+| 47 | POST | `/api/v1/areas` (cần `Idempotency-Key`) | S | Thêm khu, trùng tên trả 409 | ✅ |
+| 48 | PATCH | `/api/v1/areas/{id}` | S | Đổi tên, thứ tự, ẩn khu; khu còn bàn thì không ẩn được (409) | ✅ |
+| 49 | PATCH | `/api/v1/tables/{id}` | S | Gán bàn vào khu, `{"area_id": null}` để bỏ ra | ✅ |
+
+`GET /api/v1/tables` có thêm bộ lọc `?area_id=`; bàn trả về có `area_id`, `area_name` và xếp theo số trong mã (B2 trước B10). Chưa có API thêm/xóa bàn.
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
 FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát

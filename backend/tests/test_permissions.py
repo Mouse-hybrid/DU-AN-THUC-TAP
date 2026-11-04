@@ -40,6 +40,9 @@ ENDPOINT_ROLES = [
     ("GET", "/api/v1/kitchen/queue", {"KITCHEN", "SUPERVISOR"}),
     ("POST", f"/api/v1/tables/{ID}/open-session", {"CASHIER", "WAITER", "SUPERVISOR"}),
     ("POST", f"/api/v1/tables/{ID}/mark-clean", {"WAITER", "SUPERVISOR"}),
+    ("PATCH", f"/api/v1/tables/{ID}", {"SUPERVISOR"}),
+    ("POST", "/api/v1/areas", {"SUPERVISOR"}),
+    ("PATCH", f"/api/v1/areas/{ID}", {"SUPERVISOR"}),
     ("POST", "/api/v1/menu", {"SUPERVISOR"}),
     ("PATCH", f"/api/v1/menu/{ID}", {"SUPERVISOR"}),
     ("POST", "/api/v1/menu/categories", {"SUPERVISOR"}),
@@ -60,6 +63,7 @@ ENDPOINT_ROLES = [
 ANY_ROLE_ENDPOINTS = [
     "/api/v1/tables",
     f"/api/v1/tables/{ID}",
+    "/api/v1/areas",
     "/api/v1/menu",
     "/api/v1/menu/categories",
     "/api/v1/orders",

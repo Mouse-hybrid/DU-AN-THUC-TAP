@@ -112,7 +112,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Assign Table Area
+         * @description Gán bàn vào khu, hoặc bỏ ra khỏi khu với `area_id: null`. Không đụng trạng thái
+         *     bàn nên đổi được cả khi bàn đang có khách.
+         */
+        patch: operations["assign_table_area_api_v1_tables__table_id__patch"];
         trace?: never;
     };
     "/api/v1/tables/{table_id}/mark-clean": {
@@ -133,6 +138,41 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/areas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Areas */
+        get: operations["list_areas_api_v1_areas_get"];
+        put?: never;
+        /** Create Area */
+        post: operations["create_area_api_v1_areas_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/areas/{area_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Area */
+        patch: operations["update_area_api_v1_areas__area_id__patch"];
         trace?: never;
     };
     "/api/v1/menu/categories": {
@@ -763,6 +803,54 @@ export interface components {
             /** Items */
             items: components["schemas"]["OrderItemCreate"][];
         };
+        /** AreaCreate */
+        AreaCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * AreaOut
+         * @description 1 tầng/khu kèm số bàn theo trạng thái, cho màn 03 Tổng quan khu vực.
+         */
+        AreaOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Table Count
+             * @default 0
+             */
+            table_count: number;
+            /**
+             * Status Counts
+             * @default {}
+             */
+            status_counts: {
+                [key: string]: number;
+            };
+        };
+        /** AreaUpdate */
+        AreaUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
         /** AuditLogOut */
         AuditLogOut: {
             /**
@@ -1286,6 +1374,14 @@ export interface components {
             role?: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR") | null;
         };
         /**
+         * TableAreaAssign
+         * @description `area_id` bắt buộc gửi; null = bỏ bàn ra khỏi khu.
+         */
+        TableAreaAssign: {
+            /** Area Id */
+            area_id: string | null;
+        };
+        /**
          * TableDashboardItem
          * @description 1 dòng của dashboard bàn: trạng thái bàn + phiên đang mở (nếu có).
          */
@@ -1301,6 +1397,10 @@ export interface components {
             seats: number;
             /** Status */
             status: string;
+            /** Area Id */
+            area_id?: string | null;
+            /** Area Name */
+            area_name?: string | null;
             /** Current Session Id */
             current_session_id?: string | null;
             /** Guest Count */
@@ -1324,6 +1424,10 @@ export interface components {
             seats: number;
             /** Status */
             status: string;
+            /** Area Id */
+            area_id?: string | null;
+            /** Area Name */
+            area_name?: string | null;
             current_session?: components["schemas"]["TableSessionOut"] | null;
             /**
              * Orders
@@ -1344,6 +1448,10 @@ export interface components {
             seats: number;
             /** Status */
             status: string;
+            /** Area Id */
+            area_id?: string | null;
+            /** Area Name */
+            area_name?: string | null;
         };
         /** TableSessionOut */
         TableSessionOut: {
@@ -1538,7 +1646,10 @@ export interface operations {
     };
     table_dashboard_api_v1_tables_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Chỉ lấy bàn của khu này */
+                area_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1552,6 +1663,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TableDashboardItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1587,6 +1707,41 @@ export interface operations {
             };
         };
     };
+    assign_table_area_api_v1_tables__table_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TableAreaAssign"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     mark_table_clean_api_v1_tables__table_id__mark_clean_post: {
         parameters: {
             query?: never;
@@ -1607,6 +1762,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_areas_api_v1_areas_get: {
+        parameters: {
+            query?: {
+                /** @description Chỉ trả khu đang is_active=True */
+                active_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_area_api_v1_areas_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AreaCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_area_api_v1_areas__area_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AreaUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaOut"];
                 };
             };
             /** @description Validation Error */

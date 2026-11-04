@@ -4,7 +4,7 @@ trên DB local (SQLite hoặc Postgres, tùy DATABASE_URL).
 
 Tạo đủ 4 tài khoản staff theo đúng 4 role thật trong BRD (Cashier/Waiter/
 Kitchen/Supervisor) để test được ranh giới RBAC, không chỉ 1 tài khoản "admin"
-có toàn quyền; cùng menu mẫu (3 nhóm, 8 món, 2 trạm bếp) và 6 bàn B1–B6.
+có toàn quyền; cùng menu mẫu (3 nhóm, 8 món, 2 trạm bếp) và 14 bàn B1–B14 chia 3 khu.
 Kèm 2 khu dữ liệu thử cho QA (outlet riêng, KHÔNG phải chi nhánh thật — dự án là
 1 nhà hàng nhiều tầng): QA 2 (không menu, thử cách ly) và khu thử nghiệm QA 3 (đủ
 menu, chạy trọn luồng có ghi dữ liệu mà không đụng dữ liệu demo).
@@ -45,6 +45,7 @@ from app.db.models import (  # noqa: E402
     Outlet,
     RestaurantTable,
     Staff,
+    TableArea,
 )
 
 SEED_OUTLET_NAME = "Chi nhánh Demo"
@@ -76,7 +77,29 @@ SEED_MENU: dict[str, tuple[int, list[tuple[str, str, str]]]] = {
     ),
 }
 # (mã bàn, số ghế)
-SEED_TABLES = (("B1", 4), ("B2", 4), ("B3", 2), ("B4", 2), ("B5", 6), ("B6", 6))
+SEED_TABLES = (
+    ("B1", 4),
+    ("B2", 4),
+    ("B3", 2),
+    ("B4", 2),
+    ("B5", 6),
+    ("B6", 6),
+    ("B7", 4),
+    ("B8", 4),
+    ("B9", 4),
+    ("B10", 6),
+    ("B11", 6),
+    ("B12", 4),
+    ("B13", 4),
+    ("B14", 2),
+)
+# tên khu -> (sort_order, mã bàn). Sơ đồ minh họa theo Figma màn 03, không phải sơ đồ
+# thật; bố trí thật cấu hình qua /api/v1/areas và PATCH /api/v1/tables/{id}.
+SEED_AREAS: dict[str, tuple[int, tuple[str, ...]]] = {
+    "Tầng 1": (1, ("B1", "B2", "B3", "B4", "B5", "B6")),
+    "Tầng 2": (2, ("B7", "B8", "B9", "B10", "B11")),
+    "Sân vườn": (3, ("B12", "B13", "B14")),
+}
 
 # username -> (role, full_name). "admin" giữ nguyên tên đăng nhập cũ cho quen,
 # role thật là SUPERVISOR (full access, không phải role riêng "admin").
@@ -99,6 +122,10 @@ QA_OUTLET_STAFF: dict[str, tuple[str, str]] = {
 # --with-fixtures đặt hết hàng.
 QA3_OUTLET_NAME = "Khu thử nghiệm QA (luồng đầy đủ)"
 QA3_OUTLET_TABLES = (("Q3-1", 4), ("Q3-2", 4), ("Q3-3", 2))
+QA3_AREAS: dict[str, tuple[int, tuple[str, ...]]] = {
+    "Tầng 1": (1, ("Q3-1", "Q3-2")),
+    "Sân vườn": (2, ("Q3-3",)),
+}
 QA3_OUTLET_STAFF: dict[str, tuple[str, str]] = {
     "qa3_admin": ("SUPERVISOR", "Supervisor QA khu thử nghiệm"),
     "qa3_cashier": ("CASHIER", "Cashier QA khu thử nghiệm"),
@@ -242,6 +269,30 @@ def _ensure_menu_and_tables(session, outlet, tables, label: str = "") -> None:
             print(f"+ restaurant_table {code}{label}: {table.id}")
 
 
+def _ensure_areas(session, outlet, areas) -> None:
+    """Tạo khu và gán bàn. Bàn đã có khu thì giữ nguyên: seed chạy sau mỗi lần deploy,
+    không được ghi đè bố trí Supervisor đã cấu hình."""
+    for area_name, (sort_order, codes) in areas.items():
+        area = session.execute(
+            select(TableArea).where(TableArea.outlet_id == outlet.id, TableArea.name == area_name)
+        ).scalar_one_or_none()
+        if area is None:
+            area = TableArea(outlet_id=outlet.id, name=area_name, sort_order=sort_order)
+            session.add(area)
+            session.flush()
+            print(f"+ table_area {area_name}: {area.id}")
+        tables = session.scalars(
+            select(RestaurantTable).where(
+                RestaurantTable.outlet_id == outlet.id,
+                RestaurantTable.code.in_(codes),
+                RestaurantTable.area_id.is_(None),
+            )
+        )
+        for table in tables:
+            table.area_id = area.id
+    session.flush()
+
+
 def _ensure_qa_third_outlet(session, password, explicit) -> None:
     """Khu thử nghiệm QA 3: đủ menu mẫu, trạm bếp, bàn Q3-1..Q3-3 và 4 vai, để QA chạy
     trọn luồng có ghi dữ liệu mà không đụng dữ liệu demo."""
@@ -256,6 +307,7 @@ def _ensure_qa_third_outlet(session, password, explicit) -> None:
     for username, (role, full_name) in QA3_OUTLET_STAFF.items():
         _ensure_staff(session, outlet, username, role, full_name, password, explicit)
     _ensure_menu_and_tables(session, outlet, QA3_OUTLET_TABLES, label=" (khu thử nghiệm QA 3)")
+    _ensure_areas(session, outlet, QA3_AREAS)
 
 
 def main() -> None:
@@ -281,6 +333,7 @@ def main() -> None:
             _ensure_staff(session, outlet, username, role, full_name, password, explicit)
 
         _ensure_menu_and_tables(session, outlet, SEED_TABLES)
+        _ensure_areas(session, outlet, SEED_AREAS)
 
         _ensure_qa_second_outlet(session, password, explicit)
         _ensure_qa_third_outlet(session, password, explicit)

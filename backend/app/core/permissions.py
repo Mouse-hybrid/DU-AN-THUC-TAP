@@ -40,6 +40,7 @@ class Permission(str, Enum):
     SERVE_FOOD = "SERVE_FOOD"
     TABLE_OPEN = "TABLE_OPEN"
     TABLE_MARK_CLEAN = "TABLE_MARK_CLEAN"
+    TABLE_LAYOUT_MANAGE = "TABLE_LAYOUT_MANAGE"
     MENU_WRITE = "MENU_WRITE"
     AUDIT_READ = "AUDIT_READ"
     STAFF_MANAGE = "STAFF_MANAGE"
@@ -82,6 +83,10 @@ PERMISSION_MATRIX: dict[Permission, PermissionRule] = {
     # Không có trong BRD Matrix; BRD chỉ nói bàn "remains CLEANING until confirmed".
     # Gán nhóm quản lý bàn — cần BA/PM xác nhận lại.
     Permission.TABLE_MARK_CLEAN: PermissionRule(("WAITER", "SUPERVISOR"), "Xác nhận đã dọn bàn"),
+    # Không có trong BRD Matrix; cấu hình nhà hàng, gán Supervisor như quản lý thực đơn.
+    Permission.TABLE_LAYOUT_MANAGE: PermissionRule(
+        ("SUPERVISOR",), "Quản lý tầng/khu và gán bàn vào khu"
+    ),
     # Không có trong BRD Matrix; theo tinh thần "Override Actions" — cần BA/PM xác nhận.
     Permission.MENU_WRITE: PermissionRule(("SUPERVISOR",), "Quản lý thực đơn và nhóm món"),
     # BRD Supervisor: "Monitor all operations"; audit chứa thao tác của mọi nhân viên.

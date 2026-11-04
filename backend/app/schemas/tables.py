@@ -29,8 +29,16 @@ class TableOut(BaseModel):
     code: str
     seats: int
     status: str
+    area_id: uuid.UUID | None = None
+    area_name: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class TableAreaAssign(BaseModel):
+    """`area_id` bắt buộc gửi; null = bỏ bàn ra khỏi khu."""
+
+    area_id: uuid.UUID | None
 
 
 class TableDashboardItem(BaseModel):
@@ -40,6 +48,8 @@ class TableDashboardItem(BaseModel):
     code: str
     seats: int
     status: str
+    area_id: uuid.UUID | None = None
+    area_name: str | None = None
     current_session_id: uuid.UUID | None = None
     guest_count: int | None = None
     opened_at: datetime | None = None
