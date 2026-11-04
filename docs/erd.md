@@ -19,6 +19,7 @@ erDiagram
     "modifier_group" ||--o{ "modifier_option" : "group_id"
     "table_session" ||--o{ "order" : "table_session_id"
     "staff" ||--o{ "order" : "created_by_staff_id"
+    "customer" ||--o{ "order" : "customer_id"
     "order" ||--o{ "order_item" : "order_id"
     "menu_item" ||--o{ "order_item" : "menu_item_id"
     "order_item" ||--o{ "order_item_modifier" : "order_item_id"
@@ -27,6 +28,12 @@ erDiagram
     "staff" ||--o{ "order_version" : "created_by_staff_id"
     "order_item" ||--o{ "kitchen_queue" : "order_item_id"
     "kitchen_station" ||--o{ "kitchen_queue" : "station_id"
+    "outlet" ||--o{ "customer" : "outlet_id"
+    "outlet" ||--o{ "loyalty_rule" : "outlet_id"
+    "staff" ||--o{ "loyalty_rule" : "created_by_staff_id"
+    "customer" ||--o{ "points_ledger" : "customer_id"
+    "order" ||--o{ "points_ledger" : "order_id"
+    "staff" ||--o{ "points_ledger" : "staff_id"
     "outlet" ||--o{ "staff" : "outlet_id"
     "outlet" {
         uuid id PK
@@ -112,6 +119,7 @@ erDiagram
         str status
         int current_version
         uuid created_by_staff_id FK
+        uuid customer_id FK
         datetime created_at
         datetime updated_at
     }
@@ -151,6 +159,42 @@ erDiagram
         datetime queued_at
         datetime started_at
         datetime done_at
+    }
+    "customer" {
+        uuid id PK
+        uuid outlet_id FK
+        str phone
+        str full_name
+        str member_code
+        int points_balance
+        bool is_active
+        datetime consent_at
+        datetime created_at
+        datetime updated_at
+    }
+    "loyalty_rule" {
+        uuid id PK
+        uuid outlet_id FK
+        int version
+        numeric earn_amount_per_point
+        numeric redeem_value_per_point
+        int max_redeem_percent
+        int points_expire_days
+        uuid created_by_staff_id FK
+        datetime created_at
+    }
+    "points_ledger" {
+        uuid id PK
+        uuid customer_id FK
+        str entry_type
+        int points
+        int balance_after
+        uuid order_id FK
+        int rule_version
+        str reason
+        uuid staff_id FK
+        datetime expires_at
+        datetime created_at
     }
     "staff" {
         uuid id PK

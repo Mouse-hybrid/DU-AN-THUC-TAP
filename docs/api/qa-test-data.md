@@ -137,6 +137,8 @@ Test xong bàn/đơn/phiếu bếp vẫn nằm lại trên staging (chỉ có 6 
 | **Q3-3**: mã QR đã hết hạn, `token` in trong log của lần Reset | `GET /api/v1/public/qr/<token>` trả `410` (màn 54). Mã hợp lệ thì tự cấp: `qa3_waiter` mở Q3-1 rồi gọi `POST /api/v1/tables/{id}/qr-session`; thu hồi bằng `DELETE`, cấp lại thì mã cũ trả `401`. Quy tắc và mã lỗi: mục A10 của `api-catalog.md` |
 | **B1–B4** trống | Test thủ công mở bàn → gọi món |
 
+Reset cũng xóa khách hàng và sổ điểm (`customer`, `points_ledger`), nhưng giữ luật điểm (`loyalty_rule`). Luật mặc định có ở khu demo và khu QA 3, khu QA 2 chưa có luật nên không tích điểm.
+
 Lưu ý: reset xóa dữ liệu của **mọi người** đang test trên staging — báo nhóm trước khi chạy. Không chạy được trên production (script tự chặn).
 
 ## 7. Tra cứu audit và version (bằng chứng actor)

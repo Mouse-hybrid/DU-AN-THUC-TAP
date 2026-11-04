@@ -186,6 +186,29 @@ Theo phiếu B7: size và topping có giá cộng thêm, chưa có combo. Tùy c
 
 **Lưu ý khi bật nhóm bắt buộc:** FE chưa gửi `modifier_option_ids` thì gọi món đó sẽ nhận `422`. Seed món demo chỉ dùng nhóm tùy ý; món `Trà đá` của khu QA 3 có `Size` bắt buộc để test.
 
+### A12. Rewards đợt 1 (từ 04/11)
+
+Khách hàng, luật điểm và tích điểm khi thanh toán. Chưa có ưu đãi và đổi điểm (đợt 2), mã thành viên trên QR và hoàn điểm (đợt 3). Quyền `C, S` là Cashier, Supervisor.
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 62 | GET | `/api/v1/customers?phone=&limit=&offset=` | C, S | Tra đúng 1 số. Không truyền `phone`: chỉ S, C nhận 403 | ✅ |
+| 63 | POST | `/api/v1/customers` (cần `Idempotency-Key`) | C, S | Tạo khách, bắt buộc `consent: true`; trùng số trả 409 | ✅ |
+| 64 | GET | `/api/v1/customers/{id}` | C, S | 80 Tra cứu hội viên, số dư | ✅ |
+| 65 | GET | `/api/v1/customers/{id}/points?limit=&offset=` | C, S | Lịch sử điểm, mới nhất trước | ✅ |
+| 66 | PATCH | `/api/v1/customers/{id}` | S | Sửa tên, khóa bằng `is_active: false`; không có API xóa | ✅ |
+| 67 | POST | `/api/v1/customers/{id}/points/adjust` (cần `Idempotency-Key`) | S | Điều chỉnh điểm, bắt buộc `reason`; không đủ điểm trả 409 | ✅ |
+| 68 | GET | `/api/v1/loyalty-rules` | S | Phiên bản mới nhất đứng đầu và đang áp dụng | ✅ |
+| 69 | POST | `/api/v1/loyalty-rules` (cần `Idempotency-Key`) | S | 79 Tạo phiên bản luật mới, không sửa bản cũ | ✅ |
+| 70 | POST | `/api/v1/orders/{id}/customer` (cần `Idempotency-Key`) | C, S | Gắn khách vào đơn, `{"customer_id": null}` để bỏ; đơn đã PAID/CLOSED hoặc khách bị khóa trả 409 | ✅ |
+
+**Quy tắc:**
+- Số điện thoại chuẩn hóa về `0xxxxxxxxx`, sai dạng trả 422. Waiter, Kitchen không xem được dữ liệu khách. Audit log không ghi số điện thoại hay tên.
+- `POST /orders/{id}/pay` tích điểm theo **luật mới nhất lúc thanh toán**, làm tròn xuống, không tính món `VOIDED`, trong cùng transaction với thanh toán, mỗi đơn đúng 1 lần.
+- Đơn không gắn khách, khách bị khóa, chưa có luật hoặc chưa đủ tiền cho 1 điểm: thanh toán vẫn thành công, không tích.
+- `expires_at` chỉ được lưu trên dòng tích điểm, **chưa có job tự trừ điểm hết hạn**.
+- Luật mặc định lúc seed (tạm, chờ PO chốt): 10.000đ = 1 điểm, 1 điểm = 100đ, đổi tối đa 50% đơn, điểm hết hạn sau 365 ngày.
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
 FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát
@@ -245,7 +268,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
 | **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10). Còn: `POST /public/qr/{token}/request-bill`, thanh toán QR | Làm cùng VNPay |
 | ~~**Modifier cơ bản** (cho QR + POS)~~ | **Đã có từ 04/11** (mục A11) | Chưa có combo |
-| **Rewards / CRM** (Key Focus BRD) | `GET /customers?phone=`, `POST /customers`, `GET /customers/{id}/rewards`, `POST /orders/{id}/apply-reward`, `DELETE /orders/{id}/rewards/{reward_id}` | Cần bảng khách hàng/điểm thưởng mới (migration), PO chốt luật tích/đổi điểm |
+| **Rewards / CRM** (Key Focus BRD) | Đợt 1 **đã có từ 04/11** (mục A12). Đợt 2: `GET/POST/PATCH /rewards`, `GET /orders/{id}/eligible-rewards`, `POST /orders/{id}/rewards`, `DELETE /orders/{id}/rewards/{id}`. Đợt 3: `POST /public/qr/{token}/member`, hoàn điểm | PO chốt con số của luật; khách trên QR chỉ tích điểm, đổi điểm qua thu ngân |
 
 ### Pha 3 · SIT/UAT (23/11 – 04/12) — chỉ làm nếu còn thời gian
 

@@ -20,6 +20,12 @@ class OrderItemCreate(BaseModel):
     modifier_option_ids: list[uuid.UUID] = Field(default_factory=list, max_length=30)
 
 
+class AttachCustomerRequest(BaseModel):
+    """`customer_id` bắt buộc gửi; null = bỏ khách khỏi đơn."""
+
+    customer_id: uuid.UUID | None
+
+
 class AddItemsRequest(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1)
 
@@ -66,6 +72,7 @@ class OrderOut(BaseModel):
     status: str
     current_version: int
     created_at: datetime
+    customer_id: uuid.UUID | None = None
     items: list[OrderItemOut] = []
 
     model_config = {"from_attributes": True}
@@ -90,6 +97,7 @@ class OrderDetailOut(BaseModel):
     status: str
     current_version: int
     created_at: datetime
+    customer_id: uuid.UUID | None = None
     items: list[OrderItemDetailOut] = []
     subtotal: Decimal
 

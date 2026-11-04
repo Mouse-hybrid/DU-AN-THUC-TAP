@@ -46,12 +46,14 @@ from app.core.deps import (
     require_idempotency_key,
     require_permission,
 )
+from app.core.loyalty import earn_points_for_order
 from app.core.modifiers import resolve_modifiers
 from app.core.permissions import Permission
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
     ORDER_STATUS,
+    Customer,
     IdempotencyKey,
     KitchenQueue,
     MenuItem,
@@ -63,6 +65,7 @@ from app.db.models import (
 )
 from app.schemas.orders import (
     AddItemsRequest,
+    AttachCustomerRequest,
     CreateOrderRequest,
     OrderDetailOut,
     OrderItemDetailOut,
@@ -197,6 +200,7 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         status=order.status,
         current_version=order.current_version,
         created_at=order.created_at,
+        customer_id=order.customer_id,
         items=items,
         subtotal=sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0")),
     )
@@ -764,6 +768,65 @@ def request_billing(
     return result
 
 
+@router.post("/{order_id}/customer", response_model=OrderOut)
+def attach_customer(
+    order_id: uuid.UUID,
+    payload: AttachCustomerRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.CUSTOMER_ACCESS)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """Gắn khách để tích điểm khi thanh toán, không bắt buộc; `customer_id: null` để bỏ.
+    Được đổi tới trước lúc thanh toán."""
+    endpoint = f"POST /api/v1/orders/{order_id}/customer"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order = _load_order_or_404(session, order_id, current.outlet_id)
+    if order.status in ("PAID", "CLOSED"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', không thể đổi khách",
+        )
+    if payload.customer_id is not None:
+        customer = session.get(Customer, payload.customer_id)
+        if customer is None or customer.outlet_id != current.outlet_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy khách hàng")
+        if not customer.is_active:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="Khách hàng đang bị khóa")
+
+    order.customer_id = payload.customer_id
+    session.flush()
+    session.refresh(order)
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_CUSTOMER_CHANGED",
+        entity_type="order",
+        entity_id=order.id,
+        payload={"customer_id": payload.customer_id},
+    )
+    result = OrderOut.model_validate(order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    return result
+
+
 @router.post("/{order_id}/pay", response_model=OrderOut)
 def pay_order(
     order_id: uuid.UUID,
@@ -806,9 +869,15 @@ def pay_order(
     table = session.get(RestaurantTable, table_session.table_id)
     table.status = "CLEANING"
 
+    # Cùng transaction: đơn đã PAID thì điểm đã tích, và request đã khóa đơn nên chỉ tích 1 lần.
+    earned = earn_points_for_order(session, order, current.outlet_id, current.id)
+
     session.flush()
     session.refresh(order)
 
+    audit_payload = {"table_session_id": str(table_session.id)}
+    if earned is not None:
+        audit_payload["points_earned"] = earned.points
     write_audit_log(
         session,
         outlet_id=current.outlet_id,
@@ -816,7 +885,7 @@ def pay_order(
         action="ORDER_PAID",
         entity_type="order",
         entity_id=order.id,
-        payload={"table_session_id": str(table_session.id)},
+        payload=audit_payload,
     )
 
     result = OrderOut.model_validate(order)
