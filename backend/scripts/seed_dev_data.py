@@ -40,6 +40,7 @@ from app.core.security import hash_password, verify_password  # noqa: E402
 from app.db.base import SessionLocal  # noqa: E402
 from app.db.models import (  # noqa: E402
     KitchenStation,
+    LoyaltyRule,
     MenuCategory,
     MenuItem,
     ModifierGroup,
@@ -88,6 +89,13 @@ SEED_MODIFIERS: dict[str, list[tuple[str, int, int, list[tuple[str, str]]]]] = {
 QA3_MODIFIERS: dict[str, list[tuple[str, int, int, list[tuple[str, str]]]]] = {
     **SEED_MODIFIERS,
     "Trà đá": [("Size", 1, 1, [("Vừa", "0.00"), ("Lớn", "3000.00")])],
+}
+# 10.000đ = 1 điểm, 1 điểm = 100đ, đổi tối đa 50% đơn, điểm hết hạn sau 12 tháng.
+SEED_LOYALTY_RULE = {
+    "earn_amount_per_point": "10000.00",
+    "redeem_value_per_point": "100.00",
+    "max_redeem_percent": 50,
+    "points_expire_days": 365,
 }
 # (mã bàn, số ghế)
 SEED_TABLES = (
@@ -335,6 +343,17 @@ def _ensure_modifiers(session, outlet, spec) -> None:
     session.flush()
 
 
+def _ensure_loyalty_rule(session, outlet) -> None:
+    """Luật mặc định tạm, chờ PO chốt. Đã có phiên bản nào thì giữ nguyên."""
+    exists = session.scalars(
+        select(LoyaltyRule.id).where(LoyaltyRule.outlet_id == outlet.id).limit(1)
+    ).first()
+    if exists is None:
+        session.add(LoyaltyRule(outlet_id=outlet.id, version=1, **SEED_LOYALTY_RULE))
+        session.flush()
+        print(f"+ loyalty_rule v1 ({outlet.name})")
+
+
 def _ensure_qa_third_outlet(session, password, explicit) -> None:
     """Khu thử nghiệm QA 3: đủ menu mẫu, trạm bếp, bàn Q3-1..Q3-3 và 4 vai, để QA chạy
     trọn luồng có ghi dữ liệu mà không đụng dữ liệu demo."""
@@ -351,6 +370,7 @@ def _ensure_qa_third_outlet(session, password, explicit) -> None:
     _ensure_menu_and_tables(session, outlet, QA3_OUTLET_TABLES, label=" (khu thử nghiệm QA 3)")
     _ensure_areas(session, outlet, QA3_AREAS)
     _ensure_modifiers(session, outlet, QA3_MODIFIERS)
+    _ensure_loyalty_rule(session, outlet)
 
 
 def main() -> None:
@@ -378,6 +398,7 @@ def main() -> None:
         _ensure_menu_and_tables(session, outlet, SEED_TABLES)
         _ensure_areas(session, outlet, SEED_AREAS)
         _ensure_modifiers(session, outlet, SEED_MODIFIERS)
+        _ensure_loyalty_rule(session, outlet)
 
         _ensure_qa_second_outlet(session, password, explicit)
         _ensure_qa_third_outlet(session, password, explicit)

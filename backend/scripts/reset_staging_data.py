@@ -3,7 +3,8 @@
 và để diễn tập/demo (sơ đồ bàn trống, hàng đợi bếp trống).
 
 XÓA: table_session, order, order_item, order_item_modifier, order_version, kitchen_queue,
-idempotency_key (tức mọi phiên bàn, đơn, món, phiếu bếp đã tạo khi test).
+idempotency_key, customer, points_ledger (mọi phiên bàn, đơn, món, phiếu bếp, khách và
+điểm tạo ra khi test).
 ĐƯA VỀ: mọi bàn AVAILABLE, mọi món menu is_available = true.
 GIỮ NGUYÊN: outlet, tài khoản staff, menu/nhóm món/trạm bếp, audit_log (lịch sử
 thao tác không bị xóa; script ghi thêm 1 dòng STAGING_DATA_RESET).
@@ -58,6 +59,7 @@ from app.core.audit import write_audit_log  # noqa: E402
 from app.core.config import APP_ENV  # noqa: E402
 from app.db.models import (  # noqa: E402
     AuditLog,
+    Customer,
     IdempotencyKey,
     KitchenQueue,
     MenuCategory,
@@ -67,6 +69,7 @@ from app.db.models import (  # noqa: E402
     OrderItemModifier,
     OrderVersion,
     Outlet,
+    PointsLedger,
     RestaurantTable,
     Staff,
     TableSession,
@@ -76,6 +79,7 @@ ALLOWED_ENVS = ("development", "staging", "test")
 
 # Xóa con trước cha để không vướng khóa ngoại.
 _WIPE_ORDER = (
+    ("points_ledger", PointsLedger),
     ("kitchen_queue", KitchenQueue),
     ("order_version", OrderVersion),
     ("order_item_modifier", OrderItemModifier),
@@ -83,6 +87,7 @@ _WIPE_ORDER = (
     ("order", Order),
     ("table_session", TableSession),
     ("idempotency_key", IdempotencyKey),
+    ("customer", Customer),
 )
 
 # Bàn dùng cho fixture; nằm trong các bàn B1–B14 của seed_dev_data.py.

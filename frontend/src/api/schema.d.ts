@@ -448,6 +448,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{order_id}/customer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach Customer
+         * @description Gắn khách để tích điểm khi thanh toán, không bắt buộc; `customer_id: null` để bỏ.
+         *     Được đổi tới trước lúc thanh toán.
+         */
+        post: operations["attach_customer_api_v1_orders__order_id__customer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{order_id}/pay": {
         parameters: {
             query?: never;
@@ -809,6 +830,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Customers
+         * @description Thu ngân chỉ tra được đúng 1 số, không xem được cả danh sách khách (RW-015).
+         */
+        get: operations["list_customers_api_v1_customers_get"];
+        put?: never;
+        /** Create Customer */
+        post: operations["create_customer_api_v1_customers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer */
+        get: operations["get_customer_api_v1_customers__customer_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Customer
+         * @description Khóa khách (`is_active: false`): không tích điểm, không gắn được vào đơn mới. Không
+         *     có API xóa để sổ điểm vẫn đối chiếu được.
+         */
+        patch: operations["update_customer_api_v1_customers__customer_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/customers/{customer_id}/points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Points */
+        get: operations["list_points_api_v1_customers__customer_id__points_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customer_id}/points/adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Points */
+        post: operations["adjust_points_api_v1_customers__customer_id__points_adjust_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loyalty-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description Phiên bản mới nhất đứng đầu và là luật đang áp dụng.
+         */
+        get: operations["list_rules_api_v1_loyalty_rules_get"];
+        put?: never;
+        /**
+         * Create Rule
+         * @description Không sửa luật cũ: tạo phiên bản mới, sổ điểm vẫn biết từng lần tích dùng luật nào.
+         */
+        post: operations["create_rule_api_v1_loyalty_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tables/{table_id}/qr-session": {
         parameters: {
             query?: never;
@@ -1011,6 +1133,14 @@ export interface components {
             /** Is Active */
             is_active?: boolean | null;
         };
+        /**
+         * AttachCustomerRequest
+         * @description `customer_id` bắt buộc gửi; null = bỏ khách khỏi đơn.
+         */
+        AttachCustomerRequest: {
+            /** Customer Id */
+            customer_id: string | null;
+        };
         /** AuditLogOut */
         AuditLogOut: {
             /**
@@ -1052,6 +1182,53 @@ export interface components {
              * Format: uuid
              */
             table_session_id: string;
+        };
+        /** CustomerCreate */
+        CustomerCreate: {
+            /** Phone */
+            phone: string;
+            /** Full Name */
+            full_name?: string | null;
+            /**
+             * Consent
+             * @constant
+             */
+            consent: true;
+        };
+        /** CustomerOut */
+        CustomerOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Phone */
+            phone: string;
+            /** Full Name */
+            full_name: string | null;
+            /** Member Code */
+            member_code: string;
+            /** Points Balance */
+            points_balance: number;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Consent At
+             * Format: date-time
+             */
+            consent_at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CustomerUpdate */
+        CustomerUpdate: {
+            /** Full Name */
+            full_name?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1135,6 +1312,40 @@ export interface components {
             username: string;
             /** Password */
             password: string;
+        };
+        /** LoyaltyRuleCreate */
+        LoyaltyRuleCreate: {
+            /** Earn Amount Per Point */
+            earn_amount_per_point: number | string;
+            /** Redeem Value Per Point */
+            redeem_value_per_point: number | string;
+            /** Max Redeem Percent */
+            max_redeem_percent: number;
+            /** Points Expire Days */
+            points_expire_days?: number | null;
+        };
+        /** LoyaltyRuleOut */
+        LoyaltyRuleOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
+            /** Earn Amount Per Point */
+            earn_amount_per_point: string;
+            /** Redeem Value Per Point */
+            redeem_value_per_point: string;
+            /** Max Redeem Percent */
+            max_redeem_percent: number;
+            /** Points Expire Days */
+            points_expire_days: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * MeOut
@@ -1403,6 +1614,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Customer Id */
+            customer_id?: string | null;
             /**
              * Items
              * @default []
@@ -1528,6 +1741,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Customer Id */
+            customer_id?: string | null;
             /**
              * Items
              * @default []
@@ -1597,6 +1812,40 @@ export interface components {
             description: string;
             /** Roles */
             roles: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR")[];
+        };
+        /** PointsAdjustRequest */
+        PointsAdjustRequest: {
+            /** Points */
+            points: number;
+            /** Reason */
+            reason: string;
+        };
+        /** PointsEntryOut */
+        PointsEntryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Entry Type */
+            entry_type: string;
+            /** Points */
+            points: number;
+            /** Balance After */
+            balance_after: number;
+            /** Order Id */
+            order_id: string | null;
+            /** Rule Version */
+            rule_version: number | null;
+            /** Reason */
+            reason: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** QrCategoryOut */
         QrCategoryOut: {
@@ -2991,6 +3240,43 @@ export interface operations {
             };
         };
     };
+    attach_customer_api_v1_orders__order_id__customer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     pay_order_api_v1_orders__order_id__pay_post: {
         parameters: {
             query?: never;
@@ -3636,6 +3922,266 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_customers_api_v1_customers_get: {
+        parameters: {
+            query?: {
+                phone?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer_api_v1_customers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_customer_api_v1_customers__customer_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_customer_api_v1_customers__customer_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_points_api_v1_customers__customer_id__points_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PointsEntryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    adjust_points_api_v1_customers__customer_id__points_adjust_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PointsAdjustRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PointsEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rules_api_v1_loyalty_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoyaltyRuleOut"][];
+                };
+            };
+        };
+    };
+    create_rule_api_v1_loyalty_rules_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyRuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoyaltyRuleOut"];
                 };
             };
             /** @description Validation Error */

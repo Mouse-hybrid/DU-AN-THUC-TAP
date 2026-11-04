@@ -81,6 +81,8 @@ ORDER_ITEM_STATUS = (
 
 ORDER_ITEM_SOURCE = ("POS", "QR")
 
+POINTS_ENTRY_TYPE = ("EARN", "REDEEM", "REVERSAL", "ADJUST")
+
 KITCHEN_QUEUE_STATUS = ("QUEUED", "IN_PROGRESS", "DONE", "CANCELLED")
 
 # Đúng theo bảng Role trong BRD (mục "Role || Description || Key
@@ -354,6 +356,9 @@ class Order(Base):
     created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("staff.id"), nullable=True
     )
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("customer.id"), nullable=True
+    )  # khách tích điểm, không bắt buộc
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -471,6 +476,74 @@ class KitchenQueue(Base):
 
     order_item: Mapped["OrderItem"] = relationship(back_populates="kitchen_queue_entries")
     station: Mapped["KitchenStation"] = relationship()
+
+
+# ---------------------------------------------------------------------------
+# Rewards: khách hàng, luật tích/đổi điểm có phiên bản (sửa = tạo bản mới), sổ điểm chỉ
+# ghi thêm. points_balance là số dư đọc nhanh, luôn bằng balance_after của dòng sổ mới nhất.
+# ---------------------------------------------------------------------------
+
+
+class Customer(Base):
+    __tablename__ = "customer"
+    __table_args__ = (
+        UniqueConstraint("outlet_id", "phone", name="uq_customer_outlet_phone"),
+        UniqueConstraint("member_code", name="uq_customer_member_code"),
+        CheckConstraint("points_balance >= 0", name="ck_customer_points_balance"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    phone: Mapped[str] = mapped_column(String(15), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    member_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    points_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    consent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class LoyaltyRule(Base):
+    __tablename__ = "loyalty_rule"
+    __table_args__ = (
+        UniqueConstraint("outlet_id", "version", name="uq_loyalty_rule_outlet_version"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    earn_amount_per_point: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
+    redeem_value_per_point: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
+    max_redeem_percent: Mapped[int] = mapped_column(Integer, nullable=False)
+    points_expire_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PointsLedger(Base):
+    __tablename__ = "points_ledger"
+    __table_args__ = (
+        # NULL khác nhau nên ADJUST (không gắn đơn) ghi được nhiều dòng.
+        UniqueConstraint("order_id", "entry_type", name="uq_points_ledger_order_type"),
+        _check(POINTS_ENTRY_TYPE, "entry_type", "ck_points_ledger_entry_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    customer_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("customer.id"), nullable=False)
+    entry_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    points: Mapped[int] = mapped_column(Integer, nullable=False)  # dương = cộng, âm = trừ
+    balance_after: Mapped[int] = mapped_column(Integer, nullable=False)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("order.id"), nullable=True)
+    rule_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    staff_id: Mapped[uuid.UUID | None] = mapped_column(GUID, ForeignKey("staff.id"), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # ---------------------------------------------------------------------------
