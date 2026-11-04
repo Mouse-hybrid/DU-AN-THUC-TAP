@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { clearAuth, getAuth } from "../auth/storage";
+import { initialsOf, roleLabel } from "../utils/roleLabels";
 import { Icon } from "./Icon";
 
 interface AppShellProps {
@@ -16,31 +17,18 @@ interface NavItem {
   icon?: string;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  CASHIER: "Thu ngân",
-  WAITER: "Phục vụ",
-  KITCHEN: "Bếp",
-  SUPERVISOR: "Quản lý",
-};
-
-function initialsOf(fullName: string | undefined): string {
-  const words = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  const first = words[0] ?? "";
-  const last = words[words.length - 1] ?? "";
-  return (words.length === 1 ? first.slice(0, 2) : `${first.charAt(0)}${last.charAt(0)}`).toUpperCase();
-}
-
 function navItemsFor(role: string | undefined): NavItem[] {
-  if (role === "KITCHEN") return [{ to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" }];
+  if (role === "KITCHEN") return [{ to: "/kitchen", prefix: "/kitchen", label: "Bếp", icon: "chef-hat" }];
   const items: NavItem[] = [
     { to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" },
     { to: "/history", prefix: "/history", label: "Lịch sử", icon: "history" },
   ];
   if (role === "SUPERVISOR") {
     items.push(
-      { to: "/kitchen", prefix: "/kitchen", label: "Bếp", glyph: "K" },
-      { to: "/admin/menu/categories", prefix: "/admin/menu", label: "Thực đơn", glyph: "T" },
+      { to: "/kitchen", prefix: "/kitchen", label: "Bếp", icon: "chef-hat" },
+      { to: "/admin/menu/categories", prefix: "/admin/menu", label: "Thực đơn", icon: "utensils" },
+      { to: "/admin/staff", prefix: "/admin/staff", label: "Nhân viên", icon: "users" },
+      { to: "/admin/roles", prefix: "/admin/roles", label: "Vai trò", icon: "shield-check" },
       { to: "/admin/audit-logs", prefix: "/admin/audit-logs", label: "Nhật ký", icon: "scroll-text" },
     );
   }
@@ -52,8 +40,9 @@ export function AppShell({ children, topbar }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const navItems = navItemsFor(auth?.staff.role);
-  const activeItem = navItems.find((item) => location.pathname.startsWith(item.prefix)) ?? navItems[0];
-  const home = activeItem?.to ?? "/tables";
+  const onProfile = location.pathname.startsWith("/profile");
+  const activeItem = onProfile ? undefined : navItems.find((item) => location.pathname.startsWith(item.prefix)) ?? navItems[0];
+  const home = activeItem?.to ?? navItems[0]?.to ?? "/tables";
 
   function logout() {
     clearAuth();
@@ -90,11 +79,16 @@ export function AppShell({ children, topbar }: AppShellProps) {
         <header className="nova-topbar">
           {topbar}
           <div className="nova-user-actions">
-            <span className="nova-user-chip" title={auth?.staff.full_name}>
+            <Link
+              className={`nova-user-chip${onProfile ? " nova-user-chip--active" : ""}`}
+              to="/profile"
+              title="Hồ sơ của tôi"
+              aria-current={onProfile ? "page" : undefined}
+            >
               <span className="nova-user-avatar" aria-hidden="true">{initialsOf(auth?.staff.full_name)}</span>
-              <span>{ROLE_LABELS[auth?.staff.role ?? ""] ?? auth?.staff.full_name}</span>
-              <span className="nova-visually-hidden">{auth?.staff.full_name}</span>
-            </span>
+              <span className="nova-user-chip-role">{roleLabel(auth?.staff.role) || auth?.staff.full_name}</span>
+              <span className="nova-visually-hidden">{auth?.staff.full_name} · Hồ sơ của tôi</span>
+            </Link>
             <button className="nova-icon-button" type="button" onClick={logout} aria-label="Đăng xuất">
               <Icon name="log-out" />
             </button>

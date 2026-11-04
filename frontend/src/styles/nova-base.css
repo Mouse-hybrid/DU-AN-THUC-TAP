@@ -316,6 +316,18 @@ select:focus-visible {
   font-weight: 700;
 }
 
+a.nova-user-chip {
+  text-decoration: none;
+}
+
+a.nova-user-chip:hover {
+  background: #c6ebe4;
+}
+
+.nova-user-chip--active {
+  box-shadow: 0 0 0 2px var(--nova-color-primary);
+}
+
 .nova-user-avatar {
   display: inline-grid;
   width: 28px;
@@ -418,6 +430,15 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .nova-nav {
+    display: flex;
+    gap: 2px;
+  }
+
+  .nova-nav-item {
+    padding: 0 10px;
+  }
+
   .nova-sidebar {
     position: static;
     height: auto;
@@ -427,6 +448,10 @@ select:focus-visible {
   }
 
   .nova-user-chip {
+    padding-right: 6px;
+  }
+
+  .nova-user-chip-role {
     display: none;
   }
 

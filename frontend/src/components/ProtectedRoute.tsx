@@ -4,7 +4,8 @@ import { getAuth, getHomePath } from "../auth/storage";
 import { hasRole } from "../auth/roles";
 
 interface ProtectedRouteProps {
-  area: "pos" | "kitchen" | "admin";
+  /** "any": mọi vai trò đã đăng nhập (hồ sơ cá nhân). */
+  area: "pos" | "kitchen" | "admin" | "any";
   children: ReactNode;
 }
 
@@ -13,6 +14,7 @@ export function ProtectedRoute({ area, children }: ProtectedRouteProps) {
   if (!auth) return <Navigate to={area === "kitchen" ? "/login?area=kitchen" : "/login"} replace />;
 
   const role = auth.staff.role;
+  if (area === "any") return children;
   if (role === "KITCHEN" && area !== "kitchen") return <Navigate to="/kitchen" replace />;
   if (area === "kitchen" && !hasRole(role, ["KITCHEN", "SUPERVISOR"])) {
     return <Navigate to="/tables" replace />;

@@ -55,6 +55,13 @@ export function getAuth(): StoredAuth | null {
   }
 }
 
+/** Cập nhật họ tên đang lưu khi quản lý tự sửa tên mình, để thanh trên cùng không hiển thị tên cũ. */
+export function updateStoredFullName(fullName: string): void {
+  const auth = getAuth();
+  if (!auth) return;
+  localStorage.setItem(AUTH_KEY, JSON.stringify({ ...auth, staff: { ...auth.staff, full_name: fullName } }));
+}
+
 export function clearAuth(): void {
   localStorage.removeItem(AUTH_KEY);
 }

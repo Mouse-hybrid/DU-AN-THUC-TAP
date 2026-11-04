@@ -45,6 +45,10 @@ function fieldLabel(field: string): string {
     station_id: "Trạm bếp",
     sort_order: "Thứ tự",
     q: "Từ khóa tìm kiếm",
+    full_name: "Họ tên",
+    role: "Vai trò",
+    new_password: "Mật khẩu mới",
+    current_password: "Mật khẩu hiện tại",
   };
   return labels[field] ?? field;
 }
@@ -59,7 +63,10 @@ function validationMessage(message: string): string {
   if (normalized.includes("greater than or equal to 0")) return "không được âm";
   if (normalized.includes("less than or equal to 10000")) return "phải nhỏ hơn hoặc bằng 10.000";
   if (normalized.includes("at least 1 character")) return "không được để trống";
+  if (normalized.includes("at least 3 characters")) return "tối thiểu 3 ký tự";
+  if (normalized.includes("at least 8 characters")) return "tối thiểu 8 ký tự";
   if (normalized.includes("at most 100 characters")) return "tối đa 100 ký tự";
+  if (normalized.includes("should match pattern")) return "chỉ gồm chữ không dấu, số, dấu chấm, gạch dưới và gạch ngang";
   if (normalized.includes("at most 255 characters")) return "tối đa 255 ký tự";
   if (normalized.includes("valid decimal") || normalized.includes("valid number")) return "phải là số hợp lệ";
   if (normalized.includes("valid UUID")) return "không hợp lệ";

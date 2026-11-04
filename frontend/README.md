@@ -57,6 +57,9 @@ npm run gen:api
 | `/admin/menu/new` | Thêm món (màn 103) | SUPERVISOR |
 | `/admin/menu/:id/edit` | Sửa món (màn 103) | SUPERVISOR |
 | `/admin/audit-logs` | Nhật ký hệ thống (màn 97); `?order=<id>` lọc theo một đơn | SUPERVISOR |
+| `/admin/staff` | Quản trị nhân viên (màn 93): thêm, sửa họ tên/vai trò, khóa/mở khóa, đặt lại mật khẩu | SUPERVISOR |
+| `/admin/roles` | Vai trò & quyền (màn 94), chỉ xem | SUPERVISOR |
+| `/profile` | Hồ sơ của tôi (màn 98): thông tin tài khoản, đổi mật khẩu | Mọi vai trò đã đăng nhập (kể cả KITCHEN) |
 
 - `KITCHEN` bị chuyển về `/kitchen` nếu mở route POS hoặc `/admin`. CASHIER/WAITER mở `/kitchen` hoặc `/admin` thì quay về `/tables`.
 - Chưa đăng nhập mà mở `/kitchen` thì chuyển tới `/login?area=kitchen`; sau khi đăng nhập, mọi role đều về trang chủ của role đó.
@@ -109,7 +112,7 @@ Các màn thuộc Pha 2 chưa được code; xem `PHASE2-READINESS.md`.
 2. Tắt mạng, thử đăng nhập và xác nhận banner “Đang ngoại tuyến” cùng thông báo lỗi.
 3. CASHIER/WAITER: vào `/tables`; mở thẳng `/kitchen` hoặc `/admin/menu/categories` phải quay về `/tables`.
 4. KITCHEN: vào `/kitchen`; mở `/tables` hoặc `/admin/menu/categories` phải quay về `/kitchen`. Chưa đăng nhập mà mở `/kitchen` phải tới `/login?area=kitchen` (“Sẵn sàng cho ca bếp”).
-5. SUPERVISOR: vào được `/tables`, `/history`, `/kitchen`, `/admin/menu/categories` và `/admin/audit-logs`; menu có các mục “Lịch sử”, “Bếp”, “Thực đơn”, “Nhật ký”. CASHIER/WAITER có “Bàn” và “Lịch sử”. Thanh trên cùng của mọi màn không còn dòng “Chi nhánh” (dự án chưa có chi nhánh), chỉ còn chip người dùng và nút đăng xuất.
+5. SUPERVISOR: vào được `/tables`, `/history`, `/kitchen`, `/admin/menu/categories` và `/admin/audit-logs`; menu có các mục “Lịch sử”, “Bếp”, “Thực đơn”, “Nhân viên”, “Vai trò”, “Nhật ký”. CASHIER/WAITER có “Bàn” và “Lịch sử”. Thanh trên cùng của mọi màn không còn dòng “Chi nhánh” (dự án chưa có chi nhánh), chỉ còn chip người dùng và nút đăng xuất.
 6. Xóa hoặc làm hết hạn `pos_auth`, mở route bảo vệ và xác nhận quay về `/login`.
 
 Sơ đồ bàn, mở bàn, chi tiết bàn
@@ -146,6 +149,13 @@ Lịch sử đơn, hủy/làm lại món, đóng đơn, nhật ký (Pha 2, phầ
 24. `/tables/:id/summary` với CASHIER/SUPERVISOR: sau “Xác nhận đã thanh toán” hiện “Đóng đơn”; đóng xong trạng thái là “Đã đóng”.
 25. `/admin/audit-logs` (SUPERVISOR; CASHIER/WAITER quay về `/tables`): thao tác mới nhất ở trên cùng, có người thực hiện + vai trò, đối tượng, hành động, chi tiết (ví dụ “Lý do: …” của Hủy món). Lọc nhóm Đơn hàng/Bàn/Thực đơn, tìm theo người dùng, đổi Hôm nay/7/30 ngày, “Xuất nhật ký” tải CSV. Từ `/history` bấm “Nhật ký” thì chỉ còn thao tác của đơn đó và có chip “Đang lọc theo đơn”.
 
+Pha 2: nhân viên, phân quyền, hồ sơ
+31. `/admin/staff` (SUPERVISOR; CASHIER/WAITER quay về `/tables`, KITCHEN về `/kitchen`): 4 thẻ thống kê (Tổng, Đang hoạt động, Đã khóa, Quản lý), chip vai trò có số đếm, lọc Tất cả/Đang hoạt động/Đã khóa, tìm theo tên hoặc tên đăng nhập (gõ không dấu vẫn ra), 10 dòng mỗi trang, “Xuất danh sách” tải CSV. Dòng của chính mình có nhãn “Bạn”, không có nút Khóa/Đặt lại, chỉ có “Sửa” và liên kết “Đổi mật khẩu” sang `/profile`.
+32. “Thêm nhân viên”: bắt buộc họ tên, tên đăng nhập (3–100 ký tự chữ không dấu, số, `.`, `_`, `-`) và mật khẩu ≥ 8 ký tự; sai thì báo ngay, không gửi request. Trùng tên đăng nhập thì báo “Tên đăng nhập này đã tồn tại” và giữ hộp thoại. Bấm đúp “Tạo nhân viên” chỉ gửi một request.
+33. “Sửa”: chỉ gửi trường đã đổi; đổi vai trò có cảnh báo người đó bị đăng xuất. Tự sửa mình thì ô Vai trò bị khóa (backend chặn tự đổi vai trò). “Khóa”/“Mở khóa”/“Đặt lại mật khẩu” đều có hộp xác nhận, chống bấm đúp, nêu rõ người đó bị đăng xuất khỏi mọi thiết bị. Tài khoản không có nút Xóa (backend không có API xóa).
+34. `/admin/roles`: bảng quyền theo 4 vai trò lấy từ `GET /staff/permissions`, thẻ đếm số quyền mỗi vai trò, không có nút sửa (backend chưa có API sửa quyền).
+35. Bấm chip tên ở góc trên phải (mọi vai trò, kể cả trên điện thoại) để vào `/profile`: xem họ tên, tên đăng nhập, vai trò, số quyền. “Đổi mật khẩu” cần mật khẩu hiện tại, mật khẩu mới ≥ 8 ký tự và nhập lại khớp; sai mật khẩu hiện tại thì hiện lời backend trả về và không bị đăng xuất; thành công thì lưu token mới (không bị đẩy ra màn đăng nhập).
+
 Thời gian thực và mất mạng
 26. Mở `/tables` ở hai trình duyệt, đổi trạng thái bàn ở một bên: bên kia tự cập nhật trong vài giây mà không cần bấm “Làm mới”.
 27. Tắt mạng khi đang ở `/tables` hoặc `/kitchen`: banner offline hiện, dữ liệu cũ được giữ và có nhãn “Dữ liệu có thể đã cũ”, không có request nào bị gửi. Bật lại mạng thì tự tải lại.
@@ -173,4 +183,8 @@ Khác Figma có chủ đích (API chưa hỗ trợ, không giả dữ liệu):
 | Màn 35: topbar “Trạm làm việc · Bếp nóng · Ca tối”, mục sidebar Món trễ, Tìm đơn, Hiệu suất, Máy in | Topbar “NOVA Kitchen · Chi tiết món”; sidebar dùng chung (Bếp) | Chưa có API ca làm việc/trạm đang làm của nhân viên; các mục còn lại thuộc Pha 2 hoặc chưa có API |
 | Màn 35: chỉ có “Đánh dấu sẵn sàng” | Thêm “Bắt đầu nấu” khi món còn chờ, và khối “Thao tác quản lý” (Hủy món có lý do bắt buộc, Làm lại món) cho SUPERVISOR | Theo yêu cầu nhóm; dùng `start-cooking`, `mark-ready`, `void`, `refire` đã có |
 | Mã phiếu “#N1043” (màn 35) | Mã tạm `#<bàn>-<4 ký tự cuối mã đơn>`, giống phiếu bếp | Backend chưa có mã phiếu riêng |
+| Màn 93: ảnh đại diện, số điện thoại, email, ca, “Lần đăng nhập cuối”, nút Xóa, chọn nhiều dòng | Chỉ họ tên, tên đăng nhập, vai trò, trạng thái, ngày tạo; Khóa thay cho Xóa | `StaffDetailOut` chưa có các trường này; backend không có API xóa |
+| Màn 94: tạo vai trò, bật/tắt quyền từng vai trò | Ma trận quyền chỉ xem + thẻ đếm | Chỉ có `GET /staff/permissions` với 4 vai trò cố định |
+| Màn 98: sửa họ tên, ảnh, liên hệ, danh sách phiên, 2FA | Chỉ xem thông tin và đổi mật khẩu (không hiện mã cơ sở) | Chưa có API tự sửa hồ sơ, phiên, 2FA |
+| Màn 93/94/98: khung Backoffice 1440 riêng | Dùng khung chung của ứng dụng (sidebar + topbar) | Giữ một khung duy nhất cho mọi màn; sidebar thêm “Nhân viên”, “Vai trò” (trang có tiêu đề “Vai trò & quyền”, tên ngắn để vừa sidebar) cho SUPERVISOR |
 | Màu chính | #008573 (theo Figma) | Trước đây #147d6f; cần anh Thanh/Linh xác nhận lần cuối |

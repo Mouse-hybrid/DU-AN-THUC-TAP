@@ -45,3 +45,18 @@ export function kitchenActionErrorMessage(error: unknown): string {
   }
   return getErrorMessage(error);
 }
+
+/** Lỗi khi quản trị nhân viên (màn 93) và đổi mật khẩu (màn 98). `conflict` là câu riêng cho từng thao tác vì client chỉ trả câu 409 chung. */
+export function staffErrorMessage(error: unknown, conflict: string): string {
+  if (error instanceof ApiError) {
+    if (error.status === 400 || error.status === 422) return error.message || "Dữ liệu chưa hợp lệ.";
+    if (error.status === 403) return "Chỉ quản lý (SUPERVISOR) mới được quản lý nhân viên.";
+    if (error.status === 404) return "Không tìm thấy nhân viên này. Danh sách đã được tải lại.";
+    if (error.status === 409) return conflict;
+    if (error.status >= 500) return "Máy chủ đang gặp sự cố. Dữ liệu hiện có vẫn được giữ lại.";
+    if (error.status === 0) return navigator.onLine
+      ? "Không thể kết nối hoặc máy chủ phản hồi quá chậm. Vui lòng thử lại."
+      : "Bạn đang ngoại tuyến. Thao tác chưa được gửi.";
+  }
+  return getErrorMessage(error);
+}
