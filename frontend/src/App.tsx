@@ -5,6 +5,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminMenuItemPage } from "./pages/AdminMenuItemPage";
 import { AdminAuditLogPage } from "./pages/AdminAuditLogPage";
 import { AdminMenuPage } from "./pages/AdminMenuPage";
+import { AdminRolesPage } from "./pages/AdminRolesPage";
+import { AdminStaffPage } from "./pages/AdminStaffPage";
 import { KitchenItemDetailPage } from "./pages/KitchenItemDetailPage";
 import { KitchenPage } from "./pages/KitchenPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -13,6 +15,7 @@ import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
 import { OrderPage } from "./pages/OrderPage";
 import { OrderSummaryPage } from "./pages/OrderSummaryPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { TablesPage } from "./pages/TablesPage";
 import { TableDetailPage } from "./pages/TableDetailPage";
 
@@ -79,6 +82,18 @@ export default function App() {
         <Route
           path="/admin/audit-logs"
           element={<ProtectedRoute area="admin"><AdminAuditLogPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/staff"
+          element={<ProtectedRoute area="admin"><AdminStaffPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/roles"
+          element={<ProtectedRoute area="admin"><AdminRolesPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/profile"
+          element={<ProtectedRoute area="any"><ProfilePage /></ProtectedRoute>}
         />
         <Route path="*" element={<HomeRedirect />} />
       </Routes>
