@@ -129,6 +129,37 @@ Không ai được tự đổi role, tự khóa hay tự đặt lại mật kh�
 
 `GET /api/v1/tables` có thêm bộ lọc `?area_id=`; bàn trả về có `area_id`, `area_name` và xếp theo số trong mã (B2 trước B10). Chưa có API thêm/xóa bàn.
 
+### A10. QR Ordering (từ 04/11)
+
+Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. Quyền `C, W, S` là Cashier, Waiter, Supervisor.
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 50 | POST | `/api/v1/tables/{id}/qr-session` (cần `Idempotency-Key`) | C, W, S | 107 Mã QR theo bàn. Bàn chưa mở phiên trả 409; cấp lại thì mã cũ hết dùng. Trả `token`, `expires_at`, `path` (`/qr/{token}`) | ✅ |
+| 51 | GET | `/api/v1/tables/{id}/qr-session` | C, W, S | Xem lại mã còn hạn; không có trả 404 | ✅ |
+| 52 | DELETE | `/api/v1/tables/{id}/qr-session` | C, W, S | Thu hồi mã, trả 204 | ✅ |
+| 53 | GET | `/api/v1/public/qr/{token}` | token | 40 Xác nhận bàn: `table_code`, `area_name`, `expires_at`, `ordering_locked` | ✅ |
+| 54 | GET | `/api/v1/public/qr/{token}/menu` | token | 41, 42 Thực đơn; có cả món hết hàng (`is_available: false`) | ✅ |
+| 55 | POST | `/api/v1/public/qr/{token}/orders` (cần `Idempotency-Key`) | token | 44, 47 Gửi món: tối đa 20 dòng, mỗi dòng 1–20 phần, ghi chú 200 ký tự | ✅ |
+| 56 | GET | `/api/v1/public/qr/{token}/order` | token | 48, 53 Món của cả phiên bàn | ✅ |
+
+**Quy tắc** (phiếu quyết định B6: đơn QR chờ phục vụ xác nhận):
+- Món của khách nằm ở `CREATED`, `source: "QR"`, trong đơn đang mở của bàn; bàn chỉ có 1 hóa đơn, dùng chung với POS.
+- Xác nhận: phục vụ gọi `POST /orders/{id}/send-to-kitchen` như món POS. Từ chối: `DELETE /orders/{id}/items/{item_id}`, món thành `VOIDED`. Khách không sửa/xóa được sau khi gửi.
+- Mỗi lần khách gửi, kênh `tables` có event `ORDER_UPDATED` với `reason: "QR_ITEMS_SUBMITTED"`. Phía khách không có WebSocket, gọi lại `GET .../order` định kỳ.
+
+| Mã | Khi nào |
+|---|---|
+| `401` | Token sai, đã thu hồi, hoặc đã bị thay bằng mã mới |
+| `410` | Token hết hạn (mặc định 4 giờ, `QR_SESSION_TTL_MINUTES`) hoặc phiên bàn đã đóng; hiện màn 54 |
+| `400` | Thiếu `Idempotency-Key` |
+| `404` | Món không có trong thực đơn của nhà hàng |
+| `409` | Món hết hàng; bàn đang chờ thanh toán; quá 30 phần đang chờ xác nhận (`QR_MAX_PENDING_ITEMS`); cùng `Idempotency-Key` khác nội dung |
+| `422` | Dữ liệu không hợp lệ |
+| `429` | Vượt giới hạn request theo IP (Nginx: 10 request/giây, burst 40) |
+
+Chưa có: modifier (size, topping theo B7), khách tự yêu cầu thanh toán và thanh toán QR (49–51, làm cùng VNPay), định danh hội viên (làm cùng Rewards).
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
 FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát
@@ -186,7 +217,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
-| **QR Ordering** (Key Focus BRD) | `POST /tables/{id}/qr-session` (cấp `qr_session_token`), `GET /public/qr/{token}/menu`, `POST /public/qr/{token}/orders`, `GET /public/qr/{token}/orders/{id}`, `POST /public/qr/{token}/request-bill` | Module mới hoàn toàn, API công khai không đăng nhập → phải rà Permission Matrix và chống lạm dụng trước |
+| **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10). Còn: `POST /public/qr/{token}/request-bill`, thanh toán QR | Làm cùng VNPay |
 | **Modifier cơ bản** (cho QR + POS) | `GET /menu/{id}/modifiers`, `POST/PATCH /menu/{id}/modifiers`, field `modifiers[]` trong `POST /orders/{id}/items` | Chưa có schema; QA/PO hỏi về combo/size/topping, chờ PO chốt |
 | **Rewards / CRM** (Key Focus BRD) | `GET /customers?phone=`, `POST /customers`, `GET /customers/{id}/rewards`, `POST /orders/{id}/apply-reward`, `DELETE /orders/{id}/rewards/{reward_id}` | Cần bảng khách hàng/điểm thưởng mới (migration), PO chốt luật tích/đổi điểm |
 

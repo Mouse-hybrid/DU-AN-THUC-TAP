@@ -280,8 +280,11 @@ def test_equal_timestamp_audit_fixture_pages_without_gaps(client, seed, db_sessi
     result = reset.run(session, apply=True, with_fixtures=True)
     session.close()
 
-    line = next(line for line in result.fixtures if line.startswith(reset.FIXTURE_AUDIT_TABLE))
+    line = next(line for line in result.fixtures if "dòng audit" in line)
     order_id = line.rsplit("order_id=", 1)[1]
+    qr_line = next(line for line in result.fixtures if "mã QR đã hết hạn" in line)
+    expired_token = qr_line.rsplit("token=", 1)[1]
+    assert client.get(f"/api/v1/public/qr/{expired_token}").status_code == 410
     admin = login(client, "qa3_admin")
 
     rows = []

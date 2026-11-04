@@ -3021,6 +3021,354 @@
         }
       }
     },
+    "/api/v1/tables/{table_id}/qr-session": {
+      "post": {
+        "tags": [
+          "qr"
+        ],
+        "summary": "Issue Qr Session",
+        "operationId": "issue_qr_session_api_v1_tables__table_id__qr_session_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "qr"
+        ],
+        "summary": "Get Qr Session",
+        "operationId": "get_qr_session_api_v1_tables__table_id__qr_session_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "qr"
+        ],
+        "summary": "Revoke Qr Session",
+        "operationId": "revoke_qr_session_api_v1_tables__table_id__qr_session_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/qr/{token}": {
+      "get": {
+        "tags": [
+          "qr-public"
+        ],
+        "summary": "Qr Info",
+        "operationId": "qr_info_api_v1_public_qr__token__get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrInfoOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/qr/{token}/menu": {
+      "get": {
+        "tags": [
+          "qr-public"
+        ],
+        "summary": "Qr Menu",
+        "description": "Có cả món hết hàng (is_available=false) để giao diện hiện mờ. Bỏ món chưa gán trạm bếp\nvì không gửi bếp được, và món thuộc nhóm đang ẩn.",
+        "operationId": "qr_menu_api_v1_public_qr__token__menu_get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrMenuOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/qr/{token}/order": {
+      "get": {
+        "tags": [
+          "qr-public"
+        ],
+        "summary": "Qr Order",
+        "operationId": "qr_order_api_v1_public_qr__token__order_get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrOrderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/qr/{token}/orders": {
+      "post": {
+        "tags": [
+          "qr-public"
+        ],
+        "summary": "Qr Submit",
+        "operationId": "qr_submit_api_v1_public_qr__token__orders_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "title": "Token"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QrSubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrOrderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -3967,6 +4315,11 @@
             ],
             "title": "Note"
           },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "POS"
+          },
           "menu_item_name": {
             "type": "string",
             "title": "Menu Item Name"
@@ -4026,6 +4379,11 @@
               }
             ],
             "title": "Note"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "POS"
           }
         },
         "type": "object",
@@ -4233,6 +4591,304 @@
           "roles"
         ],
         "title": "PermissionRuleOut"
+      },
+      "QrCategoryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sort_order"
+        ],
+        "title": "QrCategoryOut"
+      },
+      "QrInfoOut": {
+        "properties": {
+          "table_code": {
+            "type": "string",
+            "title": "Table Code"
+          },
+          "area_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Name"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "ordering_locked": {
+            "type": "boolean",
+            "title": "Ordering Locked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_code",
+          "expires_at",
+          "ordering_locked"
+        ],
+        "title": "QrInfoOut"
+      },
+      "QrMenuItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "is_available": {
+            "type": "boolean",
+            "title": "Is Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "price",
+          "is_available"
+        ],
+        "title": "QrMenuItemOut"
+      },
+      "QrMenuOut": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/QrCategoryOut"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QrMenuItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categories",
+          "items"
+        ],
+        "title": "QrMenuOut"
+      },
+      "QrOrderItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "menu_item_name": {
+            "type": "string",
+            "title": "Menu Item Name"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price"
+          },
+          "line_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "menu_item_name",
+          "quantity",
+          "unit_price",
+          "line_total",
+          "note",
+          "status",
+          "source"
+        ],
+        "title": "QrOrderItemOut"
+      },
+      "QrOrderLine": {
+        "properties": {
+          "menu_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Menu Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "default": 1
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "menu_item_id"
+        ],
+        "title": "QrOrderLine"
+      },
+      "QrOrderOut": {
+        "properties": {
+          "table_code": {
+            "type": "string",
+            "title": "Table Code"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QrOrderItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "subtotal": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_code",
+          "items",
+          "subtotal"
+        ],
+        "title": "QrOrderOut",
+        "description": "Toàn bộ món của phiên bàn: khách cùng bàn dùng chung một hóa đơn."
+      },
+      "QrSessionOut": {
+        "properties": {
+          "table_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Id"
+          },
+          "table_session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Session Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_id",
+          "table_session_id",
+          "token",
+          "expires_at",
+          "path"
+        ],
+        "title": "QrSessionOut"
+      },
+      "QrSubmitRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QrOrderLine"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "QrSubmitRequest"
       },
       "SendToKitchenResponse": {
         "properties": {

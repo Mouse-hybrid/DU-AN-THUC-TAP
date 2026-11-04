@@ -59,6 +59,7 @@ erDiagram
         datetime opened_at
         datetime closed_at
         str qr_session_token
+        datetime qr_expires_at
     }
     "kitchen_station" {
         uuid id PK
@@ -101,6 +102,7 @@ erDiagram
         int quantity
         numeric unit_price
         str note
+        str source
         datetime created_at
         datetime updated_at
     }

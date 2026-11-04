@@ -740,6 +740,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tables/{table_id}/qr-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Qr Session */
+        get: operations["get_qr_session_api_v1_tables__table_id__qr_session_get"];
+        put?: never;
+        /** Issue Qr Session */
+        post: operations["issue_qr_session_api_v1_tables__table_id__qr_session_post"];
+        /** Revoke Qr Session */
+        delete: operations["revoke_qr_session_api_v1_tables__table_id__qr_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/qr/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qr Info */
+        get: operations["qr_info_api_v1_public_qr__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/qr/{token}/menu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qr Menu
+         * @description Có cả món hết hàng (is_available=false) để giao diện hiện mờ. Bỏ món chưa gán trạm bếp
+         *     vì không gửi bếp được, và món thuộc nhóm đang ẩn.
+         */
+        get: operations["qr_menu_api_v1_public_qr__token__menu_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/qr/{token}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qr Order */
+        get: operations["qr_order_api_v1_public_qr__token__order_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/qr/{token}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Qr Submit */
+        post: operations["qr_submit_api_v1_public_qr__token__orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1171,6 +1262,11 @@ export interface components {
             unit_price: string;
             /** Note */
             note: string | null;
+            /**
+             * Source
+             * @default POS
+             */
+            source: string;
             /** Menu Item Name */
             menu_item_name: string;
             /** Line Total */
@@ -1196,6 +1292,11 @@ export interface components {
             unit_price: string;
             /** Note */
             note: string | null;
+            /**
+             * Source
+             * @default POS
+             */
+            source: string;
         };
         /** OrderOut */
         OrderOut: {
@@ -1287,6 +1388,131 @@ export interface components {
             description: string;
             /** Roles */
             roles: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR")[];
+        };
+        /** QrCategoryOut */
+        QrCategoryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** QrInfoOut */
+        QrInfoOut: {
+            /** Table Code */
+            table_code: string;
+            /** Area Name */
+            area_name?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Ordering Locked */
+            ordering_locked: boolean;
+        };
+        /** QrMenuItemOut */
+        QrMenuItemOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Price */
+            price: string;
+            /** Category Id */
+            category_id?: string | null;
+            /** Is Available */
+            is_available: boolean;
+        };
+        /** QrMenuOut */
+        QrMenuOut: {
+            /** Categories */
+            categories: components["schemas"]["QrCategoryOut"][];
+            /** Items */
+            items: components["schemas"]["QrMenuItemOut"][];
+        };
+        /** QrOrderItemOut */
+        QrOrderItemOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Menu Item Name */
+            menu_item_name: string;
+            /** Quantity */
+            quantity: number;
+            /** Unit Price */
+            unit_price: string;
+            /** Line Total */
+            line_total: string;
+            /** Note */
+            note: string | null;
+            /** Status */
+            status: string;
+            /** Source */
+            source: string;
+        };
+        /** QrOrderLine */
+        QrOrderLine: {
+            /**
+             * Menu Item Id
+             * Format: uuid
+             */
+            menu_item_id: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * QrOrderOut
+         * @description Toàn bộ món của phiên bàn: khách cùng bàn dùng chung một hóa đơn.
+         */
+        QrOrderOut: {
+            /** Table Code */
+            table_code: string;
+            /** Items */
+            items: components["schemas"]["QrOrderItemOut"][];
+            /** Subtotal */
+            subtotal: string;
+        };
+        /** QrSessionOut */
+        QrSessionOut: {
+            /**
+             * Table Id
+             * Format: uuid
+             */
+            table_id: string;
+            /**
+             * Table Session Id
+             * Format: uuid
+             */
+            table_session_id: string;
+            /** Token */
+            token: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Path */
+            path: string;
+        };
+        /** QrSubmitRequest */
+        QrSubmitRequest: {
+            /** Items */
+            items: components["schemas"]["QrOrderLine"][];
         };
         /** SendToKitchenResponse */
         SendToKitchenResponse: {
@@ -3011,6 +3237,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_qr_session_api_v1_tables__table_id__qr_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_qr_session_api_v1_tables__table_id__qr_session_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_qr_session_api_v1_tables__table_id__qr_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_info_api_v1_public_qr__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrInfoOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_menu_api_v1_public_qr__token__menu_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrMenuOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_order_api_v1_public_qr__token__order_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrOrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_submit_api_v1_public_qr__token__orders_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrSubmitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrOrderOut"];
                 };
             };
             /** @description Validation Error */

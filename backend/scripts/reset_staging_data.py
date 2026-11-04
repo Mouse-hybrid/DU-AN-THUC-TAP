@@ -24,6 +24,7 @@ khó dựng tay (refire TC_EXT_012/013, SLA TC_EXT_014):
 - bàn Q3-3 (khu thử nghiệm QA 3): order NEW rỗng kèm 5 dòng audit cùng created_at để
   test phân trang audit khi trùng thời điểm (P2-AUD-002). audit_log không bị xóa khi
   reset, nên mỗi lần reset có thêm 1 bộ; lọc theo order_id của lần reset mới nhất.
+  Phiên này cũng có 1 mã QR đã hết hạn để test màn 54 (token in trong log).
 B1–B4 để trống cho test thủ công.
 
 Không bao giờ chạy với APP_ENV=production. Mặc định chỉ in ra sẽ xóa gì
@@ -42,6 +43,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import secrets
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -370,7 +372,16 @@ def create_fixtures(session: Session) -> list[str]:
                 Staff.outlet_id == audit_table.outlet_id, Staff.role == "SUPERVISOR"
             )
         )
-        _, audit_order = _open_fixture_order(session, audit_table, audit_staff, order_status="NEW")
+        audit_session, audit_order = _open_fixture_order(
+            session, audit_table, audit_staff, order_status="NEW"
+        )
+        # Dùng luôn phiên này cho mã QR đã hết hạn (test màn 54): không chờ được hết TTL.
+        audit_session.qr_session_token = secrets.token_urlsafe(32)
+        audit_session.qr_expires_at = now - timedelta(minutes=1)
+        lines.append(
+            f"{FIXTURE_AUDIT_TABLE} (khu thử nghiệm QA 3): mã QR đã hết hạn "
+            f"token={audit_session.qr_session_token}"
+        )
         for sequence in range(1, FIXTURE_AUDIT_ROWS + 1):
             session.add(
                 AuditLog(
