@@ -14,7 +14,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.core.security import TokenError, decode_access_token
+from app.core.permissions import PERMISSION_MATRIX, Permission
+from app.core.security import TokenError, decode_access_token, is_token_current
 from app.db.base import get_session
 from app.db.models import IdempotencyKey, Staff
 
@@ -52,25 +53,18 @@ def get_current_staff(
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, detail="Tài khoản không tồn tại hoặc đã bị khóa"
         )
+    if not is_token_current(payload, staff.token_version):
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, detail="Phiên đăng nhập đã hết hiệu lực"
+        )
 
     return CurrentStaff(id=staff.id, outlet_id=staff.outlet_id, role=staff.role)
 
 
-def require_role(*allowed_roles: str):
-    """Dependency factory cho RBAC: `Depends(require_role("MANAGER", "ADMIN"))`.
-
-    LƯU Ý: BRD có 1 bảng "Permission Matrix" (Action × Cashier/Waiter/Kitchen/
-    Supervisor/Customer) nhưng khi trích xuất text từ file .docx, các ô check
-    (✓) trong bảng đó không ra được thành text (rất có thể là icon/ký tự đặc
-    biệt, không phải text thường) — bảng chỉ còn tiêu đề, không có dữ liệu.
-    Role gán cho từng endpoint dưới đây (app/api/v1/*.py) vì vậy được suy ra từ
-    cột "Key Responsibilities"/"Restrictions" mô tả bằng lời trong bảng Role
-    (Cashier/Waiter/Kitchen Staff/Supervisor) — ví dụ "Waiter: Cannot process
-    payment" -> Waiter không có trong role được /pay. Đây là suy luận có căn cứ
-    từ BRD, nhưng KHÔNG phải đọc trực tiếp từ Permission Matrix gốc (vì không
-    đọc được) — nên nhờ BA/PM xác nhận lại nếu có bản Permission Matrix dạng
-    khác (ảnh chụp, bảng tính riêng...).
-    """
+def require_permission(permission: Permission):
+    """Dependency factory cho RBAC: `Depends(require_permission(Permission.MENU_WRITE))`.
+    Role được phép lấy từ PERMISSION_MATRIX (app/core/permissions.py)."""
+    allowed_roles = PERMISSION_MATRIX[permission].roles
 
     def _dependency(current: CurrentStaff = Depends(get_current_staff)) -> CurrentStaff:
         if current.role not in allowed_roles:

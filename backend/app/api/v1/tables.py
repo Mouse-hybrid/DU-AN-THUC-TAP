@@ -29,8 +29,9 @@ from app.core.deps import (
     get_idempotent_response,
     hash_request_body,
     require_idempotency_key,
-    require_role,
+    require_permission,
 )
+from app.core.permissions import Permission
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import IdempotencyKey, Order, RestaurantTable, TableSession
@@ -55,15 +56,6 @@ def _lock_table(session: Session, table_id: uuid.UUID) -> RestaurantTable | None
     ).scalar_one_or_none()
 
 
-# "Mở bàn" không có trong Permission Matrix của BRD. HLR UC-TABLE-002 ghi actor
-# "Waiter / Cashier"; PO chốt 09/10/2026: Cashier, Waiter, Supervisor.
-_OPEN_SESSION_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
-# "Xác nhận dọn bàn" cũng không có trong 11 action của Permission Matrix; BRD chỉ
-# nói bàn "remains CLEANING until confirmed". Gán Waiter + Supervisor (nhóm
-# quản lý bàn) — cần BA/PM xác nhận lại.
-_MARK_CLEAN_ROLES = ("WAITER", "SUPERVISOR")
-
-
 @router.post(
     "/{table_id}/open-session", response_model=TableSessionOut, status_code=status.HTTP_201_CREATED
 )
@@ -71,7 +63,7 @@ def open_table_session(
     table_id: uuid.UUID,
     payload: OpenSessionRequest,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_OPEN_SESSION_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.TABLE_OPEN)),
     session: Session = Depends(get_session),
 ) -> TableSessionOut:
     endpoint = f"POST /api/v1/tables/{table_id}/open-session"
@@ -236,7 +228,7 @@ def table_detail(
 def mark_table_clean(
     table_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_MARK_CLEAN_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.TABLE_MARK_CLEAN)),
     session: Session = Depends(get_session),
 ) -> TableOut:
     """CLEANING -> AVAILABLE. Chỉ bàn đang CLEANING mới xác nhận dọn xong được."""

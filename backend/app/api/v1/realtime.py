@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentStaff
 from app.core.realtime import CHANNELS, manager
-from app.core.security import TokenError, decode_access_token
+from app.core.security import TokenError, decode_access_token, is_token_current
 from app.db.base import get_session
 from app.db.models import Staff
 
@@ -36,7 +36,7 @@ def _get_ws_staff(
         staff = session.get(Staff, uuid.UUID(payload["sub"]))
     except (TokenError, KeyError, ValueError):
         return None
-    if staff is None or not staff.is_active:
+    if staff is None or not staff.is_active or not is_token_current(payload, staff.token_version):
         return None
     return CurrentStaff(id=staff.id, outlet_id=staff.outlet_id, role=staff.role)
 

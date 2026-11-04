@@ -37,8 +37,9 @@ from app.core.deps import (
     get_idempotent_response,
     hash_request_body,
     require_idempotency_key,
-    require_role,
+    require_permission,
 )
+from app.core.permissions import Permission
 from app.db.base import get_session
 from app.db.models import IdempotencyKey, KitchenStation, MenuCategory, MenuItem
 from app.schemas.menu import (
@@ -51,11 +52,6 @@ from app.schemas.menu import (
 )
 
 router = APIRouter(prefix="/menu", tags=["menu"])
-
-# Quản lý menu không có trong 11 action của Permission Matrix (BRD) — chỉ
-# Supervisor được sửa menu theo tinh thần "Override Actions"; cần BA/PM xác nhận.
-_MENU_WRITE_ROLES = ("SUPERVISOR",)
-
 
 def _ensure_station_in_outlet(
     session: Session, station_id: uuid.UUID, outlet_id: uuid.UUID
@@ -103,7 +99,7 @@ def list_menu_categories(
 def create_menu_category(
     payload: MenuCategoryCreate,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_MENU_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.MENU_WRITE)),
     session: Session = Depends(get_session),
 ) -> MenuCategoryOut:
     endpoint = "POST /api/v1/menu/categories"
@@ -155,7 +151,7 @@ def create_menu_category(
 def update_menu_category(
     category_id: uuid.UUID,
     payload: MenuCategoryUpdate,
-    current: CurrentStaff = Depends(require_role(*_MENU_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.MENU_WRITE)),
     session: Session = Depends(get_session),
 ) -> MenuCategoryOut:
     """Ẩn nhóm = `is_active: false` (không xóa, để món cũ vẫn giữ liên kết)."""
@@ -226,7 +222,7 @@ def list_menu(
 def create_menu_item(
     payload: MenuItemCreate,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_MENU_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.MENU_WRITE)),
     session: Session = Depends(get_session),
 ) -> MenuItemOut:
     endpoint = "POST /api/v1/menu"
@@ -284,7 +280,7 @@ def create_menu_item(
 def update_menu_item(
     item_id: uuid.UUID,
     payload: MenuItemUpdate,
-    current: CurrentStaff = Depends(require_role(*_MENU_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.MENU_WRITE)),
     session: Session = Depends(get_session),
 ) -> MenuItemOut:
     """PATCH tự nhiên idempotent (gửi lại cùng nội dung ra cùng kết quả) nên
