@@ -10,9 +10,12 @@ Supervisor (LOYALTY_MANAGE):
 PATCH /api/v1/customers/{id}               — sửa tên, khóa khách.
 POST  /api/v1/customers/{id}/points/adjust — điều chỉnh điểm, bắt buộc lý do.
 GET/POST /api/v1/loyalty-rules             — xem và tạo phiên bản luật mới.
+POST/PATCH /api/v1/rewards                 — tạo, sửa, tắt ưu đãi.
 
-Gắn khách vào đơn ở POST /api/v1/orders/{id}/customer (orders.py). Điểm được tích khi
-thanh toán. Audit log chỉ ghi id khách, không ghi số điện thoại.
+GET /api/v1/rewards và GET /api/v1/customers/{id}/reward-usage: Cashier, Supervisor.
+
+Gắn khách và áp ưu đãi vào đơn ở orders.py. Điểm được trừ và tích khi thanh toán. Audit log
+chỉ ghi id khách, không ghi số điện thoại.
 """
 
 from __future__ import annotations
@@ -37,7 +40,14 @@ from app.core.deps import (
 from app.core.loyalty import add_points, current_rule, lock_customer
 from app.core.permissions import PERMISSION_MATRIX, Permission
 from app.db.base import get_session
-from app.db.models import Customer, IdempotencyKey, LoyaltyRule, PointsLedger
+from app.db.models import (
+    Customer,
+    IdempotencyKey,
+    LoyaltyRule,
+    OrderReward,
+    PointsLedger,
+    Reward,
+)
 from app.schemas.rewards import (
     CustomerCreate,
     CustomerOut,
@@ -46,11 +56,16 @@ from app.schemas.rewards import (
     LoyaltyRuleOut,
     PointsAdjustRequest,
     PointsEntryOut,
+    RewardCreate,
+    RewardOut,
+    RewardUpdate,
+    RewardUsageOut,
     normalize_phone,
 )
 
 customers_router = APIRouter(prefix="/customers", tags=["rewards"])
 rules_router = APIRouter(prefix="/loyalty-rules", tags=["rewards"])
+rewards_router = APIRouter(prefix="/rewards", tags=["rewards"])
 
 
 def _customer_or_404(session: Session, customer_id: uuid.UUID, outlet_id: uuid.UUID) -> Customer:
@@ -260,6 +275,138 @@ def adjust_points(
     _remember(session, idempotency_key, endpoint, request_hash, result.model_dump_json())
     session.commit()
     return result
+
+
+@customers_router.get("/{customer_id}/reward-usage", response_model=list[RewardUsageOut])
+def list_reward_usage(
+    customer_id: uuid.UUID,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    current: CurrentStaff = Depends(require_permission(Permission.CUSTOMER_ACCESS)),
+    session: Session = Depends(get_session),
+) -> list[RewardUsageOut]:
+    """Lịch sử dùng ưu đãi: chỉ các lần đã thanh toán, mới nhất trước."""
+    customer = _customer_or_404(session, customer_id, current.outlet_id)
+    rows = session.scalars(
+        select(OrderReward)
+        .where(OrderReward.customer_id == customer.id, OrderReward.status == "COMMITTED")
+        .order_by(OrderReward.created_at.desc(), OrderReward.id)
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return [RewardUsageOut.model_validate(row) for row in rows]
+
+
+@rewards_router.get("", response_model=list[RewardOut])
+def list_rewards(
+    active_only: bool = Query(default=False, description="Chỉ trả ưu đãi đang bật"),
+    current: CurrentStaff = Depends(require_permission(Permission.REWARD_APPLY)),
+    session: Session = Depends(get_session),
+) -> list[RewardOut]:
+    stmt = select(Reward).where(Reward.outlet_id == current.outlet_id)
+    if active_only:
+        stmt = stmt.where(Reward.is_active.is_(True))
+    return [RewardOut.model_validate(r) for r in session.scalars(stmt.order_by(Reward.name)).all()]
+
+
+def _reward_name_free(
+    session: Session, name: str, outlet_id: uuid.UUID, exclude_id: uuid.UUID | None = None
+) -> None:
+    stmt = select(Reward.id).where(Reward.outlet_id == outlet_id, Reward.name == name)
+    if exclude_id is not None:
+        stmt = stmt.where(Reward.id != exclude_id)
+    if session.execute(stmt).first() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Ưu đãi '{name}' đã tồn tại")
+
+
+@rewards_router.post("", response_model=RewardOut, status_code=status.HTTP_201_CREATED)
+def create_reward(
+    payload: RewardCreate,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.LOYALTY_MANAGE)),
+    session: Session = Depends(get_session),
+) -> RewardOut:
+    endpoint = "POST /api/v1/rewards"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        return RewardOut.model_validate_json(existing.response_body)
+
+    _reward_name_free(session, payload.name, current.outlet_id)
+    reward = Reward(outlet_id=current.outlet_id, **payload.model_dump())
+    session.add(reward)
+    session.flush()
+    session.refresh(reward)
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="REWARD_CREATED",
+        entity_type="reward",
+        entity_id=reward.id,
+        payload=payload.model_dump(mode="json"),
+    )
+    result = RewardOut.model_validate(reward)
+    _remember(session, idempotency_key, endpoint, request_hash, result.model_dump_json())
+    session.commit()
+    return result
+
+
+@rewards_router.patch("/{reward_id}", response_model=RewardOut)
+def update_reward(
+    reward_id: uuid.UUID,
+    payload: RewardUpdate,
+    current: CurrentStaff = Depends(require_permission(Permission.LOYALTY_MANAGE)),
+    session: Session = Depends(get_session),
+) -> RewardOut:
+    """Không có API xóa, tắt bằng `is_active: false`. Gửi null cho max_discount, valid_from,
+    valid_to, max_uses để bỏ giới hạn đó."""
+    reward = session.get(Reward, reward_id)
+    if reward is None or reward.outlet_id != current.outlet_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy ưu đãi")
+    changes = payload.model_dump(exclude_unset=True)
+    required = ("name", "min_order_amount", "is_active", "value")
+    if not changes or any(key in changes and changes[key] is None for key in required):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cần ít nhất 1 trường; name, value, min_order_amount, is_active không được null",
+        )
+    if "value" in changes and reward.reward_type == "POINTS":
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Ưu đãi đổi điểm không có value"
+        )
+    if "value" in changes and reward.reward_type == "PERCENT" and changes["value"] > 100:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phần trăm không được quá 100"
+        )
+    valid_from = changes.get("valid_from", reward.valid_from)
+    valid_to = changes.get("valid_to", reward.valid_to)
+    if valid_from and valid_to:
+        start = valid_from if valid_from.tzinfo else valid_from.replace(tzinfo=timezone.utc)
+        end = valid_to if valid_to.tzinfo else valid_to.replace(tzinfo=timezone.utc)
+        if start >= end:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="valid_from phải trước valid_to"
+            )
+    if "name" in changes:
+        _reward_name_free(session, changes["name"], current.outlet_id, exclude_id=reward.id)
+
+    for field, value in changes.items():
+        setattr(reward, field, value)
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="REWARD_UPDATED",
+        entity_type="reward",
+        entity_id=reward.id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+    )
+    session.commit()
+    session.refresh(reward)
+    return RewardOut.model_validate(reward)
 
 
 @rules_router.get("", response_model=list[LoyaltyRuleOut])

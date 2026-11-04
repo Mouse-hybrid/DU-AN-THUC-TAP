@@ -47,6 +47,7 @@ from app.db.models import (  # noqa: E402
     ModifierOption,
     Outlet,
     RestaurantTable,
+    Reward,
     Staff,
     TableArea,
 )
@@ -97,6 +98,16 @@ SEED_LOYALTY_RULE = {
     "max_redeem_percent": 50,
     "points_expire_days": 365,
 }
+SEED_REWARDS = (
+    {"name": "Đổi điểm", "reward_type": "POINTS"},
+    {
+        "name": "Giảm 10% đơn từ 200.000đ",
+        "reward_type": "PERCENT",
+        "value": "10.00",
+        "min_order_amount": "200000.00",
+        "max_discount": "50000.00",
+    },
+)
 # (mã bàn, số ghế)
 SEED_TABLES = (
     ("B1", 4),
@@ -344,7 +355,7 @@ def _ensure_modifiers(session, outlet, spec) -> None:
 
 
 def _ensure_loyalty_rule(session, outlet) -> None:
-    """Luật mặc định tạm, chờ PO chốt. Đã có phiên bản nào thì giữ nguyên."""
+    """Luật và ưu đãi mặc định tạm, chờ PO chốt. Đã có thì giữ nguyên."""
     exists = session.scalars(
         select(LoyaltyRule.id).where(LoyaltyRule.outlet_id == outlet.id).limit(1)
     ).first()
@@ -352,6 +363,14 @@ def _ensure_loyalty_rule(session, outlet) -> None:
         session.add(LoyaltyRule(outlet_id=outlet.id, version=1, **SEED_LOYALTY_RULE))
         session.flush()
         print(f"+ loyalty_rule v1 ({outlet.name})")
+    for spec in SEED_REWARDS:
+        found = session.scalars(
+            select(Reward.id).where(Reward.outlet_id == outlet.id, Reward.name == spec["name"])
+        ).first()
+        if found is None:
+            session.add(Reward(outlet_id=outlet.id, **spec))
+            session.flush()
+            print(f"+ reward {spec['name']} ({outlet.name})")
 
 
 def _ensure_qa_third_outlet(session, password, explicit) -> None:

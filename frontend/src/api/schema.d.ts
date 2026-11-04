@@ -469,6 +469,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{order_id}/eligible-rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Eligible Rewards
+         * @description Mọi ưu đãi đang bật, kèm dùng được hay không và lý do (RW-004). Ưu đãi đổi điểm báo số
+         *     điểm tối đa dùng được cho đơn này.
+         */
+        get: operations["list_eligible_rewards_api_v1_orders__order_id__eligible_rewards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Reward
+         * @description Mỗi đơn chỉ 1 ưu đãi (RW-007). Điểm chỉ bị trừ khi thanh toán, nên gỡ ưu đãi không phải
+         *     hoàn gì; số dư được kiểm tra lại lúc đó.
+         */
+        post: operations["apply_reward_api_v1_orders__order_id__rewards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/rewards/{order_reward_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Reward
+         * @description Gỡ trước khi thanh toán (RW-014). Đã thanh toán thì phải hoàn, chưa có ở đợt này.
+         */
+        delete: operations["remove_reward_api_v1_orders__order_id__rewards__order_reward_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{order_id}/pay": {
         parameters: {
             query?: never;
@@ -907,6 +969,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{customer_id}/reward-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reward Usage
+         * @description Lịch sử dùng ưu đãi: chỉ các lần đã thanh toán, mới nhất trước.
+         */
+        get: operations["list_reward_usage_api_v1_customers__customer_id__reward_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/loyalty-rules": {
         parameters: {
             query?: never;
@@ -929,6 +1011,45 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rewards */
+        get: operations["list_rewards_api_v1_rewards_get"];
+        put?: never;
+        /** Create Reward */
+        post: operations["create_reward_api_v1_rewards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rewards/{reward_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Reward
+         * @description Không có API xóa, tắt bằng `is_active: false`. Gửi null cho max_discount, valid_from,
+         *     valid_to, max_uses để bỏ giới hạn đó.
+         */
+        patch: operations["update_reward_api_v1_rewards__reward_id__patch"];
         trace?: never;
     };
     "/api/v1/tables/{table_id}/qr-session": {
@@ -1085,6 +1206,51 @@ export interface components {
             /** Items */
             items: components["schemas"]["OrderItemCreate"][];
         };
+        /**
+         * AppliedRewardOut
+         * @description Ưu đãi đang áp vào đơn. `invalid_reason` có giá trị khi hóa đơn đổi làm ưu đãi không
+         *     còn dùng được: tiền giảm về 0 và phải gỡ ưu đãi mới thanh toán được.
+         */
+        AppliedRewardOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Reward Id
+             * Format: uuid
+             */
+            reward_id: string;
+            /** Reward Name */
+            reward_name: string;
+            /** Reward Type */
+            reward_type: string;
+            /** Status */
+            status: string;
+            /** Discount Amount */
+            discount_amount: string;
+            /** Points Used */
+            points_used: number;
+            /** Invalid Reason */
+            invalid_reason?: string | null;
+        };
+        /**
+         * ApplyRewardRequest
+         * @description Không có trường số tiền: server tự tính (RW-020). `points` chỉ dùng cho ưu đãi đổi điểm.
+         *     `override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt.
+         */
+        ApplyRewardRequest: {
+            /**
+             * Reward Id
+             * Format: uuid
+             */
+            reward_id: string;
+            /** Points */
+            points?: number | null;
+            /** Override Reason */
+            override_reason?: string | null;
+        };
         /** AreaCreate */
         AreaCreate: {
             /** Name */
@@ -1229,6 +1395,39 @@ export interface components {
             full_name?: string | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** EligibleRewardOut */
+        EligibleRewardOut: {
+            /**
+             * Reward Id
+             * Format: uuid
+             */
+            reward_id: string;
+            /** Name */
+            name: string;
+            /** Reward Type */
+            reward_type: string;
+            /** Eligible */
+            eligible: boolean;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Discount Amount
+             * @default 0
+             */
+            discount_amount: string;
+            /**
+             * Points
+             * @default 0
+             */
+            points: number;
+            /**
+             * Max Points
+             * @default 0
+             */
+            max_points: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1585,7 +1784,7 @@ export interface components {
         /**
          * OrderDetailOut
          * @description Chi tiết 1 order cho màn POS ordering / order summary / table detail.
-         *     `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế/giảm giá — Pha 2).
+         *     `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả.
          */
         OrderDetailOut: {
             /**
@@ -1623,6 +1822,14 @@ export interface components {
             items: components["schemas"]["OrderItemDetailOut"][];
             /** Subtotal */
             subtotal: string;
+            /**
+             * Discount Total
+             * @default 0
+             */
+            discount_total: string;
+            /** Total */
+            total: string;
+            applied_reward?: components["schemas"]["AppliedRewardOut"] | null;
         };
         /** OrderItemCreate */
         OrderItemCreate: {
@@ -1956,6 +2163,13 @@ export interface components {
             items: components["schemas"]["QrOrderItemOut"][];
             /** Subtotal */
             subtotal: string;
+            /**
+             * Discount Total
+             * @default 0
+             */
+            discount_total: string;
+            /** Total */
+            total: string;
         };
         /** QrSessionOut */
         QrSessionOut: {
@@ -1983,6 +2197,118 @@ export interface components {
         QrSubmitRequest: {
             /** Items */
             items: components["schemas"]["QrOrderLine"][];
+        };
+        /** RewardCreate */
+        RewardCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Reward Type
+             * @enum {string}
+             */
+            reward_type: "PERCENT" | "FIXED" | "POINTS";
+            /** Value */
+            value?: number | string | null;
+            /**
+             * Min Order Amount
+             * @default 0
+             */
+            min_order_amount: number | string;
+            /** Max Discount */
+            max_discount?: number | string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Max Uses */
+            max_uses?: number | null;
+        };
+        /** RewardOut */
+        RewardOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Reward Type
+             * @enum {string}
+             */
+            reward_type: "PERCENT" | "FIXED" | "POINTS";
+            /** Value */
+            value: string | null;
+            /** Min Order Amount */
+            min_order_amount: string;
+            /** Max Discount */
+            max_discount: string | null;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /** Max Uses */
+            max_uses: number | null;
+            /** Used Count */
+            used_count: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /**
+         * RewardUpdate
+         * @description Không đổi được reward_type. Đơn chưa thanh toán tính theo giá trị mới; đơn đã thanh
+         *     toán giữ nguyên số đã chốt.
+         */
+        RewardUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Value */
+            value?: number | string | null;
+            /** Min Order Amount */
+            min_order_amount?: number | string | null;
+            /** Max Discount */
+            max_discount?: number | string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Max Uses */
+            max_uses?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** RewardUsageOut */
+        RewardUsageOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /**
+             * Reward Id
+             * Format: uuid
+             */
+            reward_id: string;
+            /** Reward Name */
+            reward_name: string;
+            /** Reward Type */
+            reward_type: string;
+            /** Discount Amount */
+            discount_amount: string;
+            /** Points Used */
+            points_used: number;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** SendToKitchenResponse */
         SendToKitchenResponse: {
@@ -3277,6 +3603,108 @@ export interface operations {
             };
         };
     };
+    list_eligible_rewards_api_v1_orders__order_id__eligible_rewards_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibleRewardOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_reward_api_v1_orders__order_id__rewards_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyRewardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_reward_api_v1_orders__order_id__rewards__order_reward_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+                order_reward_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     pay_order_api_v1_orders__order_id__pay_post: {
         parameters: {
             query?: never;
@@ -4140,6 +4568,40 @@ export interface operations {
             };
         };
     };
+    list_reward_usage_api_v1_customers__customer_id__reward_usage_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RewardUsageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_rules_api_v1_loyalty_rules_get: {
         parameters: {
             query?: never;
@@ -4182,6 +4644,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoyaltyRuleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rewards_api_v1_rewards_get: {
+        parameters: {
+            query?: {
+                /** @description Chỉ trả ưu đãi đang bật */
+                active_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RewardOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_reward_api_v1_rewards_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RewardCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RewardOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reward_api_v1_rewards__reward_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reward_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RewardUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RewardOut"];
                 };
             };
             /** @description Validation Error */

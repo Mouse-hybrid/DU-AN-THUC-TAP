@@ -46,9 +46,19 @@ from app.core.deps import (
     require_idempotency_key,
     require_permission,
 )
-from app.core.loyalty import earn_points_for_order
+from app.core.loyalty import (
+    REASONS,
+    OrderPricing,
+    active_order_reward,
+    commit_order_reward,
+    current_rule,
+    earn_points_for_order,
+    evaluate_reward,
+    order_payable_amount,
+    price_order,
+)
 from app.core.modifiers import resolve_modifiers
-from app.core.permissions import Permission
+from app.core.permissions import PERMISSION_MATRIX, Permission
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
@@ -56,15 +66,19 @@ from app.db.models import (
     Customer,
     IdempotencyKey,
     KitchenQueue,
+    LoyaltyRule,
     MenuItem,
     Order,
     OrderItem,
+    OrderReward,
     OrderVersion,
     RestaurantTable,
+    Reward,
     TableSession,
 )
 from app.schemas.orders import (
     AddItemsRequest,
+    AppliedRewardOut,
     AttachCustomerRequest,
     CreateOrderRequest,
     OrderDetailOut,
@@ -76,6 +90,7 @@ from app.schemas.orders import (
     UpdateOrderItemRequest,
     VoidItemRequest,
 )
+from app.schemas.rewards import ApplyRewardRequest, EligibleRewardOut
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -164,6 +179,21 @@ def _snapshot_order(order: Order) -> str:
     )
 
 
+def _applied_reward_out(pricing: OrderPricing) -> AppliedRewardOut | None:
+    if pricing.active is None:
+        return None
+    return AppliedRewardOut(
+        id=pricing.active.id,
+        reward_id=pricing.active.reward_id,
+        reward_name=pricing.active.reward_name,
+        reward_type=pricing.active.reward_type,
+        status=pricing.active.status,
+        discount_amount=pricing.discount,
+        points_used=pricing.points,
+        invalid_reason=pricing.invalid_reason,
+    )
+
+
 def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
     """Dùng chung cho GET /orders/{id} và GET /tables/{id} (tables.py)."""
     menu_ids = {item.menu_item_id for item in order.items}
@@ -192,6 +222,7 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         for item in sorted(order.items, key=lambda i: i.created_at)
     ]
     table = order.table_session.table
+    pricing = price_order(session, order)
     return OrderDetailOut(
         id=order.id,
         table_session_id=order.table_session_id,
@@ -202,7 +233,10 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         created_at=order.created_at,
         customer_id=order.customer_id,
         items=items,
-        subtotal=sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0")),
+        subtotal=pricing.subtotal,
+        discount_total=pricing.discount,
+        total=pricing.total,
+        applied_reward=_applied_reward_out(pricing),
     )
 
 
@@ -794,6 +828,15 @@ def attach_customer(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', không thể đổi khách",
         )
+    active = active_order_reward(session, order.id)
+    if (
+        active is not None
+        and active.reward_type == "POINTS"
+        and payload.customer_id != order.customer_id
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Đơn đang đổi điểm, hãy gỡ ưu đãi trước khi đổi khách"
+        )
     if payload.customer_id is not None:
         customer = session.get(Customer, payload.customer_id)
         if customer is None or customer.outlet_id != current.outlet_id:
@@ -824,6 +867,208 @@ def attach_customer(
         )
     )
     session.commit()
+    return result
+
+
+def _reward_context(session: Session, order: Order) -> tuple[Customer | None, LoyaltyRule | None]:
+    customer = session.get(Customer, order.customer_id) if order.customer_id else None
+    return customer, current_rule(session, order.table_session.table.outlet_id)
+
+
+@router.get("/{order_id}/eligible-rewards", response_model=list[EligibleRewardOut])
+def list_eligible_rewards(
+    order_id: uuid.UUID,
+    current: CurrentStaff = Depends(require_permission(Permission.REWARD_APPLY)),
+    session: Session = Depends(get_session),
+) -> list[EligibleRewardOut]:
+    """Mọi ưu đãi đang bật, kèm dùng được hay không và lý do (RW-004). Ưu đãi đổi điểm báo số
+    điểm tối đa dùng được cho đơn này."""
+    order = _load_order_or_404(session, order_id, current.outlet_id, for_update=False)
+    customer, rule = _reward_context(session, order)
+    subtotal = order_payable_amount(order)
+    rewards = session.scalars(
+        select(Reward)
+        .where(Reward.outlet_id == current.outlet_id, Reward.is_active.is_(True))
+        .order_by(Reward.name)
+    ).all()
+    rows = []
+    for reward in rewards:
+        evaluation = evaluate_reward(reward, subtotal=subtotal, customer=customer, rule=rule)
+        rows.append(
+            EligibleRewardOut(
+                reward_id=reward.id,
+                name=reward.name,
+                reward_type=reward.reward_type,
+                eligible=evaluation.eligible,
+                reason_code=evaluation.reason_code,
+                reason=REASONS.get(evaluation.reason_code),
+                discount_amount=evaluation.discount,
+                points=evaluation.points,
+                max_points=evaluation.max_points,
+            )
+        )
+    return rows
+
+
+@router.post(
+    "/{order_id}/rewards", response_model=OrderDetailOut, status_code=status.HTTP_201_CREATED
+)
+def apply_reward(
+    order_id: uuid.UUID,
+    payload: ApplyRewardRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.REWARD_APPLY)),
+    session: Session = Depends(get_session),
+) -> OrderDetailOut:
+    """Mỗi đơn chỉ 1 ưu đãi (RW-007). Điểm chỉ bị trừ khi thanh toán, nên gỡ ưu đãi không phải
+    hoàn gì; số dư được kiểm tra lại lúc đó."""
+    endpoint = f"POST /api/v1/orders/{order_id}/rewards"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_201_CREATED:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderDetailOut.model_validate_json(existing.response_body)
+
+    is_override = payload.override_reason is not None
+    if is_override and current.role not in PERMISSION_MATRIX[Permission.OVERRIDE].roles:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Chỉ Supervisor được bỏ qua điều kiện"
+        )
+
+    order = _load_order_or_404(session, order_id, current.outlet_id)
+    if order.status in ("PAID", "CLOSED"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', không thể áp ưu đãi",
+        )
+    if active_order_reward(session, order.id) is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Đơn đã có ưu đãi, hãy gỡ trước khi áp ưu đãi khác"
+        )
+    reward = session.get(Reward, payload.reward_id)
+    if reward is None or reward.outlet_id != current.outlet_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy ưu đãi")
+    if reward.reward_type == "POINTS" and payload.points is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Cần số điểm muốn đổi")
+    if reward.reward_type != "POINTS" and payload.points is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Ưu đãi này không dùng điểm"
+        )
+
+    customer, rule = _reward_context(session, order)
+    evaluation = evaluate_reward(
+        reward,
+        subtotal=order_payable_amount(order),
+        customer=customer,
+        rule=rule,
+        points_requested=payload.points,
+        override=is_override,
+    )
+    if not evaluation.eligible:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=REASONS[evaluation.reason_code])
+    if payload.points is not None and payload.points > evaluation.max_points:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Đơn này chỉ đổi được tối đa {evaluation.max_points} điểm",
+        )
+
+    session.add(
+        OrderReward(
+            order_id=order.id,
+            reward_id=reward.id,
+            customer_id=order.customer_id,
+            reward_name=reward.name,
+            reward_type=reward.reward_type,
+            points_requested=payload.points or 0,
+            rule_version=rule.version if rule and reward.reward_type == "POINTS" else None,
+            override_reason=payload.override_reason,
+            applied_by_staff_id=current.id,
+        )
+    )
+    session.flush()
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_REWARD_OVERRIDDEN" if is_override else "ORDER_REWARD_APPLIED",
+        entity_type="order",
+        entity_id=order.id,
+        payload={
+            "reward_id": str(reward.id),
+            "discount": evaluation.discount,
+            "points": evaluation.points,
+            "override_reason": payload.override_reason,
+        },
+    )
+    result = build_order_detail(session, order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_201_CREATED,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    _publish_order_updated(current, order, "REWARD_APPLIED")
+    return result
+
+
+@router.delete("/{order_id}/rewards/{order_reward_id}", response_model=OrderDetailOut)
+def remove_reward(
+    order_id: uuid.UUID,
+    order_reward_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.REWARD_APPLY)),
+    session: Session = Depends(get_session),
+) -> OrderDetailOut:
+    """Gỡ trước khi thanh toán (RW-014). Đã thanh toán thì phải hoàn, chưa có ở đợt này."""
+    endpoint = f"DELETE /api/v1/orders/{order_id}/rewards/{order_reward_id}"
+    request_hash = hash_request_body({"order_reward_id": str(order_reward_id)})
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderDetailOut.model_validate_json(existing.response_body)
+
+    order = _load_order_or_404(session, order_id, current.outlet_id)
+    applied = session.get(OrderReward, order_reward_id)
+    if applied is None or applied.order_id != order.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy ưu đãi trong đơn")
+    if applied.status != "APPLIED":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Ưu đãi đang ở trạng thái '{applied.status}', không thể gỡ",
+        )
+    applied.status = "REMOVED"
+    session.flush()
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_REWARD_REMOVED",
+        entity_type="order",
+        entity_id=order.id,
+        payload={"reward_id": str(applied.reward_id)},
+    )
+    result = build_order_detail(session, order)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    _publish_order_updated(current, order, "REWARD_REMOVED")
     return result
 
 
@@ -869,13 +1114,24 @@ def pay_order(
     table = session.get(RestaurantTable, table_session.table_id)
     table.status = "CLEANING"
 
-    # Cùng transaction: đơn đã PAID thì điểm đã tích, và request đã khóa đơn nên chỉ tích 1 lần.
-    earned = earn_points_for_order(session, order, current.outlet_id, current.id)
+    # Cùng transaction: đơn đã PAID thì điểm đã trừ và đã tích, request đã khóa đơn nên chỉ
+    # làm 1 lần. Ưu đãi không còn hợp lệ thì 409 và rollback cả việc chuyển PAID ở trên.
+    pricing = commit_order_reward(session, order, current.outlet_id, current.id)
+    earned = earn_points_for_order(
+        session, order, current.outlet_id, current.id, pricing.total
+    )
 
     session.flush()
     session.refresh(order)
 
-    audit_payload = {"table_session_id": str(table_session.id)}
+    audit_payload = {
+        "table_session_id": str(table_session.id),
+        "subtotal": pricing.subtotal,
+        "discount": pricing.discount,
+        "total": pricing.total,
+    }
+    if pricing.points:
+        audit_payload["points_redeemed"] = pricing.points
     if earned is not None:
         audit_payload["points_earned"] = earned.points
     write_audit_log(

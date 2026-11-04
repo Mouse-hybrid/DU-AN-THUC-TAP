@@ -80,3 +80,5 @@ class QrOrderOut(BaseModel):
     table_code: str
     items: list[QrOrderItemOut]
     subtotal: Decimal
+    discount_total: Decimal = Decimal("0")  # ưu đãi do thu ngân áp
+    total: Decimal

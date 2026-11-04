@@ -34,6 +34,11 @@ erDiagram
     "customer" ||--o{ "points_ledger" : "customer_id"
     "order" ||--o{ "points_ledger" : "order_id"
     "staff" ||--o{ "points_ledger" : "staff_id"
+    "outlet" ||--o{ "reward" : "outlet_id"
+    "order" ||--o{ "order_reward" : "order_id"
+    "reward" ||--o{ "order_reward" : "reward_id"
+    "customer" ||--o{ "order_reward" : "customer_id"
+    "staff" ||--o{ "order_reward" : "applied_by_staff_id"
     "outlet" ||--o{ "staff" : "outlet_id"
     "outlet" {
         uuid id PK
@@ -195,6 +200,39 @@ erDiagram
         uuid staff_id FK
         datetime expires_at
         datetime created_at
+    }
+    "reward" {
+        uuid id PK
+        uuid outlet_id FK
+        str name
+        str reward_type
+        numeric value
+        numeric min_order_amount
+        numeric max_discount
+        datetime valid_from
+        datetime valid_to
+        int max_uses
+        int used_count
+        bool is_active
+        datetime created_at
+        datetime updated_at
+    }
+    "order_reward" {
+        uuid id PK
+        uuid order_id FK
+        uuid reward_id FK
+        uuid customer_id FK
+        str reward_name
+        str reward_type
+        int points_requested
+        int rule_version
+        str override_reason
+        numeric discount_amount
+        int points_used
+        str status
+        uuid applied_by_staff_id FK
+        datetime created_at
+        datetime updated_at
     }
     "staff" {
         uuid id PK

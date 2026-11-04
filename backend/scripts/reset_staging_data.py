@@ -3,9 +3,9 @@
 và để diễn tập/demo (sơ đồ bàn trống, hàng đợi bếp trống).
 
 XÓA: table_session, order, order_item, order_item_modifier, order_version, kitchen_queue,
-idempotency_key, customer, points_ledger (mọi phiên bàn, đơn, món, phiếu bếp, khách và
-điểm tạo ra khi test).
-ĐƯA VỀ: mọi bàn AVAILABLE, mọi món menu is_available = true.
+idempotency_key, customer, points_ledger, order_reward (mọi phiên bàn, đơn, món, phiếu bếp,
+khách và điểm tạo ra khi test).
+ĐƯA VỀ: mọi bàn AVAILABLE, mọi món menu is_available = true, số lượt dùng ưu đãi về 0.
 GIỮ NGUYÊN: outlet, tài khoản staff, menu/nhóm món/trạm bếp, audit_log (lịch sử
 thao tác không bị xóa; script ghi thêm 1 dòng STAGING_DATA_RESET).
 
@@ -67,10 +67,12 @@ from app.db.models import (  # noqa: E402
     Order,
     OrderItem,
     OrderItemModifier,
+    OrderReward,
     OrderVersion,
     Outlet,
     PointsLedger,
     RestaurantTable,
+    Reward,
     Staff,
     TableSession,
 )
@@ -80,6 +82,7 @@ ALLOWED_ENVS = ("development", "staging", "test")
 # Xóa con trước cha để không vướng khóa ngoại.
 _WIPE_ORDER = (
     ("points_ledger", PointsLedger),
+    ("order_reward", OrderReward),
     ("kitchen_queue", KitchenQueue),
     ("order_version", OrderVersion),
     ("order_item_modifier", OrderItemModifier),
@@ -189,6 +192,7 @@ def reset_transactional_data(session: Session) -> ResetResult:
         session.execute(delete(model))
     session.execute(update(RestaurantTable).values(status="AVAILABLE", merged_into_table_id=None))
     session.execute(update(MenuItem).values(is_available=True))
+    session.execute(update(Reward).values(used_count=0))
     session.flush()
     return result
 
