@@ -270,6 +270,43 @@ def test_reset_without_purge_keeps_qa_menu(client, seed, db_session_factory):
     session.close()
 
 
+def test_equal_timestamp_audit_fixture_pages_without_gaps(client, seed, db_session_factory):
+    """P2-AUD-002: các dòng audit trùng created_at vẫn phân trang đủ, không lặp, không sót,
+    theo thứ tự created_at rồi id."""
+    _add_fixture_tables_and_menu(db_session_factory, seed)
+    session = db_session_factory()
+    seed_script._ensure_qa_third_outlet(session, "password123", True)
+    session.commit()
+    result = reset.run(session, apply=True, with_fixtures=True)
+    session.close()
+
+    line = next(line for line in result.fixtures if line.startswith(reset.FIXTURE_AUDIT_TABLE))
+    order_id = line.rsplit("order_id=", 1)[1]
+    admin = login(client, "qa3_admin")
+
+    rows = []
+    for offset in range(0, reset.FIXTURE_AUDIT_ROWS + 2, 2):
+        page = client.get(
+            f"/api/v1/audit-logs?order_id={order_id}&limit=2&offset={offset}", headers=admin
+        )
+        assert page.status_code == 200, page.text
+        rows.extend(page.json())
+
+    ids = [row["id"] for row in rows]
+    assert len(ids) == reset.FIXTURE_AUDIT_ROWS
+    assert len(set(ids)) == reset.FIXTURE_AUDIT_ROWS
+    assert ids == sorted(ids)
+    assert len({row["created_at"] for row in rows}) == 1
+    assert {row["action"] for row in rows} == {reset.FIXTURE_AUDIT_ACTION}
+    assert sorted(row["payload"]["sequence"] for row in rows) == [1, 2, 3, 4, 5]
+
+    # Chỉ nằm trong khu QA 3: tài khoản outlet khác không đọc được.
+    outsider = login(client, "supervisor_test")
+    assert (
+        client.get(f"/api/v1/audit-logs?order_id={order_id}", headers=outsider).status_code == 404
+    )
+
+
 def test_qa_third_outlet_runs_full_flow_and_has_sold_out_fixture(client, seed, db_session_factory):
     """Khu thử nghiệm QA 3: đủ menu mẫu, 2 trạm, 4 vai; reset --with-fixtures đặt 1 món hết hàng.
     Menu QA 3 trùng tên menu mẫu nên --purge-extra-menu không xóa."""
