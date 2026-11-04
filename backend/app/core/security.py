@@ -28,12 +28,13 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
     return _pwd_context.verify(plain_password, password_hash)
 
 
-def create_access_token(*, staff_id: uuid.UUID, outlet_id: uuid.UUID, role: str) -> str:
+def create_access_token(
+    *, staff_id: uuid.UUID, outlet_id: uuid.UUID, role: str, token_version: int = 0
+) -> str:
     """Tạo JWT cho 1 staff đã login thành công.
 
-    Payload tối giản (sub, outlet_id, role) — đủ để authorize mà không cần
-    query DB ở mỗi request; middleware/dependency vẫn nên tái xác nhận staff
-    còn is_active=True định kỳ (không phải mỗi request) nếu cần revoke sớm.
+    `ver` là staff.token_version lúc cấp token: đổi mật khẩu, khóa tài khoản, đổi
+    role sẽ tăng số này ở DB, mọi token cũ hết hiệu lực ngay (xem is_token_current).
     """
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -41,10 +42,16 @@ def create_access_token(*, staff_id: uuid.UUID, outlet_id: uuid.UUID, role: str)
         "sub": str(staff_id),
         "outlet_id": str(outlet_id),
         "role": role,
+        "ver": token_version,
         "iat": now,
         "exp": expires_at,
     }
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def is_token_current(payload: dict, token_version: int) -> bool:
+    """Token cấp trước khi có `ver` coi như version 0, nên vẫn dùng được tới khi hết hạn."""
+    return payload.get("ver", 0) == token_version
 
 
 class TokenError(Exception):

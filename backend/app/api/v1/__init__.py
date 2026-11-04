@@ -8,6 +8,7 @@ from app.api.v1.kitchen import router as kitchen_router
 from app.api.v1.menu import router as menu_router
 from app.api.v1.orders import router as orders_router
 from app.api.v1.realtime import router as realtime_router
+from app.api.v1.staff import router as staff_router
 from app.api.v1.tables import router as tables_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -18,3 +19,4 @@ api_v1_router.include_router(orders_router)
 api_v1_router.include_router(kitchen_router)
 api_v1_router.include_router(realtime_router)
 api_v1_router.include_router(audit_router)
+api_v1_router.include_router(staff_router)

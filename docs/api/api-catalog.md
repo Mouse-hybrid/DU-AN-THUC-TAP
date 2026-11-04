@@ -100,6 +100,24 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | 35 | GET | `/api/v1/audit-logs?order_id=&entity_id=&entity_type=&action=&staff_id=&created_from=&created_to=&limit=&offset=` | S | QA lấy bằng chứng actor/thời điểm; `order_id` gồm cả thao tác trên các món của order | ✅ |
 | 36 | GET | `/api/v1/orders/{id}/versions` | S | Lịch sử snapshot order_version + người tạo | ✅ |
 
+### A8. Phân quyền và quản lý nhân viên (từ 04/11)
+
+Ma trận quyền nằm ở một chỗ: `backend/app/core/permissions.py`.
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 37 | GET | `/api/v1/auth/me` | đã đăng nhập | Thông tin kèm `permissions[]`, để FE ẩn/hiện nút | ✅ |
+| 38 | POST | `/api/v1/auth/change-password` | đã đăng nhập | Tự đổi mật khẩu; trả token mới, các phiên cũ hết hiệu lực | ✅ |
+| 39 | GET | `/api/v1/staff?role=&is_active=` | S | 93 Tài khoản nhân viên | ✅ |
+| 40 | POST | `/api/v1/staff` (cần `Idempotency-Key`) | S | Tạo tài khoản; mật khẩu tối thiểu 8 ký tự, tối đa 72 byte | ✅ |
+| 41 | GET | `/api/v1/staff/{id}` | S | Chi tiết nhân viên | ✅ |
+| 42 | PATCH | `/api/v1/staff/{id}` | S | Đổi `full_name`, `role`; đổi role thì người đó phải đăng nhập lại | ✅ |
+| 43 | POST | `/api/v1/staff/{id}/lock`, `/unlock` | S | Khóa có hiệu lực ngay; không có API xóa nhân viên | ✅ |
+| 44 | POST | `/api/v1/staff/{id}/reset-password` | S | Đặt lại mật khẩu; các phiên cũ hết hiệu lực | ✅ |
+| 45 | GET | `/api/v1/staff/permissions` | S | 94 Vai trò & quyền (chỉ đọc) | ✅ |
+
+Không ai được tự đổi role, tự khóa hay tự đặt lại mật khẩu của chính mình qua `/staff` (trả 409). Token bị thu hồi trả 401 như token hết hạn.
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
 FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát
@@ -137,7 +155,7 @@ lại `GET /tables/{id}`; `reason = ITEM_READY` thì nhắc phục vụ ra lấy
 
 | Đề xuất | Lý do | Ưu tiên |
 |---|---|---|
-| `GET /api/v1/auth/me` | FE tải lại trang vẫn biết role/outlet mà không phải đọc lại localStorage | Thấp — FE đang lưu `staff` từ response login |
+| ~~`GET /api/v1/auth/me`~~ | **Đã có từ 04/11** (xem mục A8) | — |
 | ~~Event WS `ORDER_UPDATED` trên kênh `tables`~~ | **Đã có từ 15/10** (xem bảng event ở mục A) | — |
 | Kiểm tra xung đột version (`expected_version` → 409) | QA hỏi (TC version conflict); SRS chưa rõ có bắt buộc | Chờ QA chỉ mục SRS |
 | CRUD trạm bếp `/api/v1/kitchen/stations` (POST/PATCH) | QA cần 6 trạm; hiện trạm tạo bằng seed | Chờ PO chốt 6 trạm/Expeditor |
@@ -154,7 +172,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 |---|---|---|
 | **Thanh toán đa phương thức** (BRD Payment) | `POST /orders/{id}/payments` (CASH/CARD/QR, số tiền), `GET /orders/{id}/payments`, `POST /payments/{id}/cancel`, `POST /payments/webhooks/{provider}` (callback có chữ ký), `POST /orders/{id}/split-bill` | Cần sandbox cổng thanh toán và quyết định gateway (SEC-05 đang bị chặn). Pha 1 `/pay` chỉ ghi nhận đã trả |
 | **Merge / Split / Transfer bàn** | `POST /tables/{id}/transfer` (chuyển sang bàn khác), `POST /tables/merge`, `POST /orders/{id}/split` | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
-| **Quản lý nhân sự / phân quyền** | `GET/POST /staff`, `PATCH /staff/{id}`, `POST /staff/{id}/lock`, `POST /staff/{id}/unlock`, `POST /staff/{id}/reset-password` | Pha 1 tài khoản tạo bằng seed; cần màn admin (Pha 2) |
+| ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
 | **QR Ordering** (Key Focus BRD) | `POST /tables/{id}/qr-session` (cấp `qr_session_token`), `GET /public/qr/{token}/menu`, `POST /public/qr/{token}/orders`, `GET /public/qr/{token}/orders/{id}`, `POST /public/qr/{token}/request-bill` | Module mới hoàn toàn, API công khai không đăng nhập → phải rà Permission Matrix và chống lạm dụng trước |

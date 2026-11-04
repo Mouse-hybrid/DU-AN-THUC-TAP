@@ -19,14 +19,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentStaff, require_role
+from app.core.deps import CurrentStaff, require_permission
+from app.core.permissions import Permission
 from app.db.base import get_session
 from app.db.models import AuditLog, Order, OrderItem, OrderVersion, Staff
 from app.schemas.audit import AuditLogOut, OrderVersionOut
 
 router = APIRouter(tags=["audit"])
-
-_AUDIT_READ_ROLES = ("SUPERVISOR",)
 
 
 def _parse_json(raw: str | None):
@@ -60,7 +59,7 @@ def list_audit_logs(
     created_to: datetime | None = Query(default=None, description="created_at < (ISO 8601)"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    current: CurrentStaff = Depends(require_role(*_AUDIT_READ_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.AUDIT_READ)),
     session: Session = Depends(get_session),
 ) -> list[AuditLogOut]:
     """Nhật ký thao tác của outlet, cũ nhất trước (đọc theo đúng trình tự xảy ra)."""
@@ -114,7 +113,7 @@ def list_audit_logs(
 @router.get("/orders/{order_id}/versions", response_model=list[OrderVersionOut])
 def list_order_versions(
     order_id: uuid.UUID,
-    current: CurrentStaff = Depends(require_role(*_AUDIT_READ_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.AUDIT_READ)),
     session: Session = Depends(get_session),
 ) -> list[OrderVersionOut]:
     """Các snapshot order_version đã lưu, kèm nhân viên tạo ra từng version. Không

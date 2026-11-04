@@ -44,8 +44,9 @@ from app.core.deps import (
     get_idempotent_response,
     hash_request_body,
     require_idempotency_key,
-    require_role,
+    require_permission,
 )
+from app.core.permissions import Permission
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
@@ -73,51 +74,6 @@ from app.schemas.orders import (
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-# --- Role theo đúng Permission Matrix thật trong BRD (Action × Cashier/
-# --- Waiter/Kitchen/Supervisor/Customer) — đọc trực tiếp từ XML gốc của file
-# --- .docx vì bản trích xuất text thông thường bị mất các ô ✓/✗ (nằm trong
-# --- content-control, không phải text thường). Bảng gốc:
-#
-#   Action                       Cashier Waiter Kitchen Supervisor Customer
-#   Create Order (POS)             v       x       x        x         x
-#   Create Order (QR)              x       x       x        x         v
-#   View KDS                       x       x       v        v         x
-#   Start Cooking                  x       x       v        v         x
-#   Mark Ready                     x       x       v        v         x
-#   Serve Food                     x       v       x        v         x
-#   Request Bill                   v       v       x        v         v
-#   Apply Reward                   v       x       x        v         x
-#   Process Payment                v       x       x        v         v
-#   Merge/Split/Transfer Table     x       v       x        v         v
-#   Override Actions               x       x       x        v         x
-#
-# "Send to Kitchen", "Add Item", "Void", "Refire" KHÔNG có trong 11 action
-# trên — suy ra từ mô tả Key Responsibilities/Restrictions của từng role
-# (vd Kitchen "Cannot modify orders" + Override Actions chỉ Supervisor ->
-# void/refire coi là override action, Supervisor-only).
-#
-# PO chốt 09/10/2026 (thay "Create Order (POS)" chỉ Cashier trong BRD): luồng
-# phục vụ tại bàn — mở bàn, tạo order, thêm/sửa/bỏ món trước khi gửi bếp, gửi bếp —
-# cho cả Cashier, Waiter, Supervisor để 1 nhân viên đi hết được luồng; thanh toán
-# giữ Cashier/Supervisor. PO chốt 12/10 (O1 = A): gọi thêm món sau khi đã gửi bếp
-# cũng cho các role này; món đã gửi bếp thì chỉ Supervisor void/refire.
-_ORDER_WRITE_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
-_SEND_TO_KITCHEN_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")
-_REQUEST_BILLING_ROLES = ("CASHIER", "WAITER", "SUPERVISOR")  # = "Request Bill"
-_PAY_ROLES = (
-    "CASHIER",
-    "SUPERVISOR",
-)  # = "Process Payment" — Waiter KHÔNG được (BRD: "Cannot process payment")
-_VOID_ROLES = ("SUPERVISOR",)  # = "Override Actions"
-_REFIRE_ROLES = (
-    "SUPERVISOR",
-)  # = "Override Actions" (Kitchen "Cannot modify orders" nên cũng không refire được)
-_KITCHEN_ACTION_ROLES = ("KITCHEN", "SUPERVISOR")  # = "Start Cooking" / "Mark Ready"
-# BRD không liệt kê "Pickup" trong 11 action gốc — coi là 1 bước nằm trong
-# trách nhiệm "Serve Food" của Waiter (Waiter lấy món từ bếp rồi mang ra bàn),
-# nên dùng chung role với bước "served". Cần BA/PM xác nhận nếu thực tế tách
-# vai trò khác (vd Kitchen tự để món ra quầy, Waiter chỉ mang ra bàn).
-_PICKUP_SERVE_ROLES = ("WAITER", "SUPERVISOR")  # = "Serve Food"
 _CLOSED_ORDER_STATUSES = ("BILLING", "PAID", "CLOSED")
 _VOIDABLE_ITEM_STATUSES = ("CREATED", "SENT", "ACCEPTED", "PREPARING")
 _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
@@ -320,7 +276,7 @@ def get_order(
 def create_order(
     payload: CreateOrderRequest,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_ORDER_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.ORDER_WRITE)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     endpoint = "POST /api/v1/orders"
@@ -394,7 +350,7 @@ def add_order_items(
     order_id: uuid.UUID,
     payload: AddItemsRequest,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_ORDER_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.ORDER_WRITE)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     endpoint = f"POST /api/v1/orders/{order_id}/items"
@@ -538,7 +494,7 @@ def update_order_item(
     item_id: uuid.UUID,
     payload: UpdateOrderItemRequest,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_ORDER_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.ORDER_WRITE)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """Sửa số lượng/ghi chú của món CHƯA gửi bếp (CREATED)."""
@@ -592,7 +548,7 @@ def remove_order_item(
     order_id: uuid.UUID,
     item_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_ORDER_WRITE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.ORDER_WRITE)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """Bỏ món CHƯA gửi bếp (CREATED). Không xóa dòng khỏi DB — chuyển sang VOIDED
@@ -640,7 +596,7 @@ def remove_order_item(
 def send_order_to_kitchen(
     order_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_SEND_TO_KITCHEN_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.SEND_TO_KITCHEN)),
     session: Session = Depends(get_session),
 ) -> SendToKitchenResponse:
     endpoint = f"POST /api/v1/orders/{order_id}/send-to-kitchen"
@@ -737,7 +693,7 @@ def send_order_to_kitchen(
 def request_billing(
     order_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_REQUEST_BILLING_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.REQUEST_BILLING)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """SENT/SERVED -> BILLING. Khách yêu cầu thanh toán — chưa nhận tiền, chỉ khóa
@@ -803,7 +759,7 @@ def request_billing(
 def pay_order(
     order_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_PAY_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """BILLING -> PAID. Đóng luôn table_session (status CLOSED) và chuyển bàn
@@ -879,7 +835,7 @@ def pay_order(
 def close_order(
     order_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_PAY_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """PAID -> CLOSED. Chốt sổ cuối cùng (vd sau khi in hóa đơn xong) — tách
@@ -937,7 +893,7 @@ def void_order_item(
     item_id: uuid.UUID,
     payload: VoidItemRequest,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_VOID_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.OVERRIDE)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """Hủy 1 món CHƯA phục vụ xong (CREATED/SENT/ACCEPTED/PREPARING). Món đã
@@ -1023,7 +979,7 @@ def refire_order_item(
     order_id: uuid.UUID,
     item_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_REFIRE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.OVERRIDE)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """Làm lại 1 món đã SERVED/PICKED_UP nhưng có vấn đề (nấu sai, khách phàn
@@ -1141,7 +1097,7 @@ def start_cooking_order_item(
     order_id: uuid.UUID,
     item_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_KITCHEN_ACTION_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.KITCHEN_ACTION)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """SENT/REFIRED -> PREPARING (bếp bắt đầu nấu). MVP gộp luôn bước "tiếp nhận"
@@ -1217,7 +1173,7 @@ def mark_ready_order_item(
     order_id: uuid.UUID,
     item_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_KITCHEN_ACTION_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.KITCHEN_ACTION)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """PREPARING -> READY (bếp làm xong, chờ phục vụ tới lấy)."""
@@ -1287,7 +1243,7 @@ def pickup_order_item(
     order_id: uuid.UUID,
     item_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_PICKUP_SERVE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.SERVE_FOOD)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """READY -> PICKED_UP (phục vụ đã lấy món từ bếp, chuẩn bị mang ra bàn)."""
@@ -1348,7 +1304,7 @@ def serve_order_item(
     order_id: uuid.UUID,
     item_id: uuid.UUID,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_role(*_PICKUP_SERVE_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.SERVE_FOOD)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
     """PICKED_UP -> SERVED. Khi TOÀN BỘ món (trừ món VOIDED) trong order đã

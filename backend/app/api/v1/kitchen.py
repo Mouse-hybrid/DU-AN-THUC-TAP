@@ -30,7 +30,8 @@ from app.core.config import (
     KDS_SLA_DELAYED_MINUTES,
     KDS_SLA_WARNING_MINUTES,
 )
-from app.core.deps import CurrentStaff, get_current_staff, require_role
+from app.core.deps import CurrentStaff, get_current_staff, require_permission
+from app.core.permissions import Permission
 from app.db.base import get_session
 from app.db.models import (
     KITCHEN_QUEUE_STATUS,
@@ -47,8 +48,6 @@ from app.schemas.kitchen import KitchenQueueEntryOut, KitchenStationOut
 
 router = APIRouter(prefix="/kitchen", tags=["kitchen"])
 
-# = "View KDS" trong Permission Matrix của BRD: Kitchen + Supervisor.
-_VIEW_KDS_ROLES = ("KITCHEN", "SUPERVISOR")
 _ACTIVE_QUEUE_STATUSES = ("QUEUED", "IN_PROGRESS")
 _DELAYED_SLA_STATUSES = ("DELAYED", "CRITICAL")
 
@@ -91,7 +90,7 @@ def kitchen_queue(
             "Có item_status mà không có status thì không lọc trạng thái phiếu."
         ),
     ),
-    current: CurrentStaff = Depends(require_role(*_VIEW_KDS_ROLES)),
+    current: CurrentStaff = Depends(require_permission(Permission.VIEW_KDS)),
     session: Session = Depends(get_session),
 ) -> list[KitchenQueueEntryOut]:
     if queue_status is not None and queue_status not in KITCHEN_QUEUE_STATUS:
