@@ -45,6 +45,7 @@ from app.db.models import (
     TableSession,
 )
 from app.schemas.kitchen import KitchenQueueEntryOut, KitchenStationOut
+from app.schemas.orders import OrderItemModifierOut
 
 router = APIRouter(prefix="/kitchen", tags=["kitchen"])
 
@@ -153,6 +154,7 @@ def kitchen_queue(
                 menu_item_name=menu_item.name,
                 quantity=order_item.quantity,
                 note=order_item.note,
+                modifiers=[OrderItemModifierOut.model_validate(m) for m in order_item.modifiers],
                 station_id=queue_entry.station_id,
                 status=queue_entry.status,
                 item_status=order_item.status,

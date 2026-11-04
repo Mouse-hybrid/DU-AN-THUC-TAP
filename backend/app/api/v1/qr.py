@@ -40,6 +40,7 @@ from app.core.deps import (
     require_idempotency_key,
     require_permission,
 )
+from app.core.modifiers import resolve_modifiers
 from app.core.permissions import Permission
 from app.core.realtime import manager
 from app.db.base import get_session
@@ -52,6 +53,8 @@ from app.db.models import (
     RestaurantTable,
     TableSession,
 )
+from app.schemas.menu import ModifierGroupOut
+from app.schemas.orders import OrderItemModifierOut
 from app.schemas.qr import (
     QrCategoryOut,
     QrInfoOut,
@@ -231,6 +234,7 @@ def _order_view(session: Session, table_session: TableSession) -> QrOrderOut:
             note=item.note,
             status=item.status,
             source=item.source,
+            modifiers=[OrderItemModifierOut.model_validate(m) for m in item.modifiers],
         )
         for item, name in rows
     ]
@@ -277,7 +281,19 @@ def qr_menu(
     ).all()
     return QrMenuOut(
         categories=[QrCategoryOut.model_validate(c) for c in categories],
-        items=[QrMenuItemOut.model_validate(i) for i in items],
+        items=[
+            QrMenuItemOut(
+                id=item.id,
+                name=item.name,
+                price=item.price,
+                category_id=item.category_id,
+                is_available=item.is_available,
+                modifier_groups=[
+                    ModifierGroupOut.model_validate(group) for group in item.active_modifier_groups
+                ],
+            )
+            for item in items
+        ],
     )
 
 
@@ -340,7 +356,7 @@ def qr_submit(
             detail="Bàn có quá nhiều món đang chờ xác nhận, vui lòng đợi nhân viên",
         )
 
-    menu_items: list[MenuItem] = []
+    resolved = []
     for line in payload.items:
         menu_item = session.get(MenuItem, line.menu_item_id)
         if menu_item is None or menu_item.outlet_id != table.outlet_id:
@@ -351,7 +367,8 @@ def qr_submit(
             raise HTTPException(
                 status.HTTP_409_CONFLICT, detail=f"Món '{menu_item.name}' hiện không khả dụng"
             )
-        menu_items.append(menu_item)
+        modifiers, modifier_total = resolve_modifiers(menu_item, line.modifier_option_ids)
+        resolved.append((line, menu_item, modifiers, modifier_total))
 
     order = session.execute(
         select(Order)
@@ -376,16 +393,17 @@ def qr_submit(
             payload={"table_session_id": str(table_session.id), "source": "QR"},
         )
 
-    for line, menu_item in zip(payload.items, menu_items):
+    for line, menu_item, modifiers, modifier_total in resolved:
         session.add(
             OrderItem(
                 order_id=order.id,
                 menu_item_id=menu_item.id,
                 status="CREATED",
                 quantity=line.quantity,
-                unit_price=menu_item.price,
+                unit_price=menu_item.price + modifier_total,
                 note=line.note,
                 source="QR",
+                modifiers=modifiers,
             )
         )
     order.current_version += 1

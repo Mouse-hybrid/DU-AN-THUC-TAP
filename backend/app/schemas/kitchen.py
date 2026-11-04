@@ -7,6 +7,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.schemas.orders import OrderItemModifierOut
+
 
 class KitchenStationOut(BaseModel):
     id: uuid.UUID
@@ -26,6 +28,7 @@ class KitchenQueueEntryOut(BaseModel):
     menu_item_name: str
     quantity: int
     note: str | None
+    modifiers: list[OrderItemModifierOut] = []
     station_id: uuid.UUID
     status: str  # trạng thái PHIẾU bếp: QUEUED | IN_PROGRESS | DONE | CANCELLED
     item_status: str  # trạng thái MÓN: SENT, PREPARING, READY, PICKED_UP, SERVED...

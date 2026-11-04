@@ -15,10 +15,14 @@ erDiagram
     "outlet" ||--o{ "menu_item" : "outlet_id"
     "kitchen_station" ||--o{ "menu_item" : "station_id"
     "menu_category" ||--o{ "menu_item" : "category_id"
+    "menu_item" ||--o{ "modifier_group" : "menu_item_id"
+    "modifier_group" ||--o{ "modifier_option" : "group_id"
     "table_session" ||--o{ "order" : "table_session_id"
     "staff" ||--o{ "order" : "created_by_staff_id"
     "order" ||--o{ "order_item" : "order_id"
     "menu_item" ||--o{ "order_item" : "menu_item_id"
+    "order_item" ||--o{ "order_item_modifier" : "order_item_id"
+    "modifier_option" ||--o{ "order_item_modifier" : "option_id"
     "order" ||--o{ "order_version" : "order_id"
     "staff" ||--o{ "order_version" : "created_by_staff_id"
     "order_item" ||--o{ "kitchen_queue" : "order_item_id"
@@ -85,6 +89,23 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+    "modifier_group" {
+        uuid id PK
+        uuid menu_item_id FK
+        str name
+        int min_select
+        int max_select
+        int sort_order
+        bool is_active
+    }
+    "modifier_option" {
+        uuid id PK
+        uuid group_id FK
+        str name
+        numeric price_delta
+        bool is_available
+        int sort_order
+    }
     "order" {
         uuid id PK
         uuid table_session_id FK
@@ -105,6 +126,14 @@ erDiagram
         str source
         datetime created_at
         datetime updated_at
+    }
+    "order_item_modifier" {
+        uuid id PK
+        uuid order_item_id FK
+        uuid option_id FK
+        str group_name
+        str option_name
+        numeric price_delta
     }
     "order_version" {
         uuid id PK
