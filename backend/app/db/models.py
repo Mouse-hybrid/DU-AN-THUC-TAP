@@ -119,6 +119,22 @@ class Outlet(Base):
 
 
 # ---------------------------------------------------------------------------
+# TableArea — tầng/khu của nhà hàng (vd "Tầng 1", "Sân vườn"), do Supervisor cấu hình.
+# ---------------------------------------------------------------------------
+
+
+class TableArea(Base):
+    __tablename__ = "table_area"
+    __table_args__ = (UniqueConstraint("outlet_id", "name", name="uq_table_area_outlet_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+# ---------------------------------------------------------------------------
 # RestaurantTable — bàn vật lý trong outlet.
 # ---------------------------------------------------------------------------
 
@@ -135,6 +151,9 @@ class RestaurantTable(Base):
     code: Mapped[str] = mapped_column(String(50), nullable=False)  # số bàn hiển thị, vd "B12"
     seats: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="AVAILABLE")
+    area_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("table_area.id"), nullable=True
+    )
     merged_into_table_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("restaurant_table.id"), nullable=True
     )  # khi status=MERGED, trỏ tới bàn được gộp vào
@@ -144,7 +163,12 @@ class RestaurantTable(Base):
     )
 
     outlet: Mapped["Outlet"] = relationship(back_populates="tables")
+    area: Mapped["TableArea | None"] = relationship()
     sessions: Mapped[list["TableSession"]] = relationship(back_populates="table")
+
+    @property
+    def area_name(self) -> str | None:
+        return self.area.name if self.area else None
 
 
 # ---------------------------------------------------------------------------

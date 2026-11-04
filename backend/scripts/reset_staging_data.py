@@ -81,7 +81,7 @@ _WIPE_ORDER = (
     ("idempotency_key", IdempotencyKey),
 )
 
-# Bàn dùng cho fixture; nằm trong 6 bàn B1–B6 của seed_dev_data.py.
+# Bàn dùng cho fixture; nằm trong các bàn B1–B14 của seed_dev_data.py.
 FIXTURE_SERVED_TABLE = "B6"
 FIXTURE_KITCHEN_TABLE = "B5"
 FIXTURE_OTHER_OUTLET_TABLE = "Q2-1"  # bàn của chi nhánh QA 2 (seed_dev_data.py)

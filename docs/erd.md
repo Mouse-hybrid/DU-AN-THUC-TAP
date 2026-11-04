@@ -4,7 +4,9 @@
 
 ```mermaid
 erDiagram
+    "outlet" ||--o{ "table_area" : "outlet_id"
     "outlet" ||--o{ "restaurant_table" : "outlet_id"
+    "table_area" ||--o{ "restaurant_table" : "area_id"
     "restaurant_table" ||--o{ "restaurant_table" : "merged_into_table_id"
     "restaurant_table" ||--o{ "table_session" : "table_id"
     "staff" ||--o{ "table_session" : "opened_by_staff_id"
@@ -30,12 +32,20 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+    "table_area" {
+        uuid id PK
+        uuid outlet_id FK
+        str name
+        int sort_order
+        bool is_active
+    }
     "restaurant_table" {
         uuid id PK
         uuid outlet_id FK
         str code
         int seats
         str status
+        uuid area_id FK
         uuid merged_into_table_id FK
         datetime created_at
         datetime updated_at
@@ -119,6 +129,7 @@ erDiagram
         str full_name
         str role
         bool is_active
+        int token_version
         datetime created_at
         datetime updated_at
     }
