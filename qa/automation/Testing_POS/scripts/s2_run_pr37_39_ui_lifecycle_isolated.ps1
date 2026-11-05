@@ -70,6 +70,6 @@ try {
 }
 
 Write-Host "S2 UI Terminal evidence: $evidenceLog"
-if (Test-Path $imageDir) { Write-Host "S2 UI screenshot evidence: $imageDir" }
+if (Test-Path $imageDir) { Write-Host "S2 UI image/video evidence: $imageDir" }
 Write-Host '[S2-UI] Report the business result only if Playwright executes and own order/table cleanup succeeds.'
 exit $exitCode
