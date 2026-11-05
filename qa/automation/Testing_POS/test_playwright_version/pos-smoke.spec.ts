@@ -15,8 +15,8 @@ test.describe('POS System | anonymous route guard smoke', () => {
       await page.goto(path, { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveURL(/\/login(?:[?#].*)?$/);
       await expect(page.getByRole('heading', { name: heading })).toBeVisible();
-      await expect(page.getByRole('textbox', { name: 'Mã nhân viên' })).toBeVisible();
-      await expect(page.getByRole('textbox', { name: 'Mã PIN' })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Tên đăng nhập' })).toBeVisible();
+      await expect(page.getByLabel('Mật khẩu', { exact: true })).toBeVisible();
     });
   }
 });
