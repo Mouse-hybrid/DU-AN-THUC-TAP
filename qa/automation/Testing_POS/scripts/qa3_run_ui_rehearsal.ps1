@@ -11,7 +11,9 @@ if ($ExpectedCommit -and $ExpectedCommit -notmatch '^[0-9a-f]{7,40}$') {
 }
 
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\UAT'
-$evidenceLog = Join-Path $evidenceDir ("QA3_REHEARSAL_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+$evidenceLog = Join-Path $evidenceDir ("QA3_REHEARSAL_{0}.log" -f $stamp)
+$imageDir = Join-Path $evidenceDir ("QA3_REHEARSAL_IMAGES_{0}" -f $stamp)
 $credential = $null
 $pin = $null
 $exitCode = 1
@@ -52,6 +54,7 @@ try {
     $env:BASE_URL = $base
     $env:S2_STAGING_PIN = $pin
     $env:QA3_REHEARSAL = 'true'
+    $env:QA_UI_EVIDENCE_DIR = $imageDir
     Push-Location (Split-Path -Parent $PSScriptRoot)
     try {
       $priorConsole = [Console]::OutputEncoding
@@ -84,7 +87,7 @@ try {
     $exitCode = 1
   }
 } finally {
-  Remove-Item Env:BASE_URL, Env:S2_STAGING_PIN, Env:QA3_REHEARSAL -ErrorAction SilentlyContinue
+  Remove-Item Env:BASE_URL, Env:S2_STAGING_PIN, Env:QA3_REHEARSAL, Env:QA_UI_EVIDENCE_DIR -ErrorAction SilentlyContinue
   $pin = $null
   $credential = $null
   $headers = $null
@@ -92,6 +95,7 @@ try {
 }
 
 Write-Host "QA 3 rehearsal evidence: $evidenceLog"
+if (Test-Path $imageDir) { Write-Host "QA 3 UI screenshot evidence: $imageDir" }
 Write-Host '[QA3] One QA operating three seed roles is rehearsal; do not count as four-person UAT.'
 if ($exitCode -eq 1) { Write-Warning 'Check CLEANUP REQUIRED in the log before any rerun.' }
 exit $exitCode
