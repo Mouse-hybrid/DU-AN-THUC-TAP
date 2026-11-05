@@ -4,7 +4,9 @@ $ErrorActionPreference = 'Stop'
 $base = $BaseUrl.TrimEnd('/')
 if ($base -ne 'http://160.191.47.17') { throw 'S2 UI lifecycle is restricted to approved staging' }
 $evidenceDir = Join-Path $PSScriptRoot '..\..\..\..\evidence\EXE-QA-04'
-$evidenceLog = Join-Path $evidenceDir ("S2_PR37_39_UI_LIFECYCLE_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+$stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+$evidenceLog = Join-Path $evidenceDir ("S2_PR37_39_UI_LIFECYCLE_{0}.log" -f $stamp)
+$imageDir = Join-Path $evidenceDir ("S2_UI_LIFECYCLE_IMAGES_{0}" -f $stamp)
 $credential = Get-Credential -UserName 'waiter' -Message 'Shared staging PIN for one isolated QA lifecycle with simulated payment'
 if (-not $credential) { throw 'Credential prompt cancelled' }
 $pin = $credential.GetNetworkCredential().Password
@@ -38,6 +40,7 @@ try {
     } else {
       $env:BASE_URL = $base
       $env:S2_STAGING_PIN = $pin
+      $env:QA_UI_EVIDENCE_DIR = $imageDir
       Push-Location (Split-Path -Parent $PSScriptRoot)
       try {
         $priorConsole = [Console]::OutputEncoding
@@ -61,11 +64,12 @@ try {
     $exitCode = 1
   }
 } finally {
-  Remove-Item Env:BASE_URL, Env:S2_STAGING_PIN -ErrorAction SilentlyContinue
+  Remove-Item Env:BASE_URL, Env:S2_STAGING_PIN, Env:QA_UI_EVIDENCE_DIR -ErrorAction SilentlyContinue
   $pin = $null
   $credential = $null
 }
 
 Write-Host "S2 UI Terminal evidence: $evidenceLog"
+if (Test-Path $imageDir) { Write-Host "S2 UI screenshot evidence: $imageDir" }
 Write-Host '[S2-UI] Report the business result only if Playwright executes and own order/table cleanup succeeds.'
 exit $exitCode
