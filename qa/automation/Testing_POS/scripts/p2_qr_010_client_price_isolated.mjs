@@ -180,6 +180,7 @@ finally{
  report.business_execution=executed?'EXECUTED':'NOT_EXECUTED';report.cleanup_pass=cleanupPass;
  report.order_closed=cleanupPass;report.table_available=cleanupPass;
  report.result=asserted&&cleanupPass&&report.build_stable?'PASSED':
+   owned.sessionId&&!cleanupPass?'INCONCLUSIVE':
    /^PENDING_/.test(failure||'')?'PENDING':executed?'FAILED':'INCONCLUSIVE';
  if(failure)report.error=failure;
  if(!cleanupPass&&owned.sessionId)report.cleanup_required=`Inspect own ${owned.tableCode} session ${owned.sessionId}, order ${owned.orderId}; no global reset`;
