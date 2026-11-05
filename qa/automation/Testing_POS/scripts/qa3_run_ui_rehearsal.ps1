@@ -95,7 +95,7 @@ try {
 }
 
 Write-Host "QA 3 rehearsal evidence: $evidenceLog"
-if (Test-Path $imageDir) { Write-Host "QA 3 UI screenshot evidence: $imageDir" }
+if (Test-Path $imageDir) { Write-Host "QA 3 UI image/video evidence: $imageDir" }
 Write-Host '[QA3] One QA operating three seed roles is rehearsal; do not count as four-person UAT.'
 if ($exitCode -eq 1) { Write-Warning 'Check CLEANUP REQUIRED in the log before any rerun.' }
 exit $exitCode
