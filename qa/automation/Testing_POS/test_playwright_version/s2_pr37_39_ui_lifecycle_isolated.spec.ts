@@ -1,4 +1,6 @@
 import {randomUUID} from 'node:crypto';
+import {mkdirSync, writeFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {expect, test, type BrowserContext, type Page} from '@playwright/test';
 
 // Open an available QA table and create its order through the product UI.
@@ -24,6 +26,15 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
   const fixture: {table?: Table; sessionId?: string; orderId?: string; itemId?: string; menu?: Item} = {};
   const contexts: BrowserContext[] = [];
   const observations: Record<string, unknown>[] = [];
+  async function captureUi(name: string, page: Page) {
+    const png = await page.screenshot({fullPage: true, animations: 'disabled'});
+    const dir = process.env.QA_UI_EVIDENCE_DIR;
+    if (dir) {
+      mkdirSync(dir, {recursive: true});
+      writeFileSync(join(dir, `${name}.png`), png);
+    }
+    await testInfo.attach(`${runId}_${name}`, {body: png, contentType: 'image/png'});
+  }
 
   async function call(method: 'GET' | 'POST', path: string, role: string, data?: object) {
     const response = await request.fetch(base + path, {
@@ -174,6 +185,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await waitForStatus('CREATED');
     await waiter.getByRole('button', {name: 'Gửi các món mới xuống bếp'}).click();
     await waitForStatus('SENT');
+    await captureUi('01_waiter_order_sent', waiter);
     const queue = await checked('GET', '/api/v1/kitchen/queue?status=QUEUED', 'kitchen', 200);
     expect(queue.filter((entry: any) => entry.order_item_id === fixture.itemId)).toHaveLength(1);
 
@@ -188,12 +200,17 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await expect(card).toHaveCount(1, {timeout: 15_000});
     await card.getByRole('button', {name: `Món xong ${fixture.menu!.name} bàn ${fixture.table!.code}`}).click();
     await waitForStatus('READY');
+    await kitchen.getByRole('tab', {name: 'Sẵn sàng'}).click();
+    await expect(kitchen.locator('article.nova-kds-ticket').filter({hasText: `#${ownCode}`}))
+      .toHaveCount(1, {timeout: 15_000});
+    await captureUi('02_kds_ready', kitchen);
 
     await waiter.goto(`/tables/${fixture.table!.id}`, {waitUntil: 'domcontentloaded'});
     await waiter.getByRole('button', {name: `Lấy món ${fixture.menu!.name}`}).click();
     await waitForStatus('PICKED_UP');
     await waiter.getByRole('button', {name: `Đã mang ra ${fixture.menu!.name}`}).click();
     await waitForStatus('SERVED');
+    await captureUi('03_waiter_served', waiter);
     await waiter.goto(`/tables/${fixture.table!.id}/summary`, {waitUntil: 'domcontentloaded'});
     expect((await order()).items.find(item => item.id === fixture.itemId)?.status,
       'owned item is served before requesting payment').toBe('SERVED');
@@ -208,6 +225,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await cashier.getByRole('dialog', {name: 'Xác nhận đã thanh toán?'}).getByRole('button',
       {name: 'Xác nhận đã thanh toán'}).click();
     await expect.poll(async () => (await order()).status, {timeout: 20_000}).toBe('PAID');
+    await captureUi('04_cashier_paid', cashier);
     await checked('POST', `/api/v1/orders/${fixture.orderId}/close`, 'cashier', 200);
     await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
       'waiter', 200)).status, {timeout: 20_000}).toBe('CLEANING');
@@ -218,6 +236,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
       'waiter', 200)).status, {timeout: 20_000}).toBe('AVAILABLE');
     expect((await order()).status).toBe('CLOSED');
+    await captureUi('05_table_available', waiter);
     if (qa3Rehearsal) {
       await login('admin');
       const audit = await checked('GET', `/api/v1/audit-logs?order_id=${fixture.orderId}`,
