@@ -65,8 +65,8 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     contexts.push(context);
     const page = await context.newPage();
     await page.goto('/login', {waitUntil: 'domcontentloaded'});
-    await page.getByLabel('Mã nhân viên', {exact: true}).fill(account(role));
-    await page.getByLabel('Mã PIN', {exact: true}).fill(pin!);
+    await page.getByLabel('Tên đăng nhập', {exact: true}).fill(account(role));
+    await page.getByLabel('Mật khẩu', {exact: true}).fill(pin!);
     await page.getByRole('button', {name: 'Đăng nhập', exact: true}).click();
     await expect(page).toHaveURL(new RegExp(role === 'kitchen' ? '/kitchen$' : '/tables$'),
       {timeout: 15_000});
