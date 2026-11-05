@@ -185,6 +185,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await waitForStatus('CREATED');
     await waiter.getByRole('button', {name: 'Gửi các món mới xuống bếp'}).click();
     await waitForStatus('SENT');
+    await waiter.reload({waitUntil: 'domcontentloaded'});
     await captureUi('01_waiter_order_sent', waiter);
     const queue = await checked('GET', '/api/v1/kitchen/queue?status=QUEUED', 'kitchen', 200);
     expect(queue.filter((entry: any) => entry.order_item_id === fixture.itemId)).toHaveLength(1);
@@ -210,6 +211,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await waitForStatus('PICKED_UP');
     await waiter.getByRole('button', {name: `Đã mang ra ${fixture.menu!.name}`}).click();
     await waitForStatus('SERVED');
+    await waiter.reload({waitUntil: 'domcontentloaded'});
     await captureUi('03_waiter_served', waiter);
     await waiter.goto(`/tables/${fixture.table!.id}/summary`, {waitUntil: 'domcontentloaded'});
     expect((await order()).items.find(item => item.id === fixture.itemId)?.status,
@@ -225,6 +227,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await cashier.getByRole('dialog', {name: 'Xác nhận đã thanh toán?'}).getByRole('button',
       {name: 'Xác nhận đã thanh toán'}).click();
     await expect.poll(async () => (await order()).status, {timeout: 20_000}).toBe('PAID');
+    await cashier.reload({waitUntil: 'domcontentloaded'});
     await captureUi('04_cashier_paid', cashier);
     await checked('POST', `/api/v1/orders/${fixture.orderId}/close`, 'cashier', 200);
     await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
@@ -236,6 +239,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     await expect.poll(async () => (await checked('GET', `/api/v1/tables/${fixture.table!.id}`,
       'waiter', 200)).status, {timeout: 20_000}).toBe('AVAILABLE');
     expect((await order()).status).toBe('CLOSED');
+    await waiter.reload({waitUntil: 'domcontentloaded'});
     await captureUi('05_table_available', waiter);
     if (qa3Rehearsal) {
       await login('admin');
