@@ -25,6 +25,9 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
   const tokens: Record<string, string> = {};
   const fixture: {table?: Table; sessionId?: string; orderId?: string; itemId?: string; menu?: Item} = {};
   const contexts: BrowserContext[] = [];
+  const recordings: Array<{role: string; page: Page}> = [];
+  const videoTempDir = testInfo.outputPath('raw-video');
+  mkdirSync(videoTempDir, {recursive: true});
   const observations: Record<string, unknown>[] = [];
   async function captureUi(name: string, page: Page) {
     const png = await page.screenshot({fullPage: true, animations: 'disabled'});
@@ -61,9 +64,10 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
     observations.push({step: status, orderId: fixture.orderId, itemId: fixture.itemId});
   }
   async function login(role: string): Promise<Page> {
-    const context = await browser.newContext({baseURL: base});
+    const context = await browser.newContext({baseURL: base, recordVideo: {dir: videoTempDir}});
     contexts.push(context);
     const page = await context.newPage();
+    recordings.push({role, page});
     await page.goto('/login', {waitUntil: 'domcontentloaded'});
     await page.getByLabel('Tên đăng nhập', {exact: true}).fill(account(role));
     await page.getByLabel('Mật khẩu', {exact: true}).fill(pin!);
@@ -274,6 +278,16 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
         contentType: 'application/json',
       });
       await Promise.all(contexts.map(context => context.close()));
+      const videoDir = process.env.QA_UI_EVIDENCE_DIR || testInfo.outputPath('saved-video');
+      mkdirSync(videoDir, {recursive: true});
+      for (const [index, recording] of recordings.entries()) {
+        const video = recording.page.video();
+        if (!video) throw new Error(`Video missing for ${recording.role}`);
+        const name = `video_${String(index + 1).padStart(2, '0')}_${recording.role}.webm`;
+        const path = join(videoDir, name);
+        await video.saveAs(path);
+        await testInfo.attach(`${runId}_${name}`, {path, contentType: 'video/webm'});
+      }
     }
   }
 });
