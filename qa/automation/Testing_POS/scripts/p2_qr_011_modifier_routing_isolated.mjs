@@ -125,17 +125,30 @@ try {
   const candidates = tables.filter(t => /^Q3-[12]$/.test(t.code) && t.status === 'AVAILABLE');
   const menu = must(call('GET','/api/v1/menu?available_only=true','cashier'),200,'staff menu');
   const starter = menu.find(x=>x.is_available&&x.station_id&&!x.has_modifiers);
-  const target = menu.find(x=>x.is_available&&x.station_id&&x.has_modifiers);
-  if (!candidates.length || !starter || !target) throw new Error('PENDING_FIXTURE: available Q3 table, starter and modifier item required');
+  const modifierItems = menu.filter(x=>x.is_available&&x.station_id&&x.has_modifiers);
+  if (!candidates.length || !starter || !modifierItems.length) throw new Error('PENDING_FIXTURE: available Q3 table, starter and modifier item required');
   owned.starterMenuId=starter.id;
-  const groups=must(call('GET',`/api/v1/menu/${target.id}/modifiers?active_only=true`,'cashier'),200,'modifier groups');
-  const chosen=[];
-  for(const group of groups){
-    const available=(group.options||[]).filter(x=>x.is_available);
-    if(available.length<group.min_select)throw new Error('PENDING_FIXTURE: mandatory modifier not available');
-    chosen.push(...available.slice(0,group.min_select).map(x=>({...x,group_name:group.name})));
+  let target,chosen=[];
+  for(const candidate of modifierItems){
+    const groups=must(call('GET',`/api/v1/menu/${candidate.id}/modifiers?active_only=true`,'cashier'),200,'modifier groups');
+    const selected=[];
+    let valid=true;
+    for(const group of groups){
+      const available=(group.options||[]).filter(x=>x.is_available);
+      if(available.length<group.min_select){valid=false;break;}
+      selected.push(...available.slice(0,group.min_select).map(x=>({...x,group_name:group.name})));
+    }
+    if(!valid)continue;
+    if(!selected.length){
+      const optional=groups.find(g=>g.max_select>0&&(g.options||[]).some(x=>x.is_available));
+      if(optional){
+        const option=optional.options.find(x=>x.is_available);
+        selected.push({...option,group_name:optional.name});
+      }
+    }
+    if(selected.length){target=candidate;chosen=selected;break;}
   }
-  if (!chosen.length) throw new Error('PENDING_FIXTURE: no active required modifier to verify');
+  if (!target) throw new Error('PENDING_FIXTURE: no active available modifier to verify');
   for (const candidate of candidates) {
     const opened=post(`/api/v1/tables/${candidate.id}/open-session`,'waiter',{guest_count:1});
     if(opened.http===409)continue;
