@@ -19,7 +19,7 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
   test.skip(!pin, 'Local staging PIN required');
 
   type Table = {id: string; code: string; status: string; current_session_id?: string};
-  type Item = {id: string; name: string; is_available: boolean; station_id: string};
+  type Item = {id: string; name: string; is_available: boolean; station_id: string; has_modifiers?: boolean};
   type Order = {id: string; table_session_id: string; status: string;
     items: Array<{id: string; status: string; menu_item_id: string}>};
   const tokens: Record<string, string> = {};
@@ -145,8 +145,8 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
       .map(t => `${t.code}:${t.status}`).join(', ')}; available ${available.length}`);
     test.skip(!available.length, `PENDING: no AVAILABLE ${qa3Rehearsal ? 'Q3-1..Q3-3' : 'B1-B4'}; no mutation`);
     const menu = await checked('GET', '/api/v1/menu?available_only=true', 'waiter', 200) as Item[];
-    fixture.menu = menu.find(item => item.is_available && Boolean(item.station_id));
-    test.skip(!fixture.menu, 'PENDING: no available item mapped to Kitchen; no mutation');
+    fixture.menu = menu.find(item => item.is_available && Boolean(item.station_id) && !item.has_modifiers);
+    test.skip(!fixture.menu, 'PENDING: no available mapped item without required modifiers; no mutation');
 
     const waiter = await login('waiter');
     for (const table of available) {
