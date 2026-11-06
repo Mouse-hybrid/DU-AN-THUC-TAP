@@ -23,8 +23,9 @@ const req = async (method, path, token, body, key) => {
 };
 const report = {
   run_id: `RUN-${new Date().toISOString().replace(/[-:.TZ]/g, '')}-P2USR005`,
-  test_ref: 'P2-USR-005', checked_at: new Date().toISOString(), result: 'INCONCLUSIVE',
+  test_ref: 'PF-P2-USR-005', checked_at: new Date().toISOString(), result: 'INCONCLUSIVE',
   scope: 'Reset password for isolated QA3 WAITER; old token/password denied, new login works, no response secret; final lock.',
+  business_case: 'P2-USR-005 NOT_EXECUTED: audit, logs and password-change policy not covered.',
   secrets_recorded: false,
 };
 let adminToken, staffId, username, oldPassword, newPassword, cleanup = false, assertions = false, error;
