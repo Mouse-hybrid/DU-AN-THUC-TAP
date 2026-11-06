@@ -199,6 +199,11 @@ finally {
   report.build_after = buildAfter || null; report.build_stable = !!buildBefore && buildBefore === buildAfter;
   report.business_execution = submitted ? 'EXECUTED' : 'NOT_EXECUTED';
   report.cleanup_pass = cleanupPass; report.order_closed = cleanupPass; report.table_available = cleanupPass;
+  if (report.checks) report.case_results = Object.fromEntries([
+    ['P2-QR-003', report.checks.qr_003_same_session],
+    ['P2-QR-004', report.checks.qr_004_shared_bill],
+    ['P2-QR-005', report.checks.qr_005_replay_exact],
+  ].map(([id, ok]) => [id, cleanupPass && report.build_stable ? (ok ? 'PASSED' : 'FAILED') : 'INCONCLUSIVE']));
   report.result = asserted && cleanupPass && report.build_stable ? 'PASSED' :
     owned.sessionId && !cleanupPass ? 'INCONCLUSIVE' :
     /^PENDING_/.test(failure || '') ? 'PENDING' : submitted && cleanupPass ? 'FAILED' : 'INCONCLUSIVE';
