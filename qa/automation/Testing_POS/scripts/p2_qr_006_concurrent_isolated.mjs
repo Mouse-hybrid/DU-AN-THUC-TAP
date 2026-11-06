@@ -73,7 +73,7 @@ function finish() {
     if (!o.items.length) {
       if (!owned.starterMenuId) throw new Error('CLEANUP REQUIRED: starter item unavailable');
       must(post(`/api/v1/orders/${owned.orderId}/items`, 'waiter',
-        {items: [{menu_item_id: owned.starterMenuId, quantity: 1, note: 'QA P2QR011 cleanup'}]}), 201, 'cleanup add');
+        {items: [{menu_item_id: owned.starterMenuId, quantity: 1, note: 'QA P2QR006 cleanup'}]}), 201, 'cleanup add');
     }
     must(post(`/api/v1/orders/${owned.orderId}/send-to-kitchen`, 'waiter'), 200, 'cleanup send');
   }
@@ -130,9 +130,9 @@ try {
   const candidates = tables.filter(t => /^Q3-[12]$/.test(t.code) && t.status === 'AVAILABLE');
   const menu = must(call('GET', '/api/v1/menu?available_only=true', 'cashier'), 200, 'staff menu');
   const mapped = menu.filter(x => x.is_available && x.station_id && !x.has_modifiers);
-  const [starter, a, b] = mapped;
-  if (!candidates.length || !starter || !a || !b)
-    throw new Error('PENDING_FIXTURE: AVAILABLE Q3 table and three distinct mapped items without modifiers required');
+  const [starter, a] = mapped;
+  if (!candidates.length || !starter || !a)
+    throw new Error('PENDING_FIXTURE: AVAILABLE Q3 table and two mapped items without modifiers required');
   owned.starterMenuId = starter.id;
   for (const candidate of candidates) {
     const opened = post(`/api/v1/tables/${candidate.id}/open-session`, 'waiter', {guest_count: 2});
@@ -150,11 +150,11 @@ try {
   if (issued.table_session_id !== owned.sessionId || !owned.qrToken)
     throw new Error('QR token/session mismatch');
   const qrMenu = must(call('GET', `/api/v1/public/qr/${owned.qrToken}/menu`), 200, 'public QR menu');
-  if (![a, b].every(item => qrMenu.items?.some(x => x.id === item.id && x.is_available && cents(x.price) === cents(item.price))))
-    throw new Error('PENDING_FIXTURE: two mapped public QR items mismatch');
+  if (!qrMenu.items?.some(x => x.id === a.id && x.is_available && cents(x.price) === cents(a.price)))
+    throw new Error('PENDING_FIXTURE: mapped public QR item mismatch');
 
   const url = `${base}/api/v1/public/qr/${owned.qrToken}/orders`;
-  const payloads = [a, b].map((item, index) => ({items: [{menu_item_id: item.id, quantity: 1,
+  const payloads = [a, a].map((item, index) => ({items: [{menu_item_id: item.id, quantity: 1,
     note: `QA P2QR006 cart ${index + 1}` }]}));
   const keys = [randomUUID(), randomUUID()];
   submitted = true;
@@ -170,15 +170,17 @@ try {
   const o = order();
   const publicOrder = must(call('GET', `/api/v1/public/qr/${owned.qrToken}/order`), 200, 'public order');
   const qrLines = o.items.filter(x => x.source === 'QR');
-  const expectedSubtotal = cents(starter.price) + cents(a.price) + cents(b.price);
+  const expectedSubtotal = cents(starter.price) + 2 * cents(a.price);
   const audit = must(call('GET', `/api/v1/audit-logs?order_id=${owned.orderId}`, 'admin'), 200, 'own audit');
   const qrAdded = Array.isArray(audit) ? audit.filter(x => x.action === 'ORDER_ITEMS_ADDED' &&
     (x.payload?.source === 'QR' || x.payload_json?.source === 'QR')) : [];
   report.checks = {
     both_http_201: results.every(x => x.http === 201),
     one_shared_order: o.table_session_id === owned.sessionId && publicOrder.table_code === owned.tableCode,
-    two_distinct_qr_lines: qrLines.length === 2 && [a, b].every(item =>
-      qrLines.filter(x => x.menu_item_id === item.id && x.quantity === 1).length === 1),
+    two_distinct_qr_lines: qrLines.length === 2 && qrLines.every(x =>
+      x.menu_item_id === a.id && x.quantity === 1) &&
+      ['QA P2QR006 cart 1', 'QA P2QR006 cart 2'].every(note =>
+        qrLines.filter(x => x.note === note).length === 1) && qrLines[0].id !== qrLines[1].id,
     exact_subtotal: cents(o.subtotal) === expectedSubtotal && cents(publicOrder.subtotal) === expectedSubtotal,
     qr_audit_twice: qrAdded.length === 2,
   };
