@@ -13,8 +13,8 @@ if ($version.environment -ne 'staging' -or $version.commit -ne $ExpectedCommit) 
     throw 'Staging SHA/environment mismatch; no fixture created.'
 }
 
-$credential = Get-Credential -UserName 'qa3_admin' -Message 'Mật khẩu seed QA3 (không ghi vào evidence)'
-if (-not $credential) { throw 'Không có credential; chưa chạy.' }
+$credential = Get-Credential -UserName 'qa3_admin' -Message 'QA3 seed password (not recorded)'
+if (-not $credential) { throw 'No credential; run not started.' }
 $savedPassword = [Environment]::GetEnvironmentVariable('P2_QA_SEED_PASSWORD', 'Process')
 $savedCommit = [Environment]::GetEnvironmentVariable('POS_EXPECTED_COMMIT', 'Process')
 $env:P2_QA_SEED_PASSWORD = $credential.GetNetworkCredential().Password
@@ -30,24 +30,24 @@ try {
     $firstExit = $LASTEXITCODE
     Write-Host "P2-RWD-006 exit=$firstExit evidence=$source"
     if ($firstExit -ne 0) {
-        throw 'P2-RWD-006 chưa Pass; kiểm tra cleanup_required trong JSON trước khi tiếp tục.'
+        throw 'P2-RWD-006 did not pass; inspect cleanup_required in JSON before continuing.'
     }
     $first = Get-Content $source -Raw | ConvertFrom-Json
     if ($first.result -ne 'PASSED' -or $first.cleanup_pass -ne $true -or
         $first.build_stable -ne $true -or $first.staging_commit -ne $ExpectedCommit) {
-        throw 'P2-RWD-006 thiếu assertion/cleanup/build ổn định; dừng lượt đọc.'
+        throw 'P2-RWD-006 assertions, cleanup, or build unstable; stopping before read-only test.'
     }
 
     & node (Join-Path $PSScriptRoot 'p2_rwd_003_010_historical_readonly.mjs') $source $readOnly
     $secondExit = $LASTEXITCODE
     Write-Host "P2-RWD-003/010 exit=$secondExit evidence=$readOnly"
     if ($secondExit -ne 0) {
-        throw 'Đọc JSON P2-RWD-003/010 để phân loại từng case; không tính business Pass khi Pending/Failed.'
+        throw 'Read P2-RWD-003/010 JSON for per-case results; Pending/Failed is not a business Pass.'
     }
     $second = Get-Content $readOnly -Raw | ConvertFrom-Json
     if ($second.result -ne 'PASSED' -or $second.build_stable -ne $true -or
         $second.source_run_id -ne $first.run_id) {
-        throw 'Kết quả read-only không khớp source run; kiểm tra JSON.'
+        throw 'Read-only result does not match source run; inspect JSON.'
     }
     Write-Host "[P2 Rewards] PASS: source=$($first.run_id); read-only=$($second.run_id); SHA=$ExpectedCommit"
 } finally {
