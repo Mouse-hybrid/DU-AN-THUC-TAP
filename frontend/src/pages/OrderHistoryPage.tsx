@@ -2,9 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { closeOrder, listOrders, type OrderSummaryRow } from "../api/orders";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -30,7 +29,6 @@ import { fetchAllPages } from "../utils/paging";
 const PAGE_SIZE = 20;
 const FETCH_PAGE_SIZE = 200;
 const FETCH_MAX_PAGES = 5;
-const CLOSE_ROLES = ["CASHIER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 
 type RangeId = "today" | "7d" | "30d";
 
@@ -66,9 +64,9 @@ function rangeSubtitle(range: RangeId): string {
 }
 
 export function OrderHistoryPage() {
-  const role = getAuth()?.staff.role;
-  const canClose = hasRole(role, CLOSE_ROLES);
-  const isSupervisor = role === "SUPERVISOR";
+  const { can } = usePermissions();
+  const canClose = can("PROCESS_PAYMENT");
+  const canViewAudit = can("AUDIT_READ");
 
   const [rows, setRows] = useState<OrderSummaryRow[]>([]);
   const [truncated, setTruncated] = useState(false);
@@ -346,7 +344,7 @@ export function OrderHistoryPage() {
                                 Đóng đơn
                               </Button>
                             ) : null}
-                            {isSupervisor ? (
+                            {canViewAudit ? (
                               <Link className="nova-button nova-button--secondary nova-order-line-action" to={`/admin/audit-logs?order=${encodeURIComponent(row.id)}`} aria-label={`Xem nhật ký đơn ${orderShortCode(row.id)}`}>Nhật ký</Link>
                             ) : null}
                           </div>

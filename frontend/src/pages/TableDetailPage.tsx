@@ -8,7 +8,7 @@ import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { OrderLineItem } from "../components/OrderLineItem";
-import { RoleGuard } from "../components/RoleGuard";
+import { PermissionGuard } from "../components/PermissionGuard";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
@@ -224,7 +224,7 @@ export function TableDetailPage() {
                                   <>
                                     {overrides.actionsFor(order.id, order.status, item)}
                                     {item.status === "READY" || item.status === "PICKED_UP" ? (
-                                      <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
+                                      <PermissionGuard permission="SERVE_FOOD">
                                         <Button
                                           variant="primary"
                                           type="button"
@@ -237,7 +237,7 @@ export function TableDetailPage() {
                                         >
                                           {item.status === "READY" ? "Lấy món" : "Đã mang ra"}
                                         </Button>
-                                      </RoleGuard>
+                                      </PermissionGuard>
                                     ) : null}
                                   </>
                                 )}

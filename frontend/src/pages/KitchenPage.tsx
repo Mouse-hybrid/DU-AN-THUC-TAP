@@ -9,8 +9,8 @@ import {
   type KitchenStationResponse,
   type QueueQuery,
 } from "../api/kitchen";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -74,8 +74,7 @@ function actionErrorMessage(error: unknown): string {
 }
 
 export function KitchenPage() {
-  const role = getAuth()?.staff.role;
-  const canAct = hasRole(role, ["KITCHEN", "SUPERVISOR"]);
+  const canAct = usePermissions().can("KITCHEN_ACTION");
   const [activeTab, setActiveTab] = useState<KitchenTab>("new");
   const [stationId, setStationId] = useState("");
   const [stations, setStations] = useState<KitchenStationResponse>([]);

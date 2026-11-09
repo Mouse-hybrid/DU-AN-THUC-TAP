@@ -3,10 +3,13 @@ import { getAuth, redirectToLogin } from "../auth/storage";
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 export const API_BASE_URL = (configuredBaseUrl || "/api/v1").replace(/\/+$/, "");
 
-const MUTATION_METHODS = new Set(["POST", "PATCH", "DELETE"]);
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/** Phát ra khi backend trả 403: bộ quyền (src/auth/permissions.tsx) nghe sự kiện này để gọi lại /auth/me. */
+export const FORBIDDEN_EVENT = "nova:forbidden";
 const REQUEST_TIMEOUT_MS = 12_000;
 
-type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 interface RequestOptions<TBody> {
   method?: HttpMethod;
@@ -141,6 +144,8 @@ async function fetchOnce<TResponse, TBody>(path: string, options: RequestOptions
     const payload = await readPayload(response);
     if (!response.ok) {
       if (response.status === 401 && needsAuth) redirectToLogin();
+      // Quyền có thể vừa bị quản lý đổi. /auth/me không tự phát để tránh vòng lặp.
+      if (response.status === 403 && needsAuth && path !== "/auth/me") window.dispatchEvent(new Event(FORBIDDEN_EVENT));
       throw new ApiError(errorMessage(payload, response.status), response.status);
     }
     return payload as TResponse;

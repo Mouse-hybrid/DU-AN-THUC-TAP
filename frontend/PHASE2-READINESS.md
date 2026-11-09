@@ -23,7 +23,7 @@ Chưa làm dù đã có API:
 |---|---|---|
 | Xem phiên bản đơn | `GET /orders/{id}/versions` (SUPERVISOR) | Chưa có thiết kế |
 
-Lưu ý cho màn 93, 94, 98 (đã làm): đổi mật khẩu, khóa tài khoản, đặt lại mật khẩu hoặc đổi vai trò làm token cũ của người bị tác động trả `401`; `src/api/client.ts` tự gọi `redirectToLogin()` khi gặp `401`. Riêng đổi mật khẩu của chính mình, backend trả token mới và FE lưu lại bằng `saveAuth` nên không bị đăng xuất. Backend chặn quản lý tự đổi vai trò, tự khóa/mở khóa hoặc tự đặt lại mật khẩu (409); FE ẩn các nút này ở dòng của chính mình. Màn 94 chỉ xem: backend chưa có API tạo vai trò hay sửa quyền; role “System Admin” riêng chưa có.
+Lưu ý cho màn 93, 94, 98 (đã làm): đổi mật khẩu, khóa tài khoản, đặt lại mật khẩu hoặc đổi vai trò làm token cũ của người bị tác động trả `401`; `src/api/client.ts` tự gọi `redirectToLogin()` khi gặp `401`. Riêng đổi mật khẩu của chính mình, backend trả token mới và FE lưu lại bằng `saveAuth` nên không bị đăng xuất. Backend chặn quản lý tự đổi vai trò, tự khóa/mở khóa hoặc tự đặt lại mật khẩu (409); FE ẩn các nút này ở dòng của chính mình. Màn 94 đã sửa được quyền (tick từng ô, “Đã sửa”, khôi phục mặc định) và mọi nút/route đã chuyển sang đọc `permissions` từ `GET /auth/me`. Backend chưa có API tạo vai trò mới; role “System Admin” riêng chưa có. Lưu ý: `schema.d.ts` trên main chưa có `PUT /staff/permissions/{permission}`, `POST /staff/permissions/reset` và các trường `default_roles`, `locked_roles`, `customized`, nên FE tạm khai báo type tay.
 
 Nguồn đối chiếu: danh sách endpoint trong `src/api/schema.d.ts` (sinh từ `docs/api/openapi.json`) và `docs/api/api-catalog.md`. Số màn là số màn trong Figma (110 màn, chốt ngày 30/10/2026).
 
