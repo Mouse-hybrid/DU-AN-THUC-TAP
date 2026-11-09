@@ -3171,8 +3171,224 @@
           "audit"
         ],
         "summary": "List Audit Logs",
-        "description": "Nhật ký thao tác của outlet, cũ nhất trước (đọc theo đúng trình tự xảy ra).",
+        "description": "Nhật ký thao tác của outlet. Thứ tự luôn xác định: created_at rồi id, cùng chiều.",
         "operationId": "list_audit_logs_api_v1_audit_logs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "asc: cũ nhất trước (mặc định); desc: mới nhất trước",
+              "default": "asc",
+              "title": "Sort"
+            },
+            "description": "asc: cũ nhất trước (mặc định); desc: mới nhất trước"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Thao tác trên order này và trên mọi món của nó",
+              "title": "Order Id"
+            },
+            "description": "Thao tác trên order này và trên mọi món của nó"
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lặp lại được",
+              "title": "Entity Id"
+            },
+            "description": "Lặp lại được"
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "vd order, order_item, table",
+              "title": "Entity Type"
+            },
+            "description": "vd order, order_item, table"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lặp lại được, vd ORDER_ITEM_REFIRED",
+              "title": "Action"
+            },
+            "description": "Lặp lại được, vd ORDER_ITEM_REFIRED"
+          },
+          {
+            "name": "staff_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Staff Id"
+            }
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at >= (ISO 8601)",
+              "title": "Created From"
+            },
+            "description": "created_at >= (ISO 8601)"
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at < (ISO 8601)",
+              "title": "Created To"
+            },
+            "description": "created_at < (ISO 8601)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogOut"
+                  },
+                  "title": "Response List Audit Logs Api V1 Audit Logs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit-logs/summary": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Audit Summary",
+        "description": "Báo cáo trong một khoảng thời gian (mặc định 7 ngày gần nhất, tối đa 93 ngày): tổng số\nthao tác, theo loại thao tác, theo nhân viên, theo ngày (giờ Việt Nam), và số thao tác\nngoại lệ. Nhận cùng bộ lọc với danh sách.",
+        "operationId": "audit_summary_api_v1_audit_logs_summary_get",
         "security": [
           {
             "HTTPBearer": []
@@ -3312,29 +3528,6 @@
               "title": "Created To"
             },
             "description": "created_at < (ISO 8601)"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 500,
-              "minimum": 1,
-              "default": 100,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
           }
         ],
         "responses": {
@@ -3343,12 +3536,179 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/AuditSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit-logs/export": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Export Audit Logs",
+        "description": "CSV (UTF-8 có BOM để Excel đọc đúng tiếng Việt), cũ nhất trước, giờ Việt Nam. Tối đa\n10.000 dòng; vượt thì header X-Truncated: true, hãy thu hẹp bộ lọc.",
+        "operationId": "export_audit_logs_api_v1_audit_logs_export_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Thao tác trên order này và trên mọi món của nó",
+              "title": "Order Id"
+            },
+            "description": "Thao tác trên order này và trên mọi món của nó"
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/AuditLogOut"
-                  },
-                  "title": "Response List Audit Logs Api V1 Audit Logs Get"
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
                 }
+              ],
+              "description": "Lặp lại được",
+              "title": "Entity Id"
+            },
+            "description": "Lặp lại được"
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "vd order, order_item, table",
+              "title": "Entity Type"
+            },
+            "description": "vd order, order_item, table"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Lặp lại được, vd ORDER_ITEM_REFIRED",
+              "title": "Action"
+            },
+            "description": "Lặp lại được, vd ORDER_ITEM_REFIRED"
+          },
+          {
+            "name": "staff_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Staff Id"
+            }
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at >= (ISO 8601)",
+              "title": "Created From"
+            },
+            "description": "created_at >= (ISO 8601)"
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "created_at < (ISO 8601)",
+              "title": "Created To"
+            },
+            "description": "created_at < (ISO 8601)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -5006,6 +5366,29 @@
   },
   "components": {
     "schemas": {
+      "ActionCount": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "is_exception": {
+            "type": "boolean",
+            "title": "Is Exception"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "count",
+          "is_exception"
+        ],
+        "title": "ActionCount"
+      },
       "AddItemsRequest": {
         "properties": {
           "items": {
@@ -5334,6 +5717,60 @@
         ],
         "title": "AuditLogOut"
       },
+      "AuditSummaryOut": {
+        "properties": {
+          "created_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created From"
+          },
+          "created_to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created To"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "exception_total": {
+            "type": "integer",
+            "title": "Exception Total"
+          },
+          "by_action": {
+            "items": {
+              "$ref": "#/components/schemas/ActionCount"
+            },
+            "type": "array",
+            "title": "By Action"
+          },
+          "by_staff": {
+            "items": {
+              "$ref": "#/components/schemas/StaffCount"
+            },
+            "type": "array",
+            "title": "By Staff"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/DayCount"
+            },
+            "type": "array",
+            "title": "By Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_from",
+          "created_to",
+          "total",
+          "exception_total",
+          "by_action",
+          "by_staff",
+          "by_day"
+        ],
+        "title": "AuditSummaryOut"
+      },
       "ChangePasswordRequest": {
         "properties": {
           "current_password": {
@@ -5483,6 +5920,25 @@
         },
         "type": "object",
         "title": "CustomerUpdate"
+      },
+      "DayCount": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "count"
+        ],
+        "title": "DayCount"
       },
       "EligibleRewardOut": {
         "properties": {
@@ -7889,6 +8345,61 @@
           "items"
         ],
         "title": "SplitOrderRequest"
+      },
+      "StaffCount": {
+        "properties": {
+          "staff_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Id"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "exception_count": {
+            "type": "integer",
+            "title": "Exception Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "username",
+          "role",
+          "count",
+          "exception_count"
+        ],
+        "title": "StaffCount"
       },
       "StaffCreate": {
         "properties": {

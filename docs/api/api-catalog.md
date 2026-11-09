@@ -99,6 +99,14 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 |---|---|---|---|---|---|
 | 35 | GET | `/api/v1/audit-logs?order_id=&entity_id=&entity_type=&action=&staff_id=&created_from=&created_to=&limit=&offset=` | S | QA lấy bằng chứng actor/thời điểm; `order_id` gồm cả thao tác trên các món của order | ✅ |
 | 36 | GET | `/api/v1/orders/{id}/versions` | S | Lịch sử snapshot order_version + người tạo | ✅ |
+| 81 | GET | `/api/v1/audit-logs/summary` (cùng bộ lọc với danh sách) | S | Báo cáo: `total`, `exception_total`, `by_action`, `by_staff`, `by_day`. Mặc định 7 ngày gần nhất, tối đa 93 ngày (422 nếu vượt) | ✅ từ 09/11 |
+| 82 | GET | `/api/v1/audit-logs/export` (cùng bộ lọc với danh sách) | S | Tải CSV (UTF-8 có BOM để mở bằng Excel), giờ Việt Nam, tối đa 10.000 dòng (`X-Truncated: true` nếu bị cắt) | ✅ từ 09/11 |
+
+Từ 09/11 danh sách `GET /audit-logs` có header `X-Total-Count` (tổng số dòng khớp bộ lọc) và `sort=asc|desc` (mặc định `asc`, cũ nhất trước).
+
+**Thao tác ngoại lệ** (`is_exception`, cột `exception` trong CSV): `ORDER_ITEM_VOIDED`, `ORDER_ITEM_REFIRED`, `ORDER_REWARD_OVERRIDDEN`, `POINTS_ADJUSTED`, `STAFF_LOCKED`, `STAFF_PASSWORD_RESET`, `STAFF_UPDATED`, `MENU_ITEM_UPDATED`, `LOYALTY_RULE_CREATED`, `STAGING_DATA_RESET`. Danh sách đặt trong `backend/app/api/v1/audit.py`, cần PO xác nhận.
+
+`by_staff` có một dòng `staff_id: null` cho thao tác của khách QR và của hệ thống. `by_day` tính theo ngày giờ Việt Nam (UTC+7). CSV chặn ô bắt đầu bằng `= + - @` để Excel không chạy như công thức.
 
 ### A8. Phân quyền và quản lý nhân viên (từ 04/11)
 
@@ -341,7 +349,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | **Merge / Split / Transfer bàn** | Chuyển bàn, gộp bàn, tách đơn **đã có từ 09/11** (mục A14–A16) | Còn bỏ gộp giữa chừng | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
-| **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |
+| ~~**Audit search / report**~~ | **Đã có** (mục A7): tra cứu từ 15/10, báo cáo và xuất CSV từ 09/11 | Còn màn hình báo cáo phía FE |
 | **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10). Còn: `POST /public/qr/{token}/request-bill`, thanh toán QR | Làm cùng VNPay |
 | ~~**Modifier cơ bản** (cho QR + POS)~~ | **Đã có từ 04/11** (mục A11) | Chưa có combo |
 | **Rewards / CRM** (Key Focus BRD) | Đợt 1, 2 **đã có từ 04/11** (mục A12, A13). Đợt 3: `POST /public/qr/{token}/member`, hoàn điểm | PO chốt con số của luật; khách trên QR chỉ tích điểm, đổi điểm qua thu ngân |

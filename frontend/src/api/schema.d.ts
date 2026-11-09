@@ -823,9 +823,52 @@ export interface paths {
         };
         /**
          * List Audit Logs
-         * @description Nhật ký thao tác của outlet, cũ nhất trước (đọc theo đúng trình tự xảy ra).
+         * @description Nhật ký thao tác của outlet. Thứ tự luôn xác định: created_at rồi id, cùng chiều.
          */
         get: operations["list_audit_logs_api_v1_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-logs/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit Summary
+         * @description Báo cáo trong một khoảng thời gian (mặc định 7 ngày gần nhất, tối đa 93 ngày): tổng số
+         *     thao tác, theo loại thao tác, theo nhân viên, theo ngày (giờ Việt Nam), và số thao tác
+         *     ngoại lệ. Nhận cùng bộ lọc với danh sách.
+         */
+        get: operations["audit_summary_api_v1_audit_logs_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Audit Logs
+         * @description CSV (UTF-8 có BOM để Excel đọc đúng tiếng Việt), cũ nhất trước, giờ Việt Nam. Tối đa
+         *     10.000 dòng; vượt thì header X-Truncated: true, hãy thu hẹp bộ lọc.
+         */
+        get: operations["export_audit_logs_api_v1_audit_logs_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1275,6 +1318,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionCount */
+        ActionCount: {
+            /** Action */
+            action: string;
+            /** Count */
+            count: number;
+            /** Is Exception */
+            is_exception: boolean;
+        };
         /** AddItemsRequest */
         AddItemsRequest: {
             /** Items */
@@ -1408,6 +1460,29 @@ export interface components {
              */
             created_at: string;
         };
+        /** AuditSummaryOut */
+        AuditSummaryOut: {
+            /**
+             * Created From
+             * Format: date-time
+             */
+            created_from: string;
+            /**
+             * Created To
+             * Format: date-time
+             */
+            created_to: string;
+            /** Total */
+            total: number;
+            /** Exception Total */
+            exception_total: number;
+            /** By Action */
+            by_action: components["schemas"]["ActionCount"][];
+            /** By Staff */
+            by_staff: components["schemas"]["StaffCount"][];
+            /** By Day */
+            by_day: components["schemas"]["DayCount"][];
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -1469,6 +1544,16 @@ export interface components {
             full_name?: string | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** DayCount */
+        DayCount: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Count */
+            count: number;
         };
         /** EligibleRewardOut */
         EligibleRewardOut: {
@@ -2409,6 +2494,19 @@ export interface components {
         SplitOrderRequest: {
             /** Items */
             items: components["schemas"]["SplitLine"][];
+        };
+        /** StaffCount */
+        StaffCount: {
+            /** Staff Id */
+            staff_id: string | null;
+            /** Username */
+            username: string | null;
+            /** Role */
+            role: string | null;
+            /** Count */
+            count: number;
+            /** Exception Count */
+            exception_count: number;
         };
         /** StaffCreate */
         StaffCreate: {
@@ -4290,6 +4388,10 @@ export interface operations {
     list_audit_logs_api_v1_audit_logs_get: {
         parameters: {
             query?: {
+                /** @description asc: cũ nhất trước (mặc định); desc: mới nhất trước */
+                sort?: "asc" | "desc";
+                limit?: number;
+                offset?: number;
                 /** @description Thao tác trên order này và trên mọi món của nó */
                 order_id?: string | null;
                 /** @description Lặp lại được */
@@ -4303,8 +4405,6 @@ export interface operations {
                 created_from?: string | null;
                 /** @description created_at < (ISO 8601) */
                 created_to?: string | null;
-                limit?: number;
-                offset?: number;
             };
             header?: never;
             path?: never;
@@ -4319,6 +4419,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLogOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audit_summary_api_v1_audit_logs_summary_get: {
+        parameters: {
+            query?: {
+                /** @description Thao tác trên order này và trên mọi món của nó */
+                order_id?: string | null;
+                /** @description Lặp lại được */
+                entity_id?: string[] | null;
+                /** @description vd order, order_item, table */
+                entity_type?: string | null;
+                /** @description Lặp lại được, vd ORDER_ITEM_REFIRED */
+                action?: string[] | null;
+                staff_id?: string | null;
+                /** @description created_at >= (ISO 8601) */
+                created_from?: string | null;
+                /** @description created_at < (ISO 8601) */
+                created_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_audit_logs_api_v1_audit_logs_export_get: {
+        parameters: {
+            query?: {
+                /** @description Thao tác trên order này và trên mọi món của nó */
+                order_id?: string | null;
+                /** @description Lặp lại được */
+                entity_id?: string[] | null;
+                /** @description vd order, order_item, table */
+                entity_type?: string | null;
+                /** @description Lặp lại được, vd ORDER_ITEM_REFIRED */
+                action?: string[] | null;
+                staff_id?: string | null;
+                /** @description created_at >= (ISO 8601) */
+                created_from?: string | null;
+                /** @description created_at < (ISO 8601) */
+                created_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
