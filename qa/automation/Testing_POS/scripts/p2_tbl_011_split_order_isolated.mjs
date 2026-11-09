@@ -111,6 +111,8 @@ function cleanup() {
 const report = { run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2TBL011',
   test_ref: 'P2-TBL-011', checked_at: new Date().toISOString(),
   scope: 'QA3 API split one order into two bills on one table, retaining exact subtotal, ticket ownership and audit; UI not tested',
+  case_coverage: 'SAME_TABLE_ORDER_SPLIT_ONLY',
+  full_case_status: 'PENDING_PO_SPLIT_ORDER_VS_TABLE_POLICY',
   secrets_recorded: false, result: 'INCONCLUSIVE' };
 let buildBefore, buildAfter, executed = false, asserted = false, cleanupPass = false, failure;
 try {
