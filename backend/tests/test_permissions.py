@@ -58,6 +58,8 @@ ENDPOINT_ROLES = [
     ("POST", "/api/v1/menu/categories", {"SUPERVISOR"}),
     ("PATCH", f"/api/v1/menu/categories/{ID}", {"SUPERVISOR"}),
     ("GET", "/api/v1/audit-logs", {"SUPERVISOR"}),
+    ("GET", "/api/v1/audit-logs/summary", {"SUPERVISOR"}),
+    ("GET", "/api/v1/audit-logs/export", {"SUPERVISOR"}),
     ("GET", f"/api/v1/orders/{ID}/versions", {"SUPERVISOR"}),
     ("GET", f"/api/v1/orders/{ID}/eligible-rewards", {"CASHIER", "SUPERVISOR"}),
     ("POST", f"/api/v1/orders/{ID}/rewards", {"CASHIER", "SUPERVISOR"}),
