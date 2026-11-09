@@ -1,6 +1,7 @@
 import type { StaffOut, TokenResponse } from "../api/types";
 
 const AUTH_KEY = "pos_auth";
+const PERMISSIONS_KEY = "pos_permissions";
 const FLASH_KEY = "nova_flash";
 
 export interface StoredAuth {
@@ -64,6 +65,38 @@ export function updateStoredFullName(fullName: string): void {
 
 export function clearAuth(): void {
   localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(PERMISSIONS_KEY);
+}
+
+/**
+ * Bản sao quyền lấy từ GET /auth/me, gắn với access token để phiên đăng nhập khác không dùng nhầm.
+ * Chỉ để màn hình không nhấp nháy khi mở trang; nguồn đúng vẫn là backend và luôn được gọi lại.
+ */
+export function getCachedPermissions(accessToken: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(PERMISSIONS_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      !isRecord(parsed) ||
+      parsed.token !== accessToken ||
+      !Array.isArray(parsed.permissions) ||
+      !parsed.permissions.every((code) => typeof code === "string")
+    ) {
+      return null;
+    }
+    return parsed.permissions as string[];
+  } catch {
+    return null;
+  }
+}
+
+export function saveCachedPermissions(accessToken: string, permissions: readonly string[]): void {
+  try {
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify({ token: accessToken, permissions }));
+  } catch {
+    // Bộ nhớ trình duyệt đầy hoặc bị chặn: bỏ qua, lần mở trang sau vẫn gọi lại /auth/me.
+  }
 }
 
 export function getHomePath(role: string): "/kitchen" | "/tables" {

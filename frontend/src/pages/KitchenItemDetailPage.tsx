@@ -10,8 +10,8 @@ import {
   type KitchenStationResponse,
 } from "../api/kitchen";
 import { getOrder, type OrderDetail, type OrderItemDetail } from "../api/orders";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -19,7 +19,7 @@ import { MenuThumb } from "../components/MenuThumb";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
-import { OVERRIDE_ROLES, overrideKindsFor, useItemOverrides } from "../components/useItemOverrides";
+import { overrideKindsFor, useItemOverrides } from "../components/useItemOverrides";
 import { useRealtime } from "../realtime/useRealtime";
 import { kitchenActionErrorMessage } from "../utils/errorMessages";
 import { formatShortDateTime } from "../utils/format";
@@ -69,9 +69,9 @@ function modifierText(item: OrderItemDetail): string {
 
 export function KitchenItemDetailPage() {
   const { orderId = "", itemId = "" } = useParams();
-  const role = getAuth()?.staff.role;
-  const canCook = hasRole(role, ["KITCHEN", "SUPERVISOR"]);
-  const canOverride = hasRole(role, OVERRIDE_ROLES);
+  const { can } = usePermissions();
+  const canCook = can("KITCHEN_ACTION");
+  const canOverride = can("OVERRIDE");
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [entry, setEntry] = useState<KitchenQueueEntry | null>(null);

@@ -60,3 +60,18 @@ export function staffErrorMessage(error: unknown, conflict: string): string {
   }
   return getErrorMessage(error);
 }
+
+/** Lỗi khi quản lý sửa bảng quyền (màn 94). `conflict` khác nhau giữa sửa một ô và khôi phục mặc định. */
+export function permissionErrorMessage(error: unknown, conflict: string): string {
+  if (error instanceof ApiError) {
+    if (error.status === 400 || error.status === 422) return error.message || "Danh sách vai trò chưa hợp lệ.";
+    if (error.status === 403) return "Bạn không có quyền chỉnh phân quyền. Bảng quyền đã được tải lại.";
+    if (error.status === 404) return "Không tìm thấy quyền này. Bảng quyền đã được tải lại.";
+    if (error.status === 409) return conflict;
+    if (error.status >= 500) return "Máy chủ đang gặp sự cố. Dữ liệu hiện có vẫn được giữ lại.";
+    if (error.status === 0) return navigator.onLine
+      ? "Không thể kết nối hoặc máy chủ phản hồi quá chậm. Vui lòng thử lại."
+      : "Bạn đang ngoại tuyến. Thao tác chưa được gửi.";
+  }
+  return getErrorMessage(error);
+}

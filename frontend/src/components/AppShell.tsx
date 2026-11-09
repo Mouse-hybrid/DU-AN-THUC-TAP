@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { usePermissions, type PermissionCode } from "../auth/permissions";
 import { clearAuth, getAuth } from "../auth/storage";
 import { initialsOf, roleLabel } from "../utils/roleLabels";
 import { Icon } from "./Icon";
@@ -17,21 +18,24 @@ interface NavItem {
   icon?: string;
 }
 
-function navItemsFor(role: string | undefined): NavItem[] {
-  if (role === "KITCHEN") return [{ to: "/kitchen", prefix: "/kitchen", label: "Bếp", icon: "chef-hat" }];
-  const items: NavItem[] = [
-    { to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" },
-    { to: "/history", prefix: "/history", label: "Lịch sử", icon: "history" },
-  ];
-  if (role === "SUPERVISOR") {
+/** Mục điều hướng theo quyền của backend (GET /auth/me). Riêng Bàn và Lịch sử là khu phục vụ nên vẫn ẩn với tài khoản bếp. */
+function navItemsFor(role: string | undefined, can: (code: PermissionCode) => boolean): NavItem[] {
+  const items: NavItem[] = [];
+  if (role !== "KITCHEN") {
     items.push(
-      { to: "/kitchen", prefix: "/kitchen", label: "Bếp", icon: "chef-hat" },
-      { to: "/admin/menu/categories", prefix: "/admin/menu", label: "Thực đơn", icon: "utensils" },
-      { to: "/admin/staff", prefix: "/admin/staff", label: "Nhân viên", icon: "users" },
-      { to: "/admin/roles", prefix: "/admin/roles", label: "Vai trò", icon: "shield-check" },
-      { to: "/admin/audit-logs", prefix: "/admin/audit-logs", label: "Nhật ký", icon: "scroll-text" },
+      { to: "/tables", prefix: "/tables", label: "Bàn", icon: "grid-2x2" },
+      { to: "/history", prefix: "/history", label: "Lịch sử", icon: "history" },
     );
   }
+  if (can("VIEW_KDS")) items.push({ to: "/kitchen", prefix: "/kitchen", label: "Bếp", icon: "chef-hat" });
+  if (can("MENU_WRITE")) items.push({ to: "/admin/menu/categories", prefix: "/admin/menu", label: "Thực đơn", icon: "utensils" });
+  if (can("STAFF_MANAGE")) {
+    items.push(
+      { to: "/admin/staff", prefix: "/admin/staff", label: "Nhân viên", icon: "users" },
+      { to: "/admin/roles", prefix: "/admin/roles", label: "Vai trò", icon: "shield-check" },
+    );
+  }
+  if (can("AUDIT_READ")) items.push({ to: "/admin/audit-logs", prefix: "/admin/audit-logs", label: "Nhật ký", icon: "scroll-text" });
   return items;
 }
 
@@ -39,7 +43,8 @@ export function AppShell({ children, topbar }: AppShellProps) {
   const auth = getAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const navItems = navItemsFor(auth?.staff.role);
+  const { can } = usePermissions();
+  const navItems = navItemsFor(auth?.staff.role, can);
   const onProfile = location.pathname.startsWith("/profile");
   const activeItem = onProfile ? undefined : navItems.find((item) => location.pathname.startsWith(item.prefix)) ?? navItems[0];
   const home = activeItem?.to ?? navItems[0]?.to ?? "/tables";

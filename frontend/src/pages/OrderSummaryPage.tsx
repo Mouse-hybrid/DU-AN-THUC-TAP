@@ -10,9 +10,8 @@ import {
   type OrderItemDetail,
 } from "../api/orders";
 import { getTable, type TableDetailResponse } from "../api/tables";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -25,9 +24,6 @@ import { Toast } from "../components/Toast";
 import { useItemOverrides } from "../components/useItemOverrides";
 import { createIdempotencyKey } from "../utils/idempotency";
 import { selectCurrentOrder } from "../utils/orders";
-
-const BILLING_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
-const PAY_ROLES = ["CASHIER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 
 type Confirmation = "billing" | "pay" | "close" | null;
 
@@ -55,7 +51,7 @@ function noopItemRemove() {
 
 export function OrderSummaryPage() {
   const { id: tableId } = useParams<{ id: string }>();
-  const role = getAuth()?.staff.role;
+  const { can } = usePermissions();
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -146,10 +142,10 @@ export function OrderSummaryPage() {
 
   const activeItems = order?.items.filter((item) => item.status !== "VOIDED") ?? [];
   const canRequestBilling = Boolean(
-    order && (order.status === "SENT" || order.status === "SERVED") && hasRole(role, BILLING_ROLES),
+    order && (order.status === "SENT" || order.status === "SERVED") && can("REQUEST_BILLING"),
   );
-  const canPay = Boolean(order?.status === "BILLING" && hasRole(role, PAY_ROLES));
-  const canClose = Boolean(order?.status === "PAID" && hasRole(role, PAY_ROLES));
+  const canPay = Boolean(order?.status === "BILLING" && can("PROCESS_PAYMENT"));
+  const canClose = Boolean(order?.status === "PAID" && can("PROCESS_PAYMENT"));
 
   return (
     <AppShell

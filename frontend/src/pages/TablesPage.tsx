@@ -8,7 +8,7 @@ import { consumeFlash, type FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
-import { RoleGuard } from "../components/RoleGuard";
+import { PermissionGuard } from "../components/PermissionGuard";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
@@ -75,7 +75,7 @@ function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
         </span>
       </button>
       {table.status === "CLEANING" ? (
-        <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
+        <PermissionGuard permission="TABLE_MARK_CLEAN">
           <Button
             className="nova-table-clean-action"
             variant="secondary"
@@ -90,7 +90,7 @@ function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
           >
             Dọn xong
           </Button>
-        </RoleGuard>
+        </PermissionGuard>
       ) : null}
     </article>
   );

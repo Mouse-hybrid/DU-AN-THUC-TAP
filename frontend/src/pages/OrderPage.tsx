@@ -12,9 +12,8 @@ import {
 } from "../api/orders";
 import type { components } from "../api/schema";
 import { getTable, type TableDetailResponse } from "../api/tables";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -32,14 +31,12 @@ import { isClosedOrderStatus } from "../utils/orders";
 
 type MenuItem = components["schemas"]["MenuItemOut"];
 
-const ORDER_WRITE_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 function shortOrderCode(tableCode: string, orderId: string): string {
   return `${tableCode}-${orderId.replaceAll("-", "").slice(-4).toUpperCase()}`;
 }
 
 export function OrderPage() {
   const { id: tableId } = useParams<{ id: string }>();
-  const role = getAuth()?.staff.role;
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [categories, setCategories] = useState<MenuCategoryListResponse>([]);
@@ -61,7 +58,7 @@ export function OrderPage() {
   const mutationInFlight = useRef(new Set<string>());
   const sendInFlight = useRef(false);
 
-  const canWrite = hasRole(role, ORDER_WRITE_ROLES);
+  const canWrite = usePermissions().can("ORDER_WRITE");
   const readOnlyOrder = closedOnlyMode || Boolean(order && isClosedOrderStatus(order.status));
   const canAdd = canWrite && !readOnlyOrder;
 

@@ -5,9 +5,8 @@ import { listCategories, listMenu, type MenuCategoryListResponse, type MenuListR
 import type { OrderDetail } from "../api/orders";
 import type { components } from "../api/schema";
 import { getTable, type TableDetailResponse } from "../api/tables";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -21,13 +20,11 @@ import { useDebouncedValue } from "../utils/useDebouncedValue";
 
 type MenuItem = components["schemas"]["MenuItemOut"];
 
-const ORDER_WRITE_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function MenuSearchPage() {
   const { id: tableId } = useParams<{ id: string }>();
-  const role = getAuth()?.staff.role;
-  const canWrite = hasRole(role, ORDER_WRITE_ROLES);
+  const canWrite = usePermissions().can("ORDER_WRITE");
 
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
