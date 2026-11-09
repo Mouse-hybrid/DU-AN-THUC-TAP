@@ -7,3 +7,5 @@ __pycache__/
 .env.staging
 .claude-output/
 Claude outputs/
+.venv-load/
+backend/loadtest/result*
