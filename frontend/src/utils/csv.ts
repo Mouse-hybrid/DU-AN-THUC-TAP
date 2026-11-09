@@ -17,3 +17,15 @@ export function downloadCsv(filename: string, header: readonly string[], rows: r
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
+
+/** Lưu một Blob đã tải từ API thành file trên máy. */
+export function saveBlob(filename: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}

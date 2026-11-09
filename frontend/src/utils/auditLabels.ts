@@ -17,6 +17,9 @@ const ACTION_LABELS: Record<string, string> = {
   ORDER_BILLING_REQUESTED: "Yêu cầu thanh toán",
   ORDER_PAID: "Xác nhận thanh toán",
   ORDER_CLOSED: "Đóng đơn",
+  PAYMENT_RECORDED: "Nhận thanh toán",
+  PAYMENT_CANCELLED: "Hủy lần thanh toán",
+  PAYMENT_REFUNDED: "Hoàn tiền",
   MENU_CATEGORY_CREATED: "Tạo nhóm món",
   MENU_CATEGORY_UPDATED: "Sửa nhóm món",
   MENU_ITEM_CREATED: "Tạo món",
@@ -26,6 +29,7 @@ const ACTION_LABELS: Record<string, string> = {
 const ENTITY_LABELS: Record<string, string> = {
   order: "Đơn hàng",
   order_item: "Món trong đơn",
+  payment: "Thanh toán",
   restaurant_table: "Bàn",
   table_session: "Phiên bàn",
   menu_item: "Món",
@@ -36,7 +40,7 @@ export type AuditGroupId = "all" | "order" | "table" | "menu";
 
 export const AUDIT_GROUPS: ReadonlyArray<{ id: AuditGroupId; label: string; entityTypes: readonly string[] }> = [
   { id: "all", label: "Tất cả", entityTypes: [] },
-  { id: "order", label: "Đơn hàng", entityTypes: ["order", "order_item"] },
+  { id: "order", label: "Đơn hàng", entityTypes: ["order", "order_item", "payment"] },
   { id: "table", label: "Bàn", entityTypes: ["restaurant_table", "table_session"] },
   { id: "menu", label: "Thực đơn", entityTypes: ["menu_item", "menu_category"] },
 ];

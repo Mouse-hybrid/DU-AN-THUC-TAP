@@ -179,3 +179,45 @@ export async function apiRequest<TResponse, TBody = never>(
 export function getErrorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : "Đã có lỗi xảy ra. Vui lòng thử lại.";
 }
+
+export interface DownloadResult {
+  blob: Blob;
+  filename: string | null;
+  /** Backend cắt bớt dòng (header X-Truncated: true). */
+  truncated: boolean;
+}
+
+/** GET trả file (CSV...). Thời gian chờ dài hơn request JSON thông thường. */
+export async function apiDownload(path: string): Promise<DownloadResult> {
+  if (!navigator.onLine) throw new ApiError("Đang ngoại tuyến. Vui lòng kiểm tra kết nối mạng.", 0);
+  const auth = getAuth();
+  if (!auth) redirectToLogin();
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      if (response.status === 401) redirectToLogin();
+      if (response.status === 403) window.dispatchEvent(new Event(FORBIDDEN_EVENT));
+      throw new ApiError(errorMessage(await readPayload(response), response.status), response.status);
+    }
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+    return {
+      blob: await response.blob(),
+      filename: match?.[1] ? decodeURIComponent(match[1]) : null,
+      truncated: response.headers.get("X-Truncated") === "true",
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiError("Máy chủ phản hồi quá chậm. Vui lòng thử lại.", 0);
+    }
+    throw new ApiError("Không thể kết nối máy chủ. Vui lòng thử lại.", 0);
+  } finally {
+    window.clearTimeout(timer);
+  }
+}

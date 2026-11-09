@@ -76,6 +76,8 @@ Quyền theo hành động (mã quyền của backend; vai trò là mặc địn
 | Lấy món, Đã mang ra | `SERVE_FOOD` | WAITER, SUPERVISOR |
 | Yêu cầu thanh toán | `REQUEST_BILLING` | CASHIER, WAITER, SUPERVISOR |
 | Xác nhận đã thanh toán, Đóng đơn (PAID → CLOSED) | `PROCESS_PAYMENT` | CASHIER, SUPERVISOR |
+| Thu tiền nhiều lần (tiền mặt/thẻ) | `PROCESS_PAYMENT` | CASHIER, SUPERVISOR |
+| Hủy lần thu (đơn còn Chờ thanh toán), hoàn tiền (đơn đã thanh toán) | `PAYMENT_REFUND` | SUPERVISOR |
 | Hủy món (bắt buộc nhập lý do), Làm lại món | `OVERRIDE` | SUPERVISOR |
 | Bắt đầu nấu, Món xong | `KITCHEN_ACTION` | KITCHEN, SUPERVISOR |
 | Xem màn bếp | `VIEW_KDS` | KITCHEN, SUPERVISOR |
@@ -162,6 +164,17 @@ Pha 2: nhân viên, phân quyền, hồ sơ
 34. `/admin/roles` (quyền `STAFF_MANAGE`): bảng 20 quyền × 4 vai trò, mỗi ô là một ô tick. Tick/bỏ tick gửi `PUT /staff/permissions/{permission}` với danh sách vai trò đầy đủ của dòng đó (ô hiện ngay, lỗi thì trả về như cũ và có thông báo); nhãn “Đã sửa” + dòng “Mặc định: …” hiện ở dòng khác mặc định; ô có biểu tượng khóa (`locked_roles`) bị vô hiệu và có giải thích, không gửi request. “Khôi phục mặc định” (chỉ bật khi có dòng đã sửa) hỏi xác nhận rồi gọi `POST /staff/permissions/reset`. Mọi lần ghi có `Idempotency-Key`, chống bấm đúp, có thông báo riêng cho 403/404/409/500/offline. Sau khi ghi, FE gọi lại `/auth/me` nên nếu quản lý tự gỡ quyền của mình thì menu/nút đổi ngay.
 34b. Kiểm tra quyền có hiệu lực ngay: dùng một trình duyệt khác đăng nhập WAITER, giữ trang Tìm món mở; ở trình duyệt quản lý bỏ tick “Tạo và sửa đơn” của Phục vụ; ở trình duyệt WAITER chuyển sang trang khác rồi quay lại (hoặc bấm một nút bị từ chối) và xác nhận các nút gọi món biến mất, không cần đăng nhập lại.
 35. Bấm chip tên ở góc trên phải (mọi vai trò, kể cả trên điện thoại) để vào `/profile`: xem họ tên, tên đăng nhập, vai trò, số quyền. “Đổi mật khẩu” cần mật khẩu hiện tại, mật khẩu mới ≥ 8 ký tự và nhập lại khớp; sai mật khẩu hiện tại thì hiện lời backend trả về và không bị đăng xuất; thành công thì lưu token mới (không bị đẩy ra màn đăng nhập).
+
+Thanh toán (màn 20, 21, 100)
+36. `/tables/:id/summary` khi đơn Chờ thanh toán có khung “Thanh toán”: Phải trả / Đã thu / Còn lại. Chọn Tiền mặt hoặc Thẻ, để trống số tiền = thu hết, nhập số nhỏ hơn để thu nhiều lần. Tiền mặt có ô “Khách đưa” và tự hiện tiền thối (để trống = đưa vừa đủ); thẻ có ô số hóa đơn máy POS và không có “Khách đưa”. Thu quá số còn lại hoặc khách đưa thiếu thì báo ngay, không gửi request. Lần thu cuối đủ tiền thì đơn chuyển Đã thanh toán. Nút “Xác nhận đã thanh toán” cũ vẫn dùng được (thu nốt bằng tiền mặt).
+37. Quản lý (`PAYMENT_REFUND`) thấy “Hủy” ở từng lần thu khi đơn còn Chờ thanh toán, và “Hoàn tiền” khi đơn đã thanh toán (hoàn một phần hoặc hết). Cả hai bắt buộc lý do (≥ 3 ký tự), có chống bấm đúp và Idempotency-Key. Điểm đã tích không tự trừ lại khi hoàn (backend làm ở đợt Rewards). VNPay chưa có.
+38. `/tables/:id` (bàn Đang phục vụ): người có quyền `TABLE_TRANSFER` (Phục vụ, Quản lý) thấy “Chuyển bàn” và “Gộp bàn”. Chuyển bàn chỉ liệt kê bàn Trống/Đã đặt; gộp bàn cho tick nhiều bàn (tối đa 10) và loại bàn đang chờ thanh toán/dọn. Lỗi 409/422 hiện ngay trong hộp thoại. Bàn đã gộp hiện “Đã gộp vào bàn X” ở sơ đồ và bấm vào sẽ mở bàn chính. Backend không có “hoàn tác gộp”.
+39. `/tables/:id/summary`: nút “Tách bill” (quyền `TABLE_TRANSFER`) chọn món chuyển sang hóa đơn mới của cùng bàn. Món chưa gửi bếp hoặc đã phục vụ tách được theo số lượng; món đã vào bếp chỉ tách cả dòng; luôn phải để lại ít nhất 1 món. Khi bàn có nhiều hóa đơn, thanh “Hóa đơn 1/2…” để chuyển qua lại.
+40. Gọi món (`/tables/:id/order`, `/tables/:id/search`): món có `has_modifiers` mở hộp thoại size/topping. Nhóm bắt buộc/tối đa kiểm tra ngay trên máy; cùng món nhưng khác tùy chọn là dòng riêng; giá tạm tính cộng thêm; dòng món hiện tùy chọn đã chọn.
+41. `/tables`: bàn nhóm theo khu vực (thứ tự theo `sort_order` của `GET /areas`, bàn chưa gán khu xếp cuối) kèm lọc theo khu; nếu chưa có khu nào thì giữ lưới phẳng như trước.
+42. `/tables/:id/summary`: khung “Khách hàng & ưu đãi”. Thu ngân/Quản lý (`CUSTOMER_ACCESS`) tra khách theo số điện thoại (chuẩn hóa `0xxxxxxxxx`), tạo mới khi có tick đồng ý, gắn/bỏ khách. Người có `REWARD_APPLY` áp/gỡ ưu đãi (đổi điểm nhập số điểm ≤ mức tối đa); Quản lý có thêm “Áp ngoại lệ” với lý do (bỏ qua hạn, đơn tối thiểu, số lượt). Tóm tắt đơn hiện Giảm giá và Phải trả. Đơn đã thanh toán một phần thì không đổi khách/ưu đãi.
+43. QR gọi món: nút “Mã QR” ở chi tiết bàn (`QR_SESSION_MANAGE`) cấp, xem, cấp lại, thu hồi mã; mã vẽ ngay trên máy bằng thư viện `qrcode-generator` (thêm mới vào dependencies). Khách quét mở `/qr/:token` (không đăng nhập): xem thực đơn, chọn size/topping, gửi món, xem trạng thái (tự hỏi lại mỗi 10 giây). Món khách gọi có nhãn “Khách gọi QR” và banner chờ xác nhận; phục vụ bấm “Gửi bếp” để xác nhận hoặc “Xóa” để từ chối.
+44. `/admin/audit-logs`: khung báo cáo tổng hợp (`GET /audit-logs/summary`: tổng, ngoại lệ, theo ngày/hành động/nhân viên) và nút “Tải báo cáo Excel” (`GET /audit-logs/export`, CSV UTF-8 có BOM mở bằng Excel, tối đa 10.000 dòng, báo khi bị cắt). Nút “Xuất nhật ký” cũ vẫn xuất phần đang hiển thị.
 
 Thời gian thực và mất mạng
 26. Mở `/tables` ở hai trình duyệt, đổi trạng thái bàn ở một bên: bên kia tự cập nhật trong vài giây mà không cần bấm “Làm mới”.

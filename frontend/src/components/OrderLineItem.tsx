@@ -38,9 +38,17 @@ export function OrderLineItem({ item, editable, updating = false, removing = fal
           <div>
             <h3>{item.menu_item_name}</h3>
             <p>{formatVnd(item.unit_price)} / món</p>
+            {(item.modifiers ?? []).length > 0 ? (
+              <p className="nova-order-line-mods" data-testid="line-modifiers">
+                {(item.modifiers ?? []).map((m) => m.option_name).join(", ")}
+              </p>
+            ) : null}
           </div>
         </div>
-        <StatusBadge status={item.status} />
+        <div className="nova-order-line-badges">
+          {item.source === "QR" ? <span className="nova-qr-badge" data-testid="qr-badge">Khách gọi QR</span> : null}
+          <StatusBadge status={item.status} />
+        </div>
       </div>
       {editable ? (
         <>

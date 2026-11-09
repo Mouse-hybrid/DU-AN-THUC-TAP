@@ -149,3 +149,17 @@ export function refireItem(orderId: string, itemId: string, idempotencyKey: stri
     { method: "POST", idempotencyKey },
   );
 }
+
+export type SplitOrderResponse = paths["/api/v1/orders/{order_id}/split"]["post"]["responses"][201]["content"]["application/json"];
+
+export function splitOrder(
+  orderId: string,
+  items: { order_item_id: string; quantity: number }[],
+  idempotencyKey: string,
+): Promise<SplitOrderResponse> {
+  return apiRequest<SplitOrderResponse, { items: { order_item_id: string; quantity: number }[] }>(`/orders/${encodeURIComponent(orderId)}/split`, {
+    method: "POST",
+    body: { items },
+    idempotencyKey,
+  });
+}

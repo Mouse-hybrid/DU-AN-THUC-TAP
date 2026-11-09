@@ -37,6 +37,8 @@ interface AddMenuItemParams {
   table: TableDetailResponse;
   order: OrderDetail | null;
   item: MenuItem;
+  /** Tùy chọn (size/topping) đã chọn; có tùy chọn thì luôn tạo dòng riêng. */
+  modifierOptionIds?: string[];
   /** Gọi ngay sau khi đơn mới được tạo để màn hình không tạo đơn thứ hai nếu bước thêm món lỗi. */
   onOrderCreated?: (order: OrderDetail) => void;
 }
@@ -47,12 +49,15 @@ interface AddMenuItemParams {
  * (PATCH quantity) thay vì tạo thêm một dòng mới.
  * Mỗi lần ghi dùng một Idempotency-Key riêng; luôn tải lại GET /orders/{id} sau khi ghi.
  */
-export async function addMenuItemToOrder({ table, order, item, onOrderCreated }: AddMenuItemParams): Promise<OrderDetail> {
+export async function addMenuItemToOrder({ table, order, item, modifierOptionIds = [], onOrderCreated }: AddMenuItemParams): Promise<OrderDetail> {
   if (!navigator.onLine) throw new ApiError("Bạn đang ngoại tuyến. Thao tác chưa được gửi.", 0);
   if (!table.current_session) throw new ApiError("Bàn chưa có phiên phục vụ đang mở.", 409);
 
-  const sameLine = order?.items.find(
-    (line) => line.menu_item_id === item.id && line.status === "CREATED" && !(line.note ?? "").trim(),
+  const sameLine = modifierOptionIds.length > 0 ? undefined : order?.items.find(
+    (line) => line.menu_item_id === item.id
+      && line.status === "CREATED"
+      && !(line.note ?? "").trim()
+      && (line.modifiers ?? []).length === 0,
   );
   if (order && sameLine) {
     await updateItem(order.id, sameLine.id, { quantity: sameLine.quantity + 1 }, createIdempotencyKey());
@@ -66,6 +71,9 @@ export async function addMenuItemToOrder({ table, order, item, onOrderCreated }:
     onOrderCreated?.(await getOrder(orderId));
   }
 
-  await addItems(orderId, { items: [{ menu_item_id: item.id, quantity: 1, note: null }] }, createIdempotencyKey());
+  const line = modifierOptionIds.length > 0
+    ? { menu_item_id: item.id, quantity: 1, note: null, modifier_option_ids: modifierOptionIds }
+    : { menu_item_id: item.id, quantity: 1, note: null };
+  await addItems(orderId, { items: [line] }, createIdempotencyKey());
   return getOrder(orderId);
 }

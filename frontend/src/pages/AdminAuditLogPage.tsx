@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { listAuditLogs, type AuditLog } from "../api/audit";
+import { downloadAuditExport, listAuditLogs, type AuditLog } from "../api/audit";
+import { ApiError } from "../api/client";
+import { AuditSummaryPanel } from "../components/AuditSummaryPanel";
+import { Toast } from "../components/Toast";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -14,7 +18,7 @@ import {
   summarizePayload,
   type AuditGroupId,
 } from "../utils/auditLabels";
-import { downloadCsv } from "../utils/csv";
+import { downloadCsv, saveBlob } from "../utils/csv";
 import { orderErrorMessage } from "../utils/errorMessages";
 import { formatDateOnly, formatFullDateTime, orderShortCode, startOfDayIso } from "../utils/format";
 import { fetchAllPages } from "../utils/paging";
@@ -57,6 +61,10 @@ export function AdminAuditLogPage() {
   const [group, setGroup] = useState<AuditGroupId>("all");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<FlashMessage | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const exportInFlight = useRef(false);
   const hasLoaded = useRef(false);
   const loadSeq = useRef(0);
 
@@ -138,6 +146,31 @@ export function AdminAuditLogPage() {
     setPage(1);
   }
 
+  async function exportExcel() {
+    if (exportInFlight.current) return;
+    exportInFlight.current = true;
+    setExporting(true);
+    try {
+      const daysBack = RANGES.find((candidate) => candidate.id === range)?.daysBack ?? 6;
+      const result = await downloadAuditExport({ orderId: orderId || undefined, createdFrom: startOfDayIso(daysBack) });
+      const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+      saveBlob(result.filename ?? `bao-cao-nhat-ky-${stamp}.csv`, result.blob);
+      setToast(result.truncated
+        ? { message: "Đã tải báo cáo nhưng chỉ gồm 10.000 dòng đầu. Hãy chọn khoảng ngắn hơn để lấy đủ.", type: "info" }
+        : { message: "Đã tải báo cáo. Mở bằng Excel để xem.", type: "success" });
+    } catch (exportError) {
+      const message = exportError instanceof ApiError && exportError.status === 403
+        ? "Chỉ quản lý mới được tải báo cáo."
+        : exportError instanceof ApiError && exportError.status === 422
+          ? "Khoảng thời gian quá dài (tối đa 93 ngày)."
+          : orderErrorMessage(exportError);
+      setToast({ message, type: "error" });
+    } finally {
+      exportInFlight.current = false;
+      setExporting(false);
+    }
+  }
+
   function exportCsv() {
     const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
     downloadCsv(
@@ -194,7 +227,7 @@ export function AdminAuditLogPage() {
               accessibleLabel="Tải lại nhật ký hệ thống"
               busy={refreshing}
               busyLabel="Đang tải…"
-              onClick={() => void load(true)}
+              onClick={() => { setReloadToken((value) => value + 1); void load(true); }}
             >
               <Icon name="refresh-cw" />
               Làm mới
@@ -208,6 +241,17 @@ export function AdminAuditLogPage() {
             >
               <Icon name="download" />
               Xuất nhật ký
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              accessibleLabel="Tải báo cáo Excel từ máy chủ"
+              busy={exporting}
+              busyLabel="Đang tải…"
+              onClick={() => void exportExcel()}
+            >
+              <Icon name="download" />
+              Tải báo cáo Excel
             </Button>
           </div>
         </div>
@@ -229,6 +273,8 @@ export function AdminAuditLogPage() {
             <Button variant="secondary" type="button" accessibleLabel="Thử tải lại nhật ký" busy={refreshing} onClick={() => void load(true)}>Thử lại</Button>
           </section>
         ) : null}
+
+        <AuditSummaryPanel createdFrom={startOfDayIso(rangeMeta?.daysBack ?? 6)} orderId={orderId} reloadToken={reloadToken} />
 
         {state === "ready" ? (
           <>
@@ -326,6 +372,7 @@ export function AdminAuditLogPage() {
           <Link to="/tables">Về sơ đồ bàn</Link>
         </p>
       </main>
+      {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );
 }

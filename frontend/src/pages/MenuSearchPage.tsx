@@ -13,6 +13,7 @@ import { Icon } from "../components/Icon";
 import { MenuCategoryTabs } from "../components/MenuCategoryTabs";
 import { MenuItemCard } from "../components/MenuItemCard";
 import { StateCard } from "../components/StateCard";
+import { ModifierDialog } from "../components/ModifierDialog";
 import { Toast } from "../components/Toast";
 import { orderErrorMessage } from "../utils/errorMessages";
 import { addMenuItemToOrder, resolveTableOrder } from "../utils/orderComposer";
@@ -28,6 +29,7 @@ export function MenuSearchPage() {
 
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [pickingItem, setPickingItem] = useState<MenuItem | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [pageState, setPageState] = useState<"loading" | "ready" | "error">("loading");
   const [pageError, setPageError] = useState("");
@@ -118,12 +120,20 @@ export function MenuSearchPage() {
     void loadMenu(debouncedQuery, selectedCategory);
   }, [loadMenu, debouncedQuery, selectedCategory]);
 
-  async function addMenuItem(item: MenuItem) {
+  function addMenuItem(item: MenuItem) {
+    if (item.has_modifiers) {
+      setPickingItem(item);
+      return;
+    }
+    void submitMenuItem(item, []);
+  }
+
+  async function submitMenuItem(item: MenuItem, modifierOptionIds: string[]) {
     if (!table || addInFlight.current) return;
     addInFlight.current = true;
     setBusyItemId(item.id);
     try {
-      const updated = await addMenuItemToOrder({ table, order, item, onOrderCreated: setOrder });
+      const updated = await addMenuItemToOrder({ table, order, item, modifierOptionIds, onOrderCreated: setOrder });
       setOrder(updated);
       setToast({ message: `Đã thêm ${item.name} vào đơn.`, type: "success" });
     } catch (error) {
@@ -222,7 +232,7 @@ export function MenuSearchPage() {
                       busy={busyItemId === item.id}
                       disabled={!canAdd || busyItemId !== null}
                       showAddAction={canAdd}
-                      onAdd={(selected) => void addMenuItem(selected)}
+                      onAdd={addMenuItem}
                     />
                   ))}
                 </div>
@@ -231,6 +241,17 @@ export function MenuSearchPage() {
           </>
         ) : null}
       </main>
+      {pickingItem ? (
+        <ModifierDialog
+          item={pickingItem}
+          onCancel={() => setPickingItem(null)}
+          onConfirm={(ids) => {
+            const item = pickingItem;
+            setPickingItem(null);
+            void submitMenuItem(item, ids);
+          }}
+        />
+      ) : null}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );

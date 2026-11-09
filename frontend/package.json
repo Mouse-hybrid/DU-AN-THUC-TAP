@@ -12,6 +12,7 @@
     "gen:api": "openapi-typescript ../docs/api/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "qrcode-generator": "^1.4.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4"

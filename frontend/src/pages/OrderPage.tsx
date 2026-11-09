@@ -23,6 +23,8 @@ import { OrderLineItem } from "../components/OrderLineItem";
 import { OrderSummary } from "../components/OrderSummary";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
+import { QrPendingBanner } from "../components/QrPendingBanner";
+import { ModifierDialog } from "../components/ModifierDialog";
 import { Toast } from "../components/Toast";
 import { orderErrorMessage } from "../utils/errorMessages";
 import { createIdempotencyKey } from "../utils/idempotency";
@@ -39,6 +41,7 @@ export function OrderPage() {
   const { id: tableId } = useParams<{ id: string }>();
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [pickingItem, setPickingItem] = useState<MenuItem | null>(null);
   const [categories, setCategories] = useState<MenuCategoryListResponse>([]);
   const [menuItems, setMenuItems] = useState<MenuListResponse>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -170,10 +173,18 @@ export function OrderPage() {
   }
 
   function addMenuItem(item: MenuItem) {
+    if (item.has_modifiers) {
+      setPickingItem(item);
+      return;
+    }
+    submitMenuItem(item, []);
+  }
+
+  function submitMenuItem(item: MenuItem, modifierOptionIds: string[]) {
     const actionKey = `add:${item.id}`;
     void runItemMutation(actionKey, async () => {
       if (!table) throw new ApiError("Bàn chưa được tải xong.", 409);
-      const updated = await addMenuItemToOrder({ table, order, item, onOrderCreated: setOrder });
+      const updated = await addMenuItemToOrder({ table, order, item, modifierOptionIds, onOrderCreated: setOrder });
       setOrder(updated);
       setToast({ message: `Đã thêm ${item.name}.`, type: "success" });
     }, "Không thể thêm món vì trạng thái bàn hoặc đơn đã thay đổi. Đã tải lại dữ liệu.");
@@ -273,6 +284,8 @@ export function OrderPage() {
               </div>
             </header>
 
+            {order ? <QrPendingBanner orders={[order]} /> : null}
+
             {stale ? (
               <section className="nova-stale-notice" role="alert">
                 <div><strong>Dữ liệu có thể đã cũ</strong><p>{pageError || "Không thể tải dữ liệu mới nhất."}</p></div>
@@ -363,6 +376,17 @@ export function OrderPage() {
           </>
         ) : null}
       </main>
+      {pickingItem ? (
+        <ModifierDialog
+          item={pickingItem}
+          onCancel={() => setPickingItem(null)}
+          onConfirm={(ids) => {
+            const item = pickingItem;
+            setPickingItem(null);
+            submitMenuItem(item, ids);
+          }}
+        />
+      ) : null}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );
