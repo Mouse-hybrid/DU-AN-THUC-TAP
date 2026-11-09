@@ -3,6 +3,7 @@
 GET  /api/v1/tables?area_id=                     — dashboard: mọi bàn của outlet + phiên đang mở.
 GET  /api/v1/tables/{table_id}                   — chi tiết bàn: phiên đang mở + các order kèm món.
 PATCH /api/v1/tables/{table_id}                  — gán bàn vào tầng/khu (xem areas.py).
+POST /api/v1/tables/{table_id}/transfer          — chuyển khách sang bàn khác.
 POST /api/v1/tables/{table_id}/mark-clean        — CLEANING -> AVAILABLE (xác nhận đã dọn xong).
                                                     (Bàn vào CLEANING khi order được pay, xem
                                                     orders.py — pay đóng luôn table_session.)
@@ -44,6 +45,8 @@ from app.schemas.tables import (
     TableDetailOut,
     TableOut,
     TableSessionOut,
+    TableTransferOut,
+    TableTransferRequest,
 )
 
 router = APIRouter(prefix="/tables", tags=["tables"])
@@ -274,6 +277,121 @@ def assign_table_area(
         session.commit()
         session.refresh(table)
     return TableOut.model_validate(table)
+
+
+@router.post("/{table_id}/transfer", response_model=TableTransferOut)
+def transfer_table(
+    table_id: uuid.UUID,
+    payload: TableTransferRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.TABLE_TRANSFER)),
+    session: Session = Depends(get_session),
+) -> TableTransferOut:
+    """Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi
+    và mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt
+    trước; bàn cũ sang CLEANING vì khách vừa ngồi. Bàn đang chờ thanh toán thì không chuyển,
+    tránh lệch hóa đơn đã in."""
+    endpoint = f"POST /api/v1/tables/{table_id}/transfer"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return TableTransferOut.model_validate_json(existing.response_body)
+
+    if payload.target_table_id == table_id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Bàn đích phải khác bàn hiện tại"
+        )
+    # Khóa theo thứ tự id: hai lần chuyển chéo nhau đồng thời không khóa chờ nhau mãi.
+    locked = {}
+    for locked_id in sorted((table_id, payload.target_table_id), key=str):
+        locked[locked_id] = _lock_table(session, locked_id)
+    source, target = locked[table_id], locked[payload.target_table_id]
+    if source is None or source.outlet_id != current.outlet_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy bàn")
+    if target is None or target.outlet_id != current.outlet_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy bàn đích")
+    if source.status != "OCCUPIED":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Bàn đang ở trạng thái '{source.status}', chỉ chuyển được bàn đang có khách",
+        )
+    if target.status not in _OPENABLE_STATUSES:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Bàn đích đang ở trạng thái '{target.status}', phải là bàn trống",
+        )
+    table_session = session.execute(
+        select(TableSession)
+        .where(TableSession.table_id == source.id, TableSession.status == "OPEN")
+        .with_for_update()
+    ).scalar_one_or_none()
+    if table_session is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Bàn không có phiên đang mở")
+
+    table_session.table_id = target.id
+    target.status = "OCCUPIED"
+    source.status = "CLEANING"
+    session.flush()
+
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="TABLE_TRANSFERRED",
+        entity_type="table_session",
+        entity_id=table_session.id,
+        payload={
+            "from_table_id": str(source.id),
+            "from_table_code": source.code,
+            "to_table_id": str(target.id),
+            "to_table_code": target.code,
+        },
+    )
+    result = TableTransferOut(
+        table_session_id=table_session.id,
+        from_table=TableOut.model_validate(source),
+        to_table=TableOut.model_validate(target),
+    )
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+
+    manager.publish(
+        current.outlet_id,
+        "tables",
+        "TABLE_TRANSFERRED",
+        {
+            "table_session_id": str(table_session.id),
+            "from_table_id": str(source.id),
+            "to_table_id": str(target.id),
+        },
+    )
+    for table in (source, target):
+        manager.publish(
+            current.outlet_id,
+            "tables",
+            "TABLE_STATUS_CHANGED",
+            {"table_id": str(table.id), "status": table.status},
+        )
+    # Màn bếp hiện mã bàn trên phiếu: báo tải lại (màn bếp chỉ nghe các event có sẵn).
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "KITCHEN_QUEUE_UPDATED",
+        {"order_id": None, "items_sent": 0, "reason": "TABLE_TRANSFERRED"},
+    )
+    return result
 
 
 @router.post("/{table_id}/mark-clean", response_model=TableOut)

@@ -120,6 +120,29 @@ export interface paths {
         patch: operations["assign_table_area_api_v1_tables__table_id__patch"];
         trace?: never;
     };
+    "/api/v1/tables/{table_id}/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer Table
+         * @description Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi
+         *     và mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt
+         *     trước; bàn cũ sang CLEANING vì khách vừa ngồi. Bàn đang chờ thanh toán thì không chuyển,
+         *     tránh lệch hóa đơn đã in.
+         */
+        post: operations["transfer_table_api_v1_tables__table_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tables/{table_id}/mark-clean": {
         parameters: {
             query?: never;
@@ -2497,6 +2520,24 @@ export interface components {
              */
             opened_at: string;
         };
+        /** TableTransferOut */
+        TableTransferOut: {
+            /**
+             * Table Session Id
+             * Format: uuid
+             */
+            table_session_id: string;
+            from_table: components["schemas"]["TableOut"];
+            to_table: components["schemas"]["TableOut"];
+        };
+        /** TableTransferRequest */
+        TableTransferRequest: {
+            /**
+             * Target Table Id
+             * Format: uuid
+             */
+            target_table_id: string;
+        };
         /** TokenResponse */
         TokenResponse: {
             /** Access Token */
@@ -2751,6 +2792,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_table_api_v1_tables__table_id__transfer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TableTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableTransferOut"];
                 };
             };
             /** @description Validation Error */
