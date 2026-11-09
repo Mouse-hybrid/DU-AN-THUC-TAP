@@ -44,6 +44,7 @@ ENDPOINT_ROLES = [
     ("GET", f"/api/v1/tables/{ID}/qr-session", {"CASHIER", "WAITER", "SUPERVISOR"}),
     ("DELETE", f"/api/v1/tables/{ID}/qr-session", {"CASHIER", "WAITER", "SUPERVISOR"}),
     ("POST", f"/api/v1/tables/{ID}/transfer", {"WAITER", "SUPERVISOR"}),
+    ("POST", f"/api/v1/tables/{ID}/merge", {"WAITER", "SUPERVISOR"}),
     ("PATCH", f"/api/v1/tables/{ID}", {"SUPERVISOR"}),
     ("POST", "/api/v1/areas", {"SUPERVISOR"}),
     ("PATCH", f"/api/v1/areas/{ID}", {"SUPERVISOR"}),

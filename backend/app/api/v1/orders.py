@@ -1113,6 +1113,17 @@ def pay_order(
 
     table = session.get(RestaurantTable, table_session.table_id)
     table.status = "CLEANING"
+    # Bàn đã gộp vào bàn này cũng trả lại, chờ dọn như bàn chính.
+    released = list(
+        session.scalars(
+            select(RestaurantTable)
+            .where(RestaurantTable.merged_into_table_id == table.id)
+            .with_for_update()
+        )
+    )
+    for merged in released:
+        merged.status = "CLEANING"
+        merged.merged_into_table_id = None
 
     # Cùng transaction: đơn đã PAID thì điểm đã trừ và đã tích, request đã khóa đơn nên chỉ
     # làm 1 lần. Ưu đãi không còn hợp lệ thì 409 và rollback cả việc chuyển PAID ở trên.
@@ -1156,12 +1167,13 @@ def pay_order(
     )
     session.commit()
     _publish_order_updated(current, order, "ORDER_PAID")
-    manager.publish(
-        current.outlet_id,
-        "tables",
-        "TABLE_STATUS_CHANGED",
-        {"table_id": str(table.id), "status": table.status},
-    )
+    for changed in (table, *released):
+        manager.publish(
+            current.outlet_id,
+            "tables",
+            "TABLE_STATUS_CHANGED",
+            {"table_id": str(changed.id), "status": changed.status},
+        )
     return result
 
 

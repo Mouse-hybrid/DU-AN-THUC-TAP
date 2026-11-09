@@ -436,6 +436,81 @@
         }
       }
     },
+    "/api/v1/tables/{table_id}/merge": {
+      "post": {
+        "tags": [
+          "tables"
+        ],
+        "summary": "Merge Tables",
+        "description": "Gộp các bàn trong `table_ids` vào bàn chính (bàn trong URL): một phiên, một đơn, một\nhóa đơn. Món của bàn phụ chuyển sang đơn của bàn chính (phiếu bếp đi theo món), phiên\nbàn phụ đóng, mã QR của bàn phụ hết dùng. Bàn phụ sang MERGED, trỏ về bàn chính; khi bàn\nchính thanh toán thì bàn phụ cùng sang CLEANING.\n\nBàn phụ có thể đang có khách hoặc đang trống (kê thêm bàn). Bàn đang chờ thanh toán,\nđang dọn hoặc đã gộp thì không gộp được. Đơn bàn phụ đang áp ưu đãi thì phải gỡ trước,\nvì điều kiện ưu đãi tính trên hóa đơn mới sẽ khác.",
+        "operationId": "merge_tables_api_v1_tables__table_id__merge_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableMergeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableMergeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tables/{table_id}/mark-clean": {
       "post": {
         "tags": [
@@ -7930,6 +8005,18 @@
             ],
             "title": "Area Name"
           },
+          "merged_into_table_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged Into Table Id"
+          },
           "current_session_id": {
             "anyOf": [
               {
@@ -8018,6 +8105,18 @@
             ],
             "title": "Area Name"
           },
+          "merged_into_table_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged Into Table Id"
+          },
           "current_session": {
             "anyOf": [
               {
@@ -8046,6 +8145,65 @@
         ],
         "title": "TableDetailOut",
         "description": "Chi tiết 1 bàn (Figma screen-05): phiên đang mở + mọi order của phiên đó."
+      },
+      "TableMergeOut": {
+        "properties": {
+          "table_session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Session Id"
+          },
+          "table": {
+            "$ref": "#/components/schemas/TableOut"
+          },
+          "merged_tables": {
+            "items": {
+              "$ref": "#/components/schemas/TableOut"
+            },
+            "type": "array",
+            "title": "Merged Tables"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_session_id",
+          "table",
+          "merged_tables",
+          "order_id"
+        ],
+        "title": "TableMergeOut"
+      },
+      "TableMergeRequest": {
+        "properties": {
+          "table_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Table Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_ids"
+        ],
+        "title": "TableMergeRequest",
+        "description": "Các bàn gộp vào bàn trong URL (bàn chính)."
       },
       "TableOut": {
         "properties": {
@@ -8088,6 +8246,18 @@
               }
             ],
             "title": "Area Name"
+          },
+          "merged_into_table_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged Into Table Id"
           }
         },
         "type": "object",

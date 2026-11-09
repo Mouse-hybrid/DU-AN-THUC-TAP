@@ -31,6 +31,7 @@ class TableOut(BaseModel):
     status: str
     area_id: uuid.UUID | None = None
     area_name: str | None = None
+    merged_into_table_id: uuid.UUID | None = None  # bàn đang gộp vào bàn nào (status MERGED)
 
     model_config = {"from_attributes": True}
 
@@ -51,6 +52,19 @@ class TableTransferOut(BaseModel):
     to_table: TableOut
 
 
+class TableMergeRequest(BaseModel):
+    """Các bàn gộp vào bàn trong URL (bàn chính)."""
+
+    table_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+
+
+class TableMergeOut(BaseModel):
+    table_session_id: uuid.UUID
+    table: TableOut
+    merged_tables: list[TableOut]
+    order_id: uuid.UUID | None  # đơn chung sau khi gộp, null nếu chưa bàn nào có đơn
+
+
 class TableDashboardItem(BaseModel):
     """1 dòng của dashboard bàn: trạng thái bàn + phiên đang mở (nếu có)."""
 
@@ -60,6 +74,7 @@ class TableDashboardItem(BaseModel):
     status: str
     area_id: uuid.UUID | None = None
     area_name: str | None = None
+    merged_into_table_id: uuid.UUID | None = None
     current_session_id: uuid.UUID | None = None
     guest_count: int | None = None
     opened_at: datetime | None = None
