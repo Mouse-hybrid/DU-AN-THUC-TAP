@@ -28,16 +28,32 @@ _DB_ERROR_MESSAGE = "Không thể kết nối cơ sở dữ liệu, vui lòng th
 
 async def _handle_database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     logger.exception(
-        "Loi SQLAlchemy chua duoc xu ly tai %s %s", request.method, request.url.path
+        "Loi SQLAlchemy chua duoc xu ly tai %s %s", request.method, _route_path(request)
     )
     return JSONResponse(status_code=503, content={"detail": _DB_ERROR_MESSAGE})
 
 
 async def _handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+    # request_id do middleware giám sát gắn (app/core/observability.py): trả cho client để
+    # báo lỗi kèm mã này là tìm được đúng dòng log.
+    request_id = getattr(request.state, "request_id", None)
     logger.exception(
-        "Loi khong luong truoc tai %s %s", request.method, request.url.path
+        "Loi khong luong truoc tai %s %s",
+        request.method,
+        _route_path(request),
+        extra={"fields": {"request_id": request_id}},
     )
-    return JSONResponse(status_code=500, content={"detail": _GENERIC_ERROR_MESSAGE})
+    content = {"detail": _GENERIC_ERROR_MESSAGE}
+    headers = {}
+    if request_id:
+        content["request_id"] = request_id
+        headers["X-Request-ID"] = request_id
+    return JSONResponse(status_code=500, content=content, headers=headers)
+
+
+def _route_path(request: Request) -> str:
+    """Mẫu route thay vì đường dẫn thật, để log không lộ mã QR trong URL."""
+    return getattr(request.scope.get("route"), "path", None) or "<unmatched>"
 
 
 def register_exception_handlers(app: FastAPI) -> None:

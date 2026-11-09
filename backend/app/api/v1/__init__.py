@@ -8,6 +8,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.kitchen import router as kitchen_router
 from app.api.v1.menu import router as menu_router
 from app.api.v1.modifiers import router as modifiers_router
+from app.api.v1.ops import router as ops_router
 from app.api.v1.orders import router as orders_router
 from app.api.v1.payments import router as payments_router
 from app.api.v1.qr import public_router as qr_public_router
@@ -28,6 +29,7 @@ api_v1_router.include_router(payments_router)
 api_v1_router.include_router(kitchen_router)
 api_v1_router.include_router(realtime_router)
 api_v1_router.include_router(audit_router)
+api_v1_router.include_router(ops_router)
 api_v1_router.include_router(staff_router)
 api_v1_router.include_router(customers_router)
 api_v1_router.include_router(rules_router)
