@@ -960,6 +960,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ops/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops Metrics */
+        get: operations["ops_metrics_api_v1_ops_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staff/permissions": {
         parameters: {
             query?: never;
@@ -1393,6 +1410,41 @@ export interface components {
             /** Items */
             items: components["schemas"]["OrderItemCreate"][];
         };
+        /** AlertOut */
+        AlertOut: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Value */
+            value: number;
+            /** Threshold */
+            threshold: number;
+        };
+        /**
+         * ApiMetricsOut
+         * @description Tính từ `since` (lúc tiến trình API khởi động, deploy là reset). `routes` là 20 route
+         *     chậm nhất theo p95.
+         */
+        ApiMetricsOut: {
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /** Requests */
+            requests: number;
+            /** Server Errors */
+            server_errors: number;
+            /** Error Rate */
+            error_rate: number;
+            /** P50 Ms */
+            p50_ms?: number | null;
+            /** P95 Ms */
+            p95_ms?: number | null;
+            /** Routes */
+            routes: components["schemas"]["RouteMetricsOut"][];
+        };
         /**
          * AppliedRewardOut
          * @description Ưu đãi đang áp vào đơn. `invalid_reason` có giá trị khi hóa đơn đổi làm ưu đãi không
@@ -1679,6 +1731,22 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * KitchenMetricsOut
+         * @description Món trễ = nấu (PREPARING tới READY) lâu hơn `late_after_minutes` (ngưỡng DELAYED).
+         */
+        KitchenMetricsOut: {
+            /** Late After Minutes */
+            late_after_minutes: number;
+            /** Finished */
+            finished: number;
+            /** Late */
+            late: number;
+            /** Late Rate */
+            late_rate?: number | null;
+            /** Cooking Over Threshold */
+            cooking_over_threshold: number;
         };
         /**
          * KitchenQueueEntryOut
@@ -2027,6 +2095,21 @@ export interface components {
              */
             guest_count: number;
         };
+        /** OpsMetricsOut */
+        OpsMetricsOut: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Window Hours */
+            window_hours: number;
+            api: components["schemas"]["ApiMetricsOut"];
+            kitchen: components["schemas"]["KitchenMetricsOut"];
+            payments: components["schemas"]["PaymentMetricsOut"];
+            /** Alerts */
+            alerts: components["schemas"]["AlertOut"][];
+        };
         /**
          * OrderDetailOut
          * @description Chi tiết 1 order cho màn POS ordering / order summary / table detail.
@@ -2279,6 +2362,23 @@ export interface components {
             created_by_role: string | null;
             /** Snapshot */
             snapshot: unknown;
+        };
+        /**
+         * PaymentMetricsOut
+         * @description `success_rate` = thành công / (thành công + thất bại). Lần hủy (thu ngân sửa ghi nhầm)
+         *     và lần đang chờ không tính.
+         */
+        PaymentMetricsOut: {
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Succeeded */
+            succeeded: number;
+            /** Failed */
+            failed: number;
+            /** Success Rate */
+            success_rate?: number | null;
         };
         /** PaymentOut */
         PaymentOut: {
@@ -2677,6 +2777,21 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** RouteMetricsOut */
+        RouteMetricsOut: {
+            /** Route */
+            route: string;
+            /** Count */
+            count: number;
+            /** Client Errors */
+            client_errors: number;
+            /** Server Errors */
+            server_errors: number;
+            /** P50 Ms */
+            p50_ms?: number | null;
+            /** P95 Ms */
+            p95_ms?: number | null;
         };
         /** SendToKitchenResponse */
         SendToKitchenResponse: {
@@ -4887,6 +5002,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderVersionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_metrics_api_v1_ops_metrics_get: {
+        parameters: {
+            query?: {
+                /** @description Số giờ gần nhất cho số liệu bếp, thanh toán */
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsMetricsOut"];
                 };
             };
             /** @description Validation Error */

@@ -86,6 +86,20 @@ QR_MAX_PENDING_ITEMS = int(os.getenv("QR_MAX_PENDING_ITEMS", "30"))
 GIT_COMMIT = os.getenv("GIT_COMMIT", "unknown")
 BUILT_AT = os.getenv("BUILT_AT", "unknown")
 
+# --- Giám sát (SDD R3) -----------------------------------------------------------
+# Sentry chỉ bật khi có DSN (lấy ở trang dự án Sentry, đặt trong .env.staging, không vào repo).
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+# "json" cho staging/production (docker logs đọc được bằng máy), "text" cho chạy local.
+LOG_FORMAT = os.getenv("LOG_FORMAT", "text" if APP_ENV in ("development", "test") else "json")
+
+# Ngưỡng cảnh báo của GET /api/v1/ops/metrics. BRD chưa có số; PO chốt thì đổi qua env.
+ALERT_API_ERROR_RATE = float(os.getenv("ALERT_API_ERROR_RATE", "0.05"))
+ALERT_PAYMENT_SUCCESS_RATE = float(os.getenv("ALERT_PAYMENT_SUCCESS_RATE", "0.95"))
+ALERT_KITCHEN_LATE_RATE = float(os.getenv("ALERT_KITCHEN_LATE_RATE", "0.2"))
+# Dưới số mẫu này thì chưa cảnh báo, tránh báo động khi mới có vài request.
+ALERT_MIN_SAMPLES = int(os.getenv("ALERT_MIN_SAMPLES", "20"))
+
 if APP_ENV != "development" and JWT_SECRET_KEY == "dev-only-insecure-secret-change-me":
     raise RuntimeError(
         "JWT_SECRET_KEY chưa được set cho môi trường "

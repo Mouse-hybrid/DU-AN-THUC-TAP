@@ -37,7 +37,10 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | 2 | GET | `/health` | công khai | — (giám sát, CI) | ✅ 🧪 |
 | 3 | GET | `/ready` | công khai | — (deploy chờ DB sẵn sàng) | ✅ 🧪 |
 | 4 | GET | `/version` | công khai | — (biết staging chạy commit nào) | ✅ 🧪 |
+| 87 | GET | `/api/v1/ops/metrics?hours=24` | S | Giám sát (từ 09/11): độ trễ, lỗi 5xx theo route; tỉ lệ món trễ bếp; tỉ lệ thanh toán thành công; `alerts` khi vượt ngưỡng. Xem `docs/runbooks/monitoring.md` | ✅ |
 | 5 | WS | `/api/v1/ws?token=&channel=tables\|kitchen` | mọi role | 04 Sơ đồ bàn, 31–34 Hàng đợi bếp | ✅ 🧪 một phần (mới test từ chối khi thiếu token; event và reconnect chưa test — TC_EXT_016–017) |
+
+Từ 09/11 mọi response có header `X-Request-ID` (FE gửi kèm header này thì server dùng lại, tối đa 64 ký tự chữ, số, `. _ -`). Lỗi 500 trả `{"detail", "request_id"}`: khi báo lỗi gửi kèm `request_id` để tìm đúng dòng log.
 
 ### A2. Bàn
 
@@ -297,10 +300,10 @@ Chưa có: bỏ gộp giữa chừng (tách bàn ra lại).
 
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
-| 81 | POST | `/api/v1/orders/{id}/payments` (cần `Idempotency-Key`) | S C | 20, 21 Thanh toán: body `{"method": "CASH" \| "CARD", "amount"?, "cash_received"?, "provider_ref"?, "note"?}`; trả `payment`, `order_status`, `summary` | ✅ |
-| 82 | GET | `/api/v1/orders/{id}/payments` | S C | Danh sách lần thanh toán, kèm `summary` (`total`, `paid`, `refunded`, `remaining`) | ✅ |
-| 83 | POST | `/api/v1/payments/{id}/cancel` (cần `Idempotency-Key`) | S | Hủy lần ghi nhầm khi đơn chưa trả xong: body `{"reason"}` | ✅ |
-| 84 | POST | `/api/v1/payments/{id}/refunds` (cần `Idempotency-Key`) | S | 100 Hoàn tiền: body `{"amount"?, "reason"}`, sau khi đơn đã PAID | ✅ |
+| 83 | POST | `/api/v1/orders/{id}/payments` (cần `Idempotency-Key`) | S C | 20, 21 Thanh toán: body `{"method": "CASH" \| "CARD", "amount"?, "cash_received"?, "provider_ref"?, "note"?}`; trả `payment`, `order_status`, `summary` | ✅ |
+| 84 | GET | `/api/v1/orders/{id}/payments` | S C | Danh sách lần thanh toán, kèm `summary` (`total`, `paid`, `refunded`, `remaining`) | ✅ |
+| 85 | POST | `/api/v1/payments/{id}/cancel` (cần `Idempotency-Key`) | S | Hủy lần ghi nhầm khi đơn chưa trả xong: body `{"reason"}` | ✅ |
+| 86 | POST | `/api/v1/payments/{id}/refunds` (cần `Idempotency-Key`) | S | 100 Hoàn tiền: body `{"amount"?, "reason"}`, sau khi đơn đã PAID | ✅ |
 
 **Quy tắc:**
 - Đơn phải ở `BILLING`. `amount` bỏ trống = trả hết số còn lại. **Không nhận quá số còn phải thu** (409); khách đưa dư tiền mặt thì là tiền thối (`change_due`), không phải trả vượt.

@@ -4049,6 +4049,58 @@
         }
       }
     },
+    "/api/v1/ops/metrics": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Ops Metrics",
+        "operationId": "ops_metrics_api_v1_ops_metrics_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 168,
+              "minimum": 1,
+              "description": "Số giờ gần nhất cho số liệu bếp, thanh toán",
+              "default": 24,
+              "title": "Hours"
+            },
+            "description": "Số giờ gần nhất cho số liệu bếp, thanh toán"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMetricsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/staff/permissions": {
       "get": {
         "tags": [
@@ -5677,6 +5729,94 @@
         ],
         "title": "AddItemsRequest"
       },
+      "AlertOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "value",
+          "threshold"
+        ],
+        "title": "AlertOut"
+      },
+      "ApiMetricsOut": {
+        "properties": {
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Since"
+          },
+          "requests": {
+            "type": "integer",
+            "title": "Requests"
+          },
+          "server_errors": {
+            "type": "integer",
+            "title": "Server Errors"
+          },
+          "error_rate": {
+            "type": "number",
+            "title": "Error Rate"
+          },
+          "p50_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 Ms"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteMetricsOut"
+            },
+            "type": "array",
+            "title": "Routes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "requests",
+          "server_errors",
+          "error_rate",
+          "routes"
+        ],
+        "title": "ApiMetricsOut",
+        "description": "Tính từ `since` (lúc tiến trình API khởi động, deploy là reset). `routes` là 20 route\nchậm nhất theo p95."
+      },
       "AppliedRewardOut": {
         "properties": {
           "id": {
@@ -6382,6 +6522,46 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "KitchenMetricsOut": {
+        "properties": {
+          "late_after_minutes": {
+            "type": "integer",
+            "title": "Late After Minutes"
+          },
+          "finished": {
+            "type": "integer",
+            "title": "Finished"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "late_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Rate"
+          },
+          "cooking_over_threshold": {
+            "type": "integer",
+            "title": "Cooking Over Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "late_after_minutes",
+          "finished",
+          "late",
+          "cooking_over_threshold"
+        ],
+        "title": "KitchenMetricsOut",
+        "description": "Món trễ = nấu (PREPARING tới READY) lâu hơn `late_after_minutes` (ngưỡng DELAYED)."
       },
       "KitchenQueueEntryOut": {
         "properties": {
@@ -7304,6 +7484,45 @@
         "type": "object",
         "title": "OpenSessionRequest"
       },
+      "OpsMetricsOut": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "window_hours": {
+            "type": "integer",
+            "title": "Window Hours"
+          },
+          "api": {
+            "$ref": "#/components/schemas/ApiMetricsOut"
+          },
+          "kitchen": {
+            "$ref": "#/components/schemas/KitchenMetricsOut"
+          },
+          "payments": {
+            "$ref": "#/components/schemas/PaymentMetricsOut"
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertOut"
+            },
+            "type": "array",
+            "title": "Alerts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "window_hours",
+          "api",
+          "kitchen",
+          "payments",
+          "alerts"
+        ],
+        "title": "OpsMetricsOut"
+      },
       "OrderDetailOut": {
         "properties": {
           "id": {
@@ -7816,6 +8035,44 @@
           "snapshot"
         ],
         "title": "OrderVersionOut"
+      },
+      "PaymentMetricsOut": {
+        "properties": {
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Status"
+          },
+          "succeeded": {
+            "type": "integer",
+            "title": "Succeeded"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "by_status",
+          "succeeded",
+          "failed"
+        ],
+        "title": "PaymentMetricsOut",
+        "description": "`success_rate` = thành công / (thành công + thất bại). Lần hủy (thu ngân sửa ghi nhầm)\nvà lần đang chờ không tính."
       },
       "PaymentOut": {
         "properties": {
@@ -8947,6 +9204,56 @@
           "created_at"
         ],
         "title": "RewardUsageOut"
+      },
+      "RouteMetricsOut": {
+        "properties": {
+          "route": {
+            "type": "string",
+            "title": "Route"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "client_errors": {
+            "type": "integer",
+            "title": "Client Errors"
+          },
+          "server_errors": {
+            "type": "integer",
+            "title": "Server Errors"
+          },
+          "p50_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 Ms"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "route",
+          "count",
+          "client_errors",
+          "server_errors"
+        ],
+        "title": "RouteMetricsOut"
       },
       "SendToKitchenResponse": {
         "properties": {
