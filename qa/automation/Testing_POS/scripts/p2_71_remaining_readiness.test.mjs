@@ -33,3 +33,19 @@ test('adding a proposed staff operation changes contract readiness, never busine
   assert.equal(staff.readiness,'CONTRACT_PRESENT');
   assert.equal(staff.business_execution,'NOT_EXECUTED_IN_THIS_RUN');
 });
+
+test('table merge canonical route resolves the manifest alias without executing business cases',()=>{
+  const paths={
+    '/api/v1/tables/{table_id}/transfer':{post:{}},
+    '/api/v1/tables/{table_id}/merge':{post:{}},
+    '/api/v1/orders/{order_id}/split':{post:{}},
+  };
+  const result=assess(manifest,{commit:sha},{paths});
+  const byId=Object.fromEntries(result.cases.map(c=>[c.id,c]));
+  for(const id of ['P2-TBL-007','P2-TBL-008','P2-TBL-009','P2-TBL-010','P2-TBL-012']) {
+    assert.equal(byId[id].readiness,'CONTRACT_PRESENT',id);
+    assert.deepEqual(byId[id].missing_operations,[],id);
+    assert.equal(byId[id].business_execution,'NOT_EXECUTED_IN_THIS_RUN',id);
+  }
+  assert.equal(result.counts.business_pass,0);
+});
