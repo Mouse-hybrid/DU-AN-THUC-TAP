@@ -50,3 +50,10 @@ export function updateMenuItem(itemId: string, body: MenuItemUpdate, idempotency
     idempotencyKey,
   });
 }
+
+export type ModifierGroup = components["schemas"]["ModifierGroupOut"];
+export type ModifierOption = components["schemas"]["ModifierOptionOut"];
+
+export function listModifiers(itemId: string, activeOnly = true): Promise<ModifierGroup[]> {
+  return apiRequest<ModifierGroup[]>(`/menu/${encodeURIComponent(itemId)}/modifiers?active_only=${String(activeOnly)}`);
+}

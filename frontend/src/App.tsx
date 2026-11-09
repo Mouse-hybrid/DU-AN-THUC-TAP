@@ -16,6 +16,7 @@ import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
 import { OrderPage } from "./pages/OrderPage";
 import { OrderSummaryPage } from "./pages/OrderSummaryPage";
+import { QrOrderPage } from "./pages/QrOrderPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { TablesPage } from "./pages/TablesPage";
 import { TableDetailPage } from "./pages/TableDetailPage";
@@ -33,6 +34,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/qr/:token" element={<QrOrderPage />} />
         <Route
           path="/tables"
           element={<ProtectedRoute area="pos"><TablesPage /></ProtectedRoute>}

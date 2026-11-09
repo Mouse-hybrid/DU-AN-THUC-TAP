@@ -19,3 +19,22 @@ export function markClean(tableId: string, idempotencyKey: string): Promise<Mark
     idempotencyKey,
   });
 }
+
+export type TableTransferResponse = paths["/api/v1/tables/{table_id}/transfer"]["post"]["responses"][200]["content"]["application/json"];
+export type TableMergeResponse = paths["/api/v1/tables/{table_id}/merge"]["post"]["responses"][200]["content"]["application/json"];
+
+export function transferTable(tableId: string, targetTableId: string, idempotencyKey: string): Promise<TableTransferResponse> {
+  return apiRequest<TableTransferResponse, { target_table_id: string }>(`/tables/${encodeURIComponent(tableId)}/transfer`, {
+    method: "POST",
+    body: { target_table_id: targetTableId },
+    idempotencyKey,
+  });
+}
+
+export function mergeTables(tableId: string, tableIds: string[], idempotencyKey: string): Promise<TableMergeResponse> {
+  return apiRequest<TableMergeResponse, { table_ids: string[] }>(`/tables/${encodeURIComponent(tableId)}/merge`, {
+    method: "POST",
+    body: { table_ids: tableIds },
+    idempotencyKey,
+  });
+}

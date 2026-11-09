@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, getErrorMessage } from "../api/client";
+import { listAreas, type Area } from "../api/areas";
 import { listTables, markClean, type TableListResponse } from "../api/tables";
 import type { TableDashboardItem } from "../api/types";
 import { consumeFlash, type FlashMessage } from "../auth/storage";
@@ -23,6 +24,7 @@ type StatusFilter = "ALL" | TableStatus;
 
 interface TableCardProps {
   table: TableDashboardItem;
+  mergedInto?: string | undefined;
   cleaning: boolean;
   onSelect: (table: TableDashboardItem) => void;
   onMarkClean: (table: TableDashboardItem) => void;
@@ -50,10 +52,12 @@ function TableFigure({ seats }: { seats: number }) {
   );
 }
 
-function TableCard({ table, cleaning, onSelect, onMarkClean }: TableCardProps) {
-  const session = table.opened_at
-    ? `${table.guest_count ?? 0} khách · ${formatOpenDuration(table.opened_at)}`
-    : "Chưa có phiên phục vụ";
+function TableCard({ table, mergedInto, cleaning, onSelect, onMarkClean }: TableCardProps) {
+  const session = table.status === "MERGED"
+    ? `Đã gộp vào bàn ${mergedInto ?? "khác"}`
+    : table.opened_at
+      ? `${table.guest_count ?? 0} khách · ${formatOpenDuration(table.opened_at)}`
+      : "Chưa có phiên phục vụ";
 
   return (
     <article className={`nova-table-card nova-table-card--${toneOf(table.status)}`}>
@@ -118,6 +122,8 @@ export function TablesPage() {
   const navigate = useNavigate();
   const [tables, setTables] = useState<TableListResponse>([]);
   const [filter, setFilter] = useState<StatusFilter>("ALL");
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [areaFilter, setAreaFilter] = useState("ALL");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
@@ -134,8 +140,12 @@ export function TablesPage() {
     else if (!hasSuccessfulLoad.current) setState("loading");
     setError("");
     try {
-      const data = await listTables();
+      const [data, areaList] = await Promise.all([
+        listTables(),
+        listAreas().catch(() => null),
+      ]);
       setTables(data);
+      if (areaList) setAreas(areaList);
       hasSuccessfulLoad.current = true;
       setStale(false);
       setState("ready");
@@ -179,13 +189,44 @@ export function TablesPage() {
   }, [realtimeConnected, refreshInBackground]);
 
   const visibleTables = useMemo(
-    () => (filter === "ALL" ? tables : tables.filter((table) => table.status === filter)),
-    [filter, tables],
+    () => tables.filter((table) => (filter === "ALL" || table.status === filter)
+      && (areaFilter === "ALL" || (areaFilter === "NONE" ? !table.area_id : table.area_id === areaFilter))),
+    [areaFilter, filter, tables],
   );
+
+  const tableCodeById = useMemo(() => new Map(tables.map((table) => [table.id, table.code])), [tables]);
+
+  /** Nhóm bàn theo khu: thứ tự khu lấy từ /areas, bàn chưa gán khu xếp cuối. */
+  const groups = useMemo(() => {
+    const byArea = new Map<string, TableDashboardItem[]>();
+    for (const table of visibleTables) {
+      const key = table.area_id ?? "NONE";
+      byArea.set(key, [...(byArea.get(key) ?? []), table]);
+    }
+    const ordered: { id: string; name: string; tables: TableDashboardItem[] }[] = [];
+    const seen = new Set<string>();
+    for (const area of [...areas].sort((a, b) => a.sort_order - b.sort_order)) {
+      const list = byArea.get(area.id);
+      if (list) { ordered.push({ id: area.id, name: area.name, tables: list }); seen.add(area.id); }
+    }
+    for (const [key, list] of byArea) {
+      if (key === "NONE" || seen.has(key)) continue;
+      ordered.push({ id: key, name: list[0]?.area_name ?? "Khu khác", tables: list });
+    }
+    const none = byArea.get("NONE");
+    if (none) ordered.push({ id: "NONE", name: "Chưa gán khu", tables: none });
+    return ordered;
+  }, [areas, visibleTables]);
+
+  const hasAreas = areas.length > 0 || tables.some((table) => table.area_id);
 
   function selectTable(table: TableDashboardItem) {
     if (table.status === "AVAILABLE") {
       navigate(`/tables/${encodeURIComponent(table.id)}/open`);
+      return;
+    }
+    if (table.status === "MERGED" && table.merged_into_table_id) {
+      navigate(`/tables/${encodeURIComponent(table.merged_into_table_id)}`);
       return;
     }
     if (table.status === "OCCUPIED" || table.status === "BILLING") {
@@ -236,6 +277,16 @@ export function TablesPage() {
                 {TABLE_STATUSES.map((status) => <option key={status} value={status}>{getStatusMeta(status).label}</option>)}
               </select>
             </div>
+            {hasAreas ? (
+              <div className="nova-field nova-field--compact">
+                <label htmlFor="nova-area-filter">Khu vực</label>
+                <select id="nova-area-filter" value={areaFilter} onChange={(event) => setAreaFilter(event.target.value)}>
+                  <option value="ALL">Tất cả khu vực</option>
+                  {areas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
+                  {tables.some((table) => !table.area_id) ? <option value="NONE">Chưa gán khu</option> : null}
+                </select>
+              </div>
+            ) : null}
             <button className="nova-button nova-button--secondary" type="button" onClick={() => void loadTables(true)} disabled={refreshing}>
               {refreshing ? <span className="nova-spinner" aria-hidden="true" /> : <Icon name="refresh-cw" />}
               <span>{refreshing ? "Đang tải…" : "Làm mới"}</span>
@@ -274,17 +325,36 @@ export function TablesPage() {
           <StateCard kind="empty" title="Không có bàn phù hợp" message="Hãy chọn trạng thái khác hoặc tải lại dữ liệu." onRetry={() => void loadTables(true)} />
         ) : null}
         {state === "ready" && visibleTables.length > 0 ? (
-          <section className="nova-table-grid" aria-live="polite">
-            {visibleTables.map((table) => (
-              <TableCard
-                key={table.id}
-                table={table}
-                cleaning={cleaningTableIds.has(table.id)}
-                onSelect={selectTable}
-                onMarkClean={(selected) => void cleanTable(selected)}
-              />
-            ))}
-          </section>
+          <div aria-live="polite">
+            {groups.map((group) => {
+              const area = areas.find((candidate) => candidate.id === group.id);
+              return (
+                <section key={group.id} className="nova-area-section" aria-label={hasAreas ? `Khu ${group.name}` : "Danh sách bàn"} data-testid="area-section">
+                  {hasAreas ? (
+                    <header className="nova-area-header">
+                      <h2>{group.name}</h2>
+                      <p>
+                        {group.tables.length} bàn
+                        {area ? ` · ${area.status_counts["AVAILABLE"] ?? 0} trống · ${area.status_counts["OCCUPIED"] ?? 0} đang phục vụ` : ""}
+                      </p>
+                    </header>
+                  ) : null}
+                  <div className="nova-table-grid">
+                    {group.tables.map((table) => (
+                      <TableCard
+                        key={table.id}
+                        table={table}
+                        mergedInto={table.merged_into_table_id ? tableCodeById.get(table.merged_into_table_id) : undefined}
+                        cleaning={cleaningTableIds.has(table.id)}
+                        onSelect={selectTable}
+                        onMarkClean={(selected) => void cleanTable(selected)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         ) : null}
       </main>
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}

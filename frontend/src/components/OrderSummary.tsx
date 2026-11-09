@@ -43,6 +43,18 @@ export function OrderSummary({ order }: OrderSummaryProps) {
         <span>Tạm tính</span>
         <strong>{calculated === null ? "—" : formatVnd(String(calculated))}</strong>
       </div>
+      {Number(order.discount_total) > 0 ? (
+        <>
+          <div className="nova-order-total nova-order-total--discount" data-testid="summary-discount">
+            <span>Giảm giá{order.applied_reward ? ` (${order.applied_reward.reward_name})` : ""}</span>
+            <strong>−{formatVnd(order.discount_total)}</strong>
+          </div>
+          <div className="nova-order-total" data-testid="summary-payable">
+            <span>Phải trả</span>
+            <strong>{formatVnd(order.total)}</strong>
+          </div>
+        </>
+      ) : null}
       {mismatch ? (
         <p className="nova-order-mismatch" role="alert">
           Tổng trên thiết bị chưa khớp dữ liệu máy chủ ({formatVnd(order.subtotal)}). Hãy tải lại đơn.
