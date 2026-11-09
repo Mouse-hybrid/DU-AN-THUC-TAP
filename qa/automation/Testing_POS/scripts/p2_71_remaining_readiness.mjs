@@ -11,7 +11,13 @@ const mentionedOperations=text=>[...String(text??'').matchAll(/\b(GET|POST|PATCH
 const exists=(paths,operation)=>{
   const [method,path]=operation.split(' ');
   const canonical=p=>p.replace(/\{[^/{}]+\}/g,'{}');
-  return Object.entries(paths).some(([live,verbs])=>canonical(live)===canonical(path)&&!!verbs[method.toLowerCase()]);
+  // The 71-case design uses /tables/merge; deployed Pha 2 names the source
+  // table in the path. Match this confirmed alias without rewriting the baseline.
+  const mergeAlias=method==='POST'&&path==='/api/v1/tables/merge'
+    ? '/api/v1/tables/{}/merge' : null;
+  return Object.entries(paths).some(([live,verbs])=>
+    (canonical(live)===canonical(path)||canonical(live)===mergeAlias)&&
+    !!verbs[method.toLowerCase()]);
 };
 
 export function assessRemaining(manifest,inventory,openapi){
