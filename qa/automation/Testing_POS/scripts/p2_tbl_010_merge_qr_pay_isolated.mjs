@@ -236,10 +236,13 @@ try {
     throw new Error('Merged items could not complete before billing');
   must(post(`/api/v1/orders/${owned.primary.orderId}/request-billing`, 'waiter'), 200, 'request billing');
   const paid = must(post(`/api/v1/orders/${owned.primary.orderId}/pay`, 'cashier'), 200, 'simulated cash pay');
+  // /pay returns OrderOut, which has no subtotal. Read OrderDetailOut for totals.
+  const paidDetail = order(owned.primary);
   const paidPrimary = table(owned.primary), paidSecondary = table(owned.secondary);
-  report.checks.paid_master_bill = paid.status === 'PAID' &&
-    Math.round(Number(paid.subtotal) * 100) === expectedSubtotal &&
-    paid.items?.some(i => i.id === owned.secondary.itemId && i.source === 'QR');
+  report.checks.paid_master_bill = paid.status === 'PAID' && paidDetail.status === 'PAID' &&
+    Math.round(Number(paidDetail.subtotal) * 100) === expectedSubtotal &&
+    Number(paidDetail.amount_due) === 0 &&
+    paidDetail.items?.some(i => i.id === owned.secondary.itemId && i.source === 'QR');
   report.checks.both_tables_cleaning = paidPrimary.status === 'CLEANING' &&
     paidSecondary.status === 'CLEANING' && !paidPrimary.current_session &&
     !paidSecondary.current_session && !paidSecondary.merged_into_table_id;
