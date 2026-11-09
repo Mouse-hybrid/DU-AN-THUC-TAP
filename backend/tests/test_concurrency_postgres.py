@@ -4,6 +4,8 @@ Postgres của job `test`; chạy local thì bỏ qua.
 
 QA TC-007: hai lần "gửi bếp" cùng lúc cho 1 order từng trả 200 + 503 (cùng
 Idempotency-Key) hoặc tạo phiếu bếp trùng (khác key).
+
+BRD "No duplicate payment": hai thu ngân cùng bấm trả hết 1 đơn thì chỉ 1 lần được ghi.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
 from app.db.base import Base
-from app.db.models import KitchenQueue, OrderItem, RestaurantTable
+from app.db.models import KitchenQueue, OrderItem, Payment, RestaurantTable
 from app.main import app
 from tests.conftest import login
 
@@ -122,3 +124,46 @@ def test_concurrent_send_with_different_keys_creates_one_ticket(client, seed, db
         )
         assert sorted(statuses) == [200, 409], f"vòng {round_no}: {statuses}"
         assert _queue_entries(db_session_factory, order_id) == 1
+
+
+def test_concurrent_full_payments_record_only_one(client, seed, db_session_factory):
+    cashier = login(client, "cashier_test")
+    for round_no in range(ROUNDS):
+        order_id, waiter = _order_with_item_on_new_table(
+            client, seed, db_session_factory, f"P{round_no}"
+        )
+        client.post(
+            f"/api/v1/orders/{order_id}/send-to-kitchen",
+            headers={**waiter, "Idempotency-Key": f"pay-send-{round_no}"},
+        )
+        client.post(
+            f"/api/v1/orders/{order_id}/request-billing",
+            headers={**waiter, "Idempotency-Key": f"pay-bill-{round_no}"},
+        )
+
+        barrier = threading.Barrier(2)
+        statuses: list[int] = [0, 0]
+
+        def worker(index):
+            local_client = TestClient(app)
+            barrier.wait()
+            resp = local_client.post(
+                f"/api/v1/orders/{order_id}/payments",
+                json={"method": "CASH"},
+                headers={**cashier, "Idempotency-Key": f"pay-{round_no}-{index}"},
+            )
+            statuses[index] = resp.status_code
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+
+        assert sorted(statuses) == [201, 409], f"vòng {round_no}: {statuses}"
+        session = db_session_factory()
+        count = session.scalar(
+            select(func.count()).select_from(Payment).where(Payment.order_id == order_id)
+        )
+        session.close()
+        assert count == 1

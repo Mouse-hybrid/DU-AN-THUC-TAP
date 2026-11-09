@@ -2364,7 +2364,7 @@
           "orders"
         ],
         "summary": "Pay Order",
-        "description": "BILLING -> PAID. Đơn cuối cùng của bàn được trả thì đóng table_session (status\nCLOSED) và chuyển bàn sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới\ndọn bàn, không nhảy thẳng về AVAILABLE). Bàn còn đơn khác chưa trả (đã tách đơn) thì\nphiên vẫn mở, bàn về OCCUPIED, hoặc giữ BILLING nếu đơn còn lại đang chờ thanh toán.\n\nLƯU Ý: đây là bước ghi nhận \"đã thanh toán\", KHÔNG xử lý cổng thanh toán\nthật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài\nphạm vi vertical slice này.",
+        "description": "Lối tắt \"khách trả nốt bằng tiền mặt\": ghi 1 lần thanh toán CASH cho số còn lại rồi\nBILLING -> PAID. Muốn trả nhiều lần, bằng thẻ, hoặc tính tiền thối thì dùng\nPOST /orders/{id}/payments. Đơn cuối cùng của bàn được trả thì đóng table_session và\nchuyển bàn sang CLEANING; bàn còn đơn khác chưa trả (đã tách đơn) thì phiên vẫn mở.",
         "operationId": "pay_order_api_v1_orders__order_id__pay_post",
         "security": [
           {
@@ -3006,6 +3006,277 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/payments": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Create Payment",
+        "description": "Đơn phải ở BILLING. Không nhận quá số còn phải thu; tiền khách đưa dư thì là tiền thối,\nkhông phải trả vượt. Lần trả đủ tiền chạy đúng logic /pay: chốt ưu đãi, tích điểm, đóng\nphiên bàn khi là đơn cuối.",
+        "operationId": "create_payment_api_v1_orders__order_id__payments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRecordedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "List Order Payments",
+        "operationId": "list_order_payments_api_v1_orders__order_id__payments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPaymentsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{payment_id}/cancel": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Cancel Payment",
+        "description": "Hủy lần thanh toán ghi nhầm khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng\nhoàn tiền, vì phiên bàn đã đóng và điểm đã tích.",
+        "operationId": "cancel_payment_api_v1_payments__payment_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Payment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPaymentsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{payment_id}/refunds": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Refund Payment",
+        "description": "Hoàn tiền sau khi đơn đã PAID/CLOSED, tối đa phần chưa hoàn của lần thanh toán đó. Đơn\ngiữ nguyên trạng thái; điểm đã tích không tự trừ lại (làm cùng Rewards đợt 3).",
+        "operationId": "refund_payment_api_v1_payments__payment_id__refunds_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Payment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPaymentsOut"
                 }
               }
             }
@@ -5771,6 +6042,22 @@
         ],
         "title": "AuditSummaryOut"
       },
+      "CancelPaymentRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "CancelPaymentRequest"
+      },
       "ChangePasswordRequest": {
         "properties": {
           "current_password": {
@@ -5802,6 +6089,82 @@
           "table_session_id"
         ],
         "title": "CreateOrderRequest"
+      },
+      "CreatePaymentRequest": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "CASH",
+              "CARD"
+            ],
+            "title": "Method"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "cash_received": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Received"
+          },
+          "provider_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Ref"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "method"
+        ],
+        "title": "CreatePaymentRequest",
+        "description": "Một lần nhận tiền. `amount` bỏ trống = trả hết số còn lại. Tiền mặt: `cash_received` là\nsố khách đưa (bỏ trống = đưa vừa đủ), server tính tiền thối. Thẻ: thu ngân xác nhận máy\nPOS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay làm ở R2."
       },
       "CustomerCreate": {
         "properties": {
@@ -7020,6 +7383,18 @@
                 "type": "null"
               }
             ]
+          },
+          "amount_paid": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Paid",
+            "default": "0"
+          },
+          "amount_due": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Due",
+            "default": "0"
           }
         },
         "type": "object",
@@ -7292,6 +7667,37 @@
         ],
         "title": "OrderOut"
       },
+      "OrderPaymentsOut": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          },
+          "order_status": {
+            "type": "string",
+            "title": "Order Status"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/PaymentSummaryOut"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentOut"
+            },
+            "type": "array",
+            "title": "Payments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_id",
+          "order_status",
+          "summary",
+          "payments"
+        ],
+        "title": "OrderPaymentsOut"
+      },
       "OrderSummaryOut": {
         "properties": {
           "id": {
@@ -7410,6 +7816,241 @@
           "snapshot"
         ],
         "title": "OrderVersionOut"
+      },
+      "PaymentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "refunded_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refunded Amount"
+          },
+          "cash_received": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Received"
+          },
+          "change_due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Due"
+          },
+          "provider_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Ref"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "created_by_staff_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Staff Id"
+          },
+          "cancelled_by_staff_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled By Staff Id"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "refunds": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentRefundOut"
+            },
+            "type": "array",
+            "title": "Refunds",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "order_id",
+          "method",
+          "amount",
+          "status",
+          "refunded_amount",
+          "created_at"
+        ],
+        "title": "PaymentOut"
+      },
+      "PaymentRecordedOut": {
+        "properties": {
+          "payment": {
+            "$ref": "#/components/schemas/PaymentOut"
+          },
+          "order_status": {
+            "type": "string",
+            "title": "Order Status"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/PaymentSummaryOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment",
+          "order_status",
+          "summary"
+        ],
+        "title": "PaymentRecordedOut",
+        "description": "Kết quả 1 lần nhận tiền. `order_status` = PAID khi lần này trả đủ."
+      },
+      "PaymentRefundOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "created_by_staff_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Staff Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "amount",
+          "reason",
+          "created_at"
+        ],
+        "title": "PaymentRefundOut"
+      },
+      "PaymentSummaryOut": {
+        "properties": {
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total"
+          },
+          "paid": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Paid"
+          },
+          "refunded": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refunded"
+          },
+          "remaining": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "paid",
+          "refunded",
+          "remaining"
+        ],
+        "title": "PaymentSummaryOut",
+        "description": "`total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính\nlần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ)."
       },
       "PermissionRuleOut": {
         "properties": {
@@ -7884,6 +8525,39 @@
           "items"
         ],
         "title": "QrSubmitRequest"
+      },
+      "RefundPaymentRequest": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RefundPaymentRequest",
+        "description": "`amount` bỏ trống = hoàn hết phần chưa hoàn của lần thanh toán này."
       },
       "RewardCreate": {
         "properties": {

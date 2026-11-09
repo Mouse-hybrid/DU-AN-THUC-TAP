@@ -39,6 +39,13 @@ erDiagram
     "reward" ||--o{ "order_reward" : "reward_id"
     "customer" ||--o{ "order_reward" : "customer_id"
     "staff" ||--o{ "order_reward" : "applied_by_staff_id"
+    "order" ||--o{ "payment" : "order_id"
+    "outlet" ||--o{ "payment" : "outlet_id"
+    "staff" ||--o{ "payment" : "created_by_staff_id"
+    "staff" ||--o{ "payment" : "cancelled_by_staff_id"
+    "payment" ||--o{ "payment_refund" : "payment_id"
+    "order" ||--o{ "payment_refund" : "order_id"
+    "staff" ||--o{ "payment_refund" : "created_by_staff_id"
     "outlet" ||--o{ "staff" : "outlet_id"
     "outlet" {
         uuid id PK
@@ -233,6 +240,33 @@ erDiagram
         uuid applied_by_staff_id FK
         datetime created_at
         datetime updated_at
+    }
+    "payment" {
+        uuid id PK
+        uuid order_id FK
+        uuid outlet_id FK
+        str method
+        numeric amount
+        str status
+        numeric refunded_amount
+        numeric cash_received
+        numeric change_due
+        str provider_ref
+        str note
+        uuid created_by_staff_id FK
+        uuid cancelled_by_staff_id FK
+        str cancel_reason
+        datetime created_at
+        datetime updated_at
+    }
+    "payment_refund" {
+        uuid id PK
+        uuid payment_id FK
+        uuid order_id FK
+        numeric amount
+        str reason
+        uuid created_by_staff_id FK
+        datetime created_at
     }
     "staff" {
         uuid id PK

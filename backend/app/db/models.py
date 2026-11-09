@@ -87,6 +87,21 @@ REWARD_TYPE = ("PERCENT", "FIXED", "POINTS")
 
 ORDER_REWARD_STATUS = ("APPLIED", "REMOVED", "COMMITTED", "REVERSED")
 
+# VNPAY dành cho R2 (cổng thanh toán); API hiện tại chỉ nhận CASH và CARD.
+PAYMENT_METHOD = ("CASH", "CARD", "VNPAY")
+
+# PENDING/FAILED/UNKNOWN/EXPIRED dùng cho thanh toán qua cổng (R2). Tiền mặt và thẻ do thu
+# ngân xác nhận nên ghi thẳng SUCCEEDED. REFUNDED = đã hoàn hết số tiền.
+PAYMENT_STATUS = (
+    "PENDING",
+    "SUCCEEDED",
+    "FAILED",
+    "UNKNOWN",
+    "EXPIRED",
+    "CANCELLED",
+    "REFUNDED",
+)
+
 KITCHEN_QUEUE_STATUS = ("QUEUED", "IN_PROGRESS", "DONE", "CANCELLED")
 
 # Đúng theo bảng Role trong BRD (mục "Role || Description || Key
@@ -608,6 +623,65 @@ class OrderReward(Base):
     )
 
     reward: Mapped["Reward"] = relationship()
+
+
+# ---------------------------------------------------------------------------
+# Payment — mỗi lần nhận tiền cho 1 đơn. Một đơn trả được nhiều lần, nhiều hình thức; tổng
+# các lần SUCCEEDED đủ số phải trả thì đơn chuyển PAID. Hoàn tiền ghi ở payment_refund.
+# ---------------------------------------------------------------------------
+
+
+class Payment(Base):
+    __tablename__ = "payment"
+    __table_args__ = (
+        _check(PAYMENT_METHOD, "method", "ck_payment_method"),
+        _check(PAYMENT_STATUS, "status", "ck_payment_status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    order_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order.id"), nullable=False)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="SUCCEEDED")
+    refunded_amount: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    cash_received: Mapped[Numeric | None] = mapped_column(Numeric(12, 2), nullable=True)
+    change_due: Mapped[Numeric | None] = mapped_column(Numeric(12, 2), nullable=True)
+    provider_ref: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
+    cancelled_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
+    cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    refunds: Mapped[list["PaymentRefund"]] = relationship(
+        back_populates="payment", order_by="PaymentRefund.created_at"
+    )
+
+
+class PaymentRefund(Base):
+    """Mỗi lần hoàn tiền (một phần hoặc toàn bộ) của 1 lần thanh toán, luôn có lý do."""
+
+    __tablename__ = "payment_refund"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    payment_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("payment.id"), nullable=False)
+    order_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("order.id"), nullable=False)
+    amount: Mapped[Numeric] = mapped_column(Numeric(12, 2), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    payment: Mapped["Payment"] = relationship(back_populates="refunds")
 
 
 # ---------------------------------------------------------------------------

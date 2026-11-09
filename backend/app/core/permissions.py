@@ -49,6 +49,7 @@ class Permission(str, Enum):
     CUSTOMER_ACCESS = "CUSTOMER_ACCESS"
     REWARD_APPLY = "REWARD_APPLY"
     LOYALTY_MANAGE = "LOYALTY_MANAGE"
+    PAYMENT_REFUND = "PAYMENT_REFUND"
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,10 @@ PERMISSION_MATRIX: dict[Permission, PermissionRule] = {
     # Không có trong BRD Matrix; ảnh hưởng tới tiền nên theo "Override Actions".
     Permission.LOYALTY_MANAGE: PermissionRule(
         ("SUPERVISOR",), "Quản lý luật điểm, sửa khách hàng, điều chỉnh điểm"
+    ),
+    # Không có trong BRD Matrix; hủy hoặc hoàn tiền đã nhận là "Override Actions".
+    Permission.PAYMENT_REFUND: PermissionRule(
+        ("SUPERVISOR",), "Hủy lần thanh toán ghi nhầm, hoàn tiền"
     ),
 }
 

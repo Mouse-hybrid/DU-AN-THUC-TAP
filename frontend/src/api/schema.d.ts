@@ -592,14 +592,10 @@ export interface paths {
         put?: never;
         /**
          * Pay Order
-         * @description BILLING -> PAID. Đơn cuối cùng của bàn được trả thì đóng table_session (status
-         *     CLOSED) và chuyển bàn sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới
-         *     dọn bàn, không nhảy thẳng về AVAILABLE). Bàn còn đơn khác chưa trả (đã tách đơn) thì
-         *     phiên vẫn mở, bàn về OCCUPIED, hoặc giữ BILLING nếu đơn còn lại đang chờ thanh toán.
-         *
-         *     LƯU Ý: đây là bước ghi nhận "đã thanh toán", KHÔNG xử lý cổng thanh toán
-         *     thật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài
-         *     phạm vi vertical slice này.
+         * @description Lối tắt "khách trả nốt bằng tiền mặt": ghi 1 lần thanh toán CASH cho số còn lại rồi
+         *     BILLING -> PAID. Muốn trả nhiều lần, bằng thẻ, hoặc tính tiền thối thì dùng
+         *     POST /orders/{id}/payments. Đơn cuối cùng của bàn được trả thì đóng table_session và
+         *     chuyển bàn sang CLEANING; bàn còn đơn khác chưa trả (đã tách đơn) thì phiên vẫn mở.
          */
         post: operations["pay_order_api_v1_orders__order_id__pay_post"];
         delete?: never;
@@ -774,6 +770,71 @@ export interface paths {
          *     SERVED, tự động chuyển order.status SENT -> SERVED (BRD state machine).
          */
         post: operations["serve_order_item_api_v1_orders__order_id__items__item_id__served_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Order Payments */
+        get: operations["list_order_payments_api_v1_orders__order_id__payments_get"];
+        put?: never;
+        /**
+         * Create Payment
+         * @description Đơn phải ở BILLING. Không nhận quá số còn phải thu; tiền khách đưa dư thì là tiền thối,
+         *     không phải trả vượt. Lần trả đủ tiền chạy đúng logic /pay: chốt ưu đãi, tích điểm, đóng
+         *     phiên bàn khi là đơn cuối.
+         */
+        post: operations["create_payment_api_v1_orders__order_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{payment_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Payment
+         * @description Hủy lần thanh toán ghi nhầm khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng
+         *     hoàn tiền, vì phiên bàn đã đóng và điểm đã tích.
+         */
+        post: operations["cancel_payment_api_v1_payments__payment_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{payment_id}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refund Payment
+         * @description Hoàn tiền sau khi đơn đã PAID/CLOSED, tối đa phần chưa hoàn của lần thanh toán đó. Đơn
+         *     giữ nguyên trạng thái; điểm đã tích không tự trừ lại (làm cùng Rewards đợt 3).
+         */
+        post: operations["refund_payment_api_v1_payments__payment_id__refunds_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1483,6 +1544,11 @@ export interface components {
             /** By Day */
             by_day: components["schemas"]["DayCount"][];
         };
+        /** CancelPaymentRequest */
+        CancelPaymentRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -1497,6 +1563,27 @@ export interface components {
              * Format: uuid
              */
             table_session_id: string;
+        };
+        /**
+         * CreatePaymentRequest
+         * @description Một lần nhận tiền. `amount` bỏ trống = trả hết số còn lại. Tiền mặt: `cash_received` là
+         *     số khách đưa (bỏ trống = đưa vừa đủ), server tính tiền thối. Thẻ: thu ngân xác nhận máy
+         *     POS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay làm ở R2.
+         */
+        CreatePaymentRequest: {
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "CASH" | "CARD";
+            /** Amount */
+            amount?: number | string | null;
+            /** Cash Received */
+            cash_received?: number | string | null;
+            /** Provider Ref */
+            provider_ref?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** CustomerCreate */
         CustomerCreate: {
@@ -1989,6 +2076,16 @@ export interface components {
             /** Total */
             total: string;
             applied_reward?: components["schemas"]["AppliedRewardOut"] | null;
+            /**
+             * Amount Paid
+             * @default 0
+             */
+            amount_paid: string;
+            /**
+             * Amount Due
+             * @default 0
+             */
+            amount_due: string;
         };
         /** OrderItemCreate */
         OrderItemCreate: {
@@ -2115,6 +2212,19 @@ export interface components {
              */
             items: components["schemas"]["OrderItemOut"][];
         };
+        /** OrderPaymentsOut */
+        OrderPaymentsOut: {
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Order Status */
+            order_status: string;
+            summary: components["schemas"]["PaymentSummaryOut"];
+            /** Payments */
+            payments: components["schemas"]["PaymentOut"][];
+        };
         /**
          * OrderSummaryOut
          * @description 1 dòng trong danh sách order (GET /orders) — đủ để chọn order rồi gọi
@@ -2169,6 +2279,95 @@ export interface components {
             created_by_role: string | null;
             /** Snapshot */
             snapshot: unknown;
+        };
+        /** PaymentOut */
+        PaymentOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Method */
+            method: string;
+            /** Amount */
+            amount: string;
+            /** Status */
+            status: string;
+            /** Refunded Amount */
+            refunded_amount: string;
+            /** Cash Received */
+            cash_received?: string | null;
+            /** Change Due */
+            change_due?: string | null;
+            /** Provider Ref */
+            provider_ref?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Created By Staff Id */
+            created_by_staff_id?: string | null;
+            /** Cancelled By Staff Id */
+            cancelled_by_staff_id?: string | null;
+            /** Cancel Reason */
+            cancel_reason?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Refunds
+             * @default []
+             */
+            refunds: components["schemas"]["PaymentRefundOut"][];
+        };
+        /**
+         * PaymentRecordedOut
+         * @description Kết quả 1 lần nhận tiền. `order_status` = PAID khi lần này trả đủ.
+         */
+        PaymentRecordedOut: {
+            payment: components["schemas"]["PaymentOut"];
+            /** Order Status */
+            order_status: string;
+            summary: components["schemas"]["PaymentSummaryOut"];
+        };
+        /** PaymentRefundOut */
+        PaymentRefundOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Amount */
+            amount: string;
+            /** Reason */
+            reason: string;
+            /** Created By Staff Id */
+            created_by_staff_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * PaymentSummaryOut
+         * @description `total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính
+         *     lần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ).
+         */
+        PaymentSummaryOut: {
+            /** Total */
+            total: string;
+            /** Paid */
+            paid: string;
+            /** Refunded */
+            refunded: string;
+            /** Remaining */
+            remaining: string;
         };
         /** PermissionRuleOut */
         PermissionRuleOut: {
@@ -2356,6 +2555,16 @@ export interface components {
         QrSubmitRequest: {
             /** Items */
             items: components["schemas"]["QrOrderLine"][];
+        };
+        /**
+         * RefundPaymentRequest
+         * @description `amount` bỏ trống = hoàn hết phần chưa hoàn của lần thanh toán này.
+         */
+        RefundPaymentRequest: {
+            /** Amount */
+            amount?: number | string | null;
+            /** Reason */
+            reason: string;
         };
         /** RewardCreate */
         RewardCreate: {
@@ -4314,6 +4523,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_order_payments_api_v1_orders__order_id__payments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPaymentsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_payment_api_v1_orders__order_id__payments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRecordedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_payment_api_v1_payments__payment_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPaymentsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refund_payment_api_v1_payments__payment_id__refunds_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPaymentsOut"];
                 };
             };
             /** @description Validation Error */
