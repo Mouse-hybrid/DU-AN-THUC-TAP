@@ -41,6 +41,16 @@ class TableAreaAssign(BaseModel):
     area_id: uuid.UUID | None
 
 
+class TableTransferRequest(BaseModel):
+    target_table_id: uuid.UUID
+
+
+class TableTransferOut(BaseModel):
+    table_session_id: uuid.UUID
+    from_table: TableOut
+    to_table: TableOut
+
+
 class TableDashboardItem(BaseModel):
     """1 dòng của dashboard bàn: trạng thái bàn + phiên đang mở (nếu có)."""
 

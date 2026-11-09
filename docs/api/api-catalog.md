@@ -235,6 +235,22 @@ Khách hàng, luật điểm và tích điểm khi thanh toán. Ưu đãi và đ
 
 Seed: `Đổi điểm` và `Giảm 10% đơn từ 200.000đ` (tối đa 50.000đ) ở khu demo và khu QA 3. Số liệu tạm, chờ PO chốt.
 
+### A14. Chuyển bàn (từ 09/11)
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 78 | POST | `/api/v1/tables/{id}/transfer` (cần `Idempotency-Key`) | W, S (BRD "Merge/Split/Transfer Table") | 16 Chuyển bàn: body `{"target_table_id": "..."}`; trả `table_session_id`, `from_table`, `to_table` | ✅ |
+
+**Quy tắc:**
+- Cả phiên bàn đi theo: mọi đơn, món, phiếu bếp, ưu đãi, khách gắn vào đơn, mã QR. Mã bàn trên phiếu bếp và trên API QR tự đổi.
+- Bàn nguồn phải `OCCUPIED`. Bàn đang chờ thanh toán (`BILLING`) không chuyển được.
+- Bàn đích phải `AVAILABLE` hoặc `RESERVED`.
+- Sau khi chuyển: bàn đích `OCCUPIED`, **bàn nguồn `CLEANING`**, phải xác nhận dọn xong mới mở lại.
+- Cashier không có quyền chuyển (theo BRD). Chuyển trùng bàn trả 422; bàn hoặc bàn đích thuộc nhà hàng khác trả 404; sai trạng thái trả 409.
+- Event: kênh `tables` có `TABLE_TRANSFERRED` (`table_session_id`, `from_table_id`, `to_table_id`) và `TABLE_STATUS_CHANGED` cho cả hai bàn. Kênh `kitchen` có `KITCHEN_QUEUE_UPDATED` với `reason: "TABLE_TRANSFERRED"` để màn bếp tải lại mã bàn.
+
+Gộp bàn và tách đơn chưa có.
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
 FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát
@@ -288,7 +304,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | Nhóm (Board) | Endpoint đề xuất | Vì sao chưa làm |
 |---|---|---|
 | **Thanh toán đa phương thức** (BRD Payment) | `POST /orders/{id}/payments` (CASH/CARD/QR, số tiền), `GET /orders/{id}/payments`, `POST /payments/{id}/cancel`, `POST /payments/webhooks/{provider}` (callback có chữ ký), `POST /orders/{id}/split-bill` | Cần sandbox cổng thanh toán và quyết định gateway (SEC-05 đang bị chặn). Pha 1 `/pay` chỉ ghi nhận đã trả |
-| **Merge / Split / Transfer bàn** | `POST /tables/{id}/transfer` (chuyển sang bàn khác), `POST /tables/merge`, `POST /orders/{id}/split` | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
+| **Merge / Split / Transfer bàn** | Chuyển bàn **đã có từ 09/11** (mục A14). Còn: `POST /tables/merge`, `POST /orders/{id}/split` | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |

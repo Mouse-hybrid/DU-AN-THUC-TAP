@@ -361,6 +361,81 @@
         }
       }
     },
+    "/api/v1/tables/{table_id}/transfer": {
+      "post": {
+        "tags": [
+          "tables"
+        ],
+        "summary": "Transfer Table",
+        "description": "Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi\nvà mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt\ntrước; bàn cũ sang CLEANING vì khách vừa ngồi. Bàn đang chờ thanh toán thì không chuyển,\ntránh lệch hóa đơn đã in.",
+        "operationId": "transfer_table_api_v1_tables__table_id__transfer_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableTransferOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tables/{table_id}/mark-clean": {
       "post": {
         "tags": [
@@ -8059,6 +8134,42 @@
           "opened_at"
         ],
         "title": "TableSessionOut"
+      },
+      "TableTransferOut": {
+        "properties": {
+          "table_session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Table Session Id"
+          },
+          "from_table": {
+            "$ref": "#/components/schemas/TableOut"
+          },
+          "to_table": {
+            "$ref": "#/components/schemas/TableOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table_session_id",
+          "from_table",
+          "to_table"
+        ],
+        "title": "TableTransferOut"
+      },
+      "TableTransferRequest": {
+        "properties": {
+          "target_table_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Table Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_table_id"
+        ],
+        "title": "TableTransferRequest"
       },
       "TokenResponse": {
         "properties": {
