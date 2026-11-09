@@ -29,6 +29,7 @@ ENDPOINT_ROLES = [
     ("DELETE", ORDER_ITEM, {"CASHIER", "WAITER", "SUPERVISOR"}),
     ("POST", f"/api/v1/orders/{ID}/send-to-kitchen", {"CASHIER", "WAITER", "SUPERVISOR"}),
     ("POST", f"/api/v1/orders/{ID}/request-billing", {"CASHIER", "WAITER", "SUPERVISOR"}),
+    ("POST", f"/api/v1/orders/{ID}/split", {"WAITER", "SUPERVISOR"}),
     ("POST", f"/api/v1/orders/{ID}/pay", {"CASHIER", "SUPERVISOR"}),
     ("POST", f"/api/v1/orders/{ID}/close", {"CASHIER", "SUPERVISOR"}),
     ("POST", f"{ORDER_ITEM}/void", {"SUPERVISOR"}),

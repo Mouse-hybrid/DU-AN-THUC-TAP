@@ -2364,7 +2364,7 @@
           "orders"
         ],
         "summary": "Pay Order",
-        "description": "BILLING -> PAID. Đóng luôn table_session (status CLOSED) và chuyển bàn\nsang CLEANING (theo state machine bàn trong BRD: PAID rồi mới dọn bàn,\nkhông nhảy thẳng về AVAILABLE).\n\nLƯU Ý: đây là bước ghi nhận \"đã thanh toán\", KHÔNG xử lý cổng thanh toán\nthật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài\nphạm vi vertical slice này.",
+        "description": "BILLING -> PAID. Đơn cuối cùng của bàn được trả thì đóng table_session (status\nCLOSED) và chuyển bàn sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới\ndọn bàn, không nhảy thẳng về AVAILABLE). Bàn còn đơn khác chưa trả (đã tách đơn) thì\nphiên vẫn mở, bàn về OCCUPIED, hoặc giữ BILLING nếu đơn còn lại đang chờ thanh toán.\n\nLƯU Ý: đây là bước ghi nhận \"đã thanh toán\", KHÔNG xử lý cổng thanh toán\nthật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài\nphạm vi vertical slice này.",
         "operationId": "pay_order_api_v1_orders__order_id__pay_post",
         "security": [
           {
@@ -2406,6 +2406,81 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/split": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Split Order",
+        "description": "Tách một phần đơn sang hóa đơn mới cùng bàn, mỗi hóa đơn thanh toán riêng. Tách theo\nmón và số lượng; món đang ở bếp chỉ chuyển nguyên dòng (phiếu bếp đi theo). Đơn đang áp\nưu đãi thì phải gỡ trước. Phải để lại ít nhất 1 món ở đơn cũ, muốn chuyển hết thì dùng\nchuyển bàn. Khách hàng đã gắn vẫn ở đơn cũ.",
+        "operationId": "split_order_api_v1_orders__order_id__split_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitOrderOut"
                 }
               }
             }
@@ -7759,6 +7834,61 @@
           "kitchen_queue_entries_created"
         ],
         "title": "SendToKitchenResponse"
+      },
+      "SplitLine": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "quantity"
+        ],
+        "title": "SplitLine"
+      },
+      "SplitOrderOut": {
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/OrderDetailOut"
+          },
+          "new_order": {
+            "$ref": "#/components/schemas/OrderDetailOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "new_order"
+        ],
+        "title": "SplitOrderOut"
+      },
+      "SplitOrderRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SplitLine"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SplitOrderRequest"
       },
       "StaffCreate": {
         "properties": {

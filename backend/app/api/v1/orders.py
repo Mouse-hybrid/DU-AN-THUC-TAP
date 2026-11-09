@@ -70,6 +70,7 @@ from app.db.models import (
     MenuItem,
     Order,
     OrderItem,
+    OrderItemModifier,
     OrderReward,
     OrderVersion,
     RestaurantTable,
@@ -87,6 +88,8 @@ from app.schemas.orders import (
     OrderOut,
     OrderSummaryOut,
     SendToKitchenResponse,
+    SplitOrderOut,
+    SplitOrderRequest,
     UpdateOrderItemRequest,
     VoidItemRequest,
 )
@@ -95,6 +98,10 @@ from app.schemas.rewards import ApplyRewardRequest, EligibleRewardOut
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 _CLOSED_ORDER_STATUSES = ("BILLING", "PAID", "CLOSED")
+_UNPAID_ORDER_STATUSES = ("NEW", "SENT", "SERVED", "BILLING")
+# Món đã rời bếp (hoặc chưa vào bếp) mới tách lẻ số lượng được; món đang ở bếp chỉ chuyển
+# nguyên dòng, để số lượng trên phiếu bếp không đổi giữa chừng.
+_PARTIAL_SPLIT_ITEM_STATUSES = ("CREATED", "SERVED")
 _VOIDABLE_ITEM_STATUSES = ("CREATED", "SENT", "ACCEPTED", "PREPARING")
 _REFIRABLE_ITEM_STATUSES = ("SERVED", "PICKED_UP")
 # Món refire có phiếu bếp mới (QUEUED) và đi lại vòng nấu như món mới gửi bếp.
@@ -1079,9 +1086,10 @@ def pay_order(
     current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
     session: Session = Depends(get_session),
 ) -> OrderOut:
-    """BILLING -> PAID. Đóng luôn table_session (status CLOSED) và chuyển bàn
-    sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới dọn bàn,
-    không nhảy thẳng về AVAILABLE).
+    """BILLING -> PAID. Đơn cuối cùng của bàn được trả thì đóng table_session (status
+    CLOSED) và chuyển bàn sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới
+    dọn bàn, không nhảy thẳng về AVAILABLE). Bàn còn đơn khác chưa trả (đã tách đơn) thì
+    phiên vẫn mở, bàn về OCCUPIED, hoặc giữ BILLING nếu đơn còn lại đang chờ thanh toán.
 
     LƯU Ý: đây là bước ghi nhận "đã thanh toán", KHÔNG xử lý cổng thanh toán
     thật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài
@@ -1108,22 +1116,41 @@ def pay_order(
     order.status = "PAID"
 
     table_session = order.table_session
-    table_session.status = "CLOSED"
-    table_session.closed_at = datetime.now(timezone.utc)
-
     table = session.get(RestaurantTable, table_session.table_id)
-    table.status = "CLEANING"
-    # Bàn đã gộp vào bàn này cũng trả lại, chờ dọn như bàn chính.
-    released = list(
+    # Bàn có thể có nhiều hóa đơn (tách đơn): chỉ đóng phiên khi không còn đơn nào có món
+    # chưa trả. Đơn rỗng (mọi món đã bỏ, hoặc đã dồn sang đơn khác) không giữ bàn.
+    others = list(
         session.scalars(
-            select(RestaurantTable)
-            .where(RestaurantTable.merged_into_table_id == table.id)
+            select(Order)
+            .where(
+                Order.table_session_id == table_session.id,
+                Order.id != order.id,
+                Order.status.in_(_UNPAID_ORDER_STATUSES),
+            )
             .with_for_update()
         )
     )
-    for merged in released:
-        merged.status = "CLEANING"
-        merged.merged_into_table_id = None
+    unpaid = [o for o in others if any(item.status != "VOIDED" for item in o.items)]
+    released: list[RestaurantTable] = []
+    if unpaid:
+        table.status = "BILLING" if any(o.status == "BILLING" for o in unpaid) else "OCCUPIED"
+    else:
+        for empty in others:
+            empty.status = "CLOSED"
+        table_session.status = "CLOSED"
+        table_session.closed_at = datetime.now(timezone.utc)
+        table.status = "CLEANING"
+        # Bàn đã gộp vào bàn này cũng trả lại, chờ dọn như bàn chính.
+        released = list(
+            session.scalars(
+                select(RestaurantTable)
+                .where(RestaurantTable.merged_into_table_id == table.id)
+                .with_for_update()
+            )
+        )
+        for merged in released:
+            merged.status = "CLEANING"
+            merged.merged_into_table_id = None
 
     # Cùng transaction: đơn đã PAID thì điểm đã trừ và đã tích, request đã khóa đơn nên chỉ
     # làm 1 lần. Ưu đãi không còn hợp lệ thì 409 và rollback cả việc chuyển PAID ở trên.
@@ -1137,6 +1164,7 @@ def pay_order(
 
     audit_payload = {
         "table_session_id": str(table_session.id),
+        "session_closed": not unpaid,
         "subtotal": pricing.subtotal,
         "discount": pricing.discount,
         "total": pricing.total,
@@ -1174,6 +1202,175 @@ def pay_order(
             "TABLE_STATUS_CHANGED",
             {"table_id": str(changed.id), "status": changed.status},
         )
+    return result
+
+
+def _derive_order_status(items: list[OrderItem]) -> str:
+    """Trạng thái đơn theo các món còn lại: có món đang ở bếp hoặc đang mang ra thì SENT,
+    mọi món đã phục vụ thì SERVED, còn lại NEW (chỉ có món chưa gửi bếp)."""
+    live = [item for item in items if item.status != "VOIDED"]
+    if any(item.status not in ("CREATED", "SERVED") for item in live):
+        return "SENT"
+    if any(item.status == "SERVED" for item in live):
+        return "SERVED"
+    return "NEW"
+
+
+@router.post("/{order_id}/split", response_model=SplitOrderOut, status_code=status.HTTP_201_CREATED)
+def split_order(
+    order_id: uuid.UUID,
+    payload: SplitOrderRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.TABLE_TRANSFER)),
+    session: Session = Depends(get_session),
+) -> SplitOrderOut:
+    """Tách một phần đơn sang hóa đơn mới cùng bàn, mỗi hóa đơn thanh toán riêng. Tách theo
+    món và số lượng; món đang ở bếp chỉ chuyển nguyên dòng (phiếu bếp đi theo). Đơn đang áp
+    ưu đãi thì phải gỡ trước. Phải để lại ít nhất 1 món ở đơn cũ, muốn chuyển hết thì dùng
+    chuyển bàn. Khách hàng đã gắn vẫn ở đơn cũ."""
+    endpoint = f"POST /api/v1/orders/{order_id}/split"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_201_CREATED:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return SplitOrderOut.model_validate_json(existing.response_body)
+
+    item_ids = [line.order_item_id for line in payload.items]
+    if len(set(item_ids)) != len(item_ids):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Món bị chọn trùng")
+
+    order = _load_order_or_404(session, order_id, current.outlet_id)
+    if order.status not in ("NEW", "SENT", "SERVED"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', không thể tách",
+        )
+    _ensure_table_not_billing(order)
+    if active_order_reward(session, order.id) is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Đơn đang áp ưu đãi, hãy gỡ trước khi tách"
+        )
+
+    items_by_id = {item.id: item for item in order.items}
+    plan = []
+    for line in payload.items:
+        item = items_by_id.get(line.order_item_id)
+        if item is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Không tìm thấy món trong đơn này"
+            )
+        if item.status == "VOIDED":
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="Món đã hủy, không tách được")
+        if line.quantity > item.quantity:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Món chỉ có {item.quantity} phần",
+            )
+        if line.quantity < item.quantity and item.status not in _PARTIAL_SPLIT_ITEM_STATUSES:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail="Món đang ở bếp chỉ tách được nguyên dòng",
+            )
+        plan.append((item, line.quantity))
+
+    moved = sum(quantity for _item, quantity in plan)
+    live_total = sum(item.quantity for item in order.items if item.status != "VOIDED")
+    if moved >= live_total:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Phải để lại ít nhất 1 món ở đơn cũ; muốn chuyển hết hãy dùng chuyển bàn",
+        )
+
+    new_order = Order(
+        table_session_id=order.table_session_id,
+        status="NEW",
+        current_version=1,
+        created_by_staff_id=current.id,
+    )
+    session.add(new_order)
+    session.flush()
+    for item, quantity in plan:
+        if quantity == item.quantity:
+            item.order_id = new_order.id
+            continue
+        item.quantity -= quantity
+        session.add(
+            OrderItem(
+                order_id=new_order.id,
+                menu_item_id=item.menu_item_id,
+                status=item.status,
+                quantity=quantity,
+                unit_price=item.unit_price,
+                note=item.note,
+                source=item.source,
+                modifiers=[
+                    OrderItemModifier(
+                        option_id=m.option_id,
+                        group_name=m.group_name,
+                        option_name=m.option_name,
+                        price_delta=m.price_delta,
+                    )
+                    for m in item.modifiers
+                ],
+            )
+        )
+    session.flush()
+    session.expire(order, ["items"])
+    session.expire(new_order, ["items"])
+
+    order.status = _derive_order_status(order.items)
+    new_order.status = _derive_order_status(new_order.items)
+    order.current_version += 1
+    session.flush()
+    for target in (order, new_order):
+        session.add(
+            OrderVersion(
+                order_id=target.id,
+                version_number=target.current_version,
+                snapshot=_snapshot_order(target),
+                created_by_staff_id=current.id,
+            )
+        )
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="ORDER_SPLIT",
+        entity_type="order",
+        entity_id=order.id,
+        payload={
+            "new_order_id": str(new_order.id),
+            "items": [{"order_item_id": str(item.id), "quantity": q} for item, q in plan],
+        },
+    )
+    session.flush()
+    session.refresh(new_order)
+    result = SplitOrderOut(
+        order=build_order_detail(session, order),
+        new_order=build_order_detail(session, new_order),
+    )
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_201_CREATED,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    _publish_order_updated(current, order, "ORDER_SPLIT")
+    _publish_order_updated(current, new_order, "ORDER_SPLIT")
+    # Phiếu bếp của món chuyển nguyên dòng giờ thuộc đơn mới: màn bếp phải tải lại.
+    manager.publish(
+        current.outlet_id,
+        "kitchen",
+        "KITCHEN_QUEUE_UPDATED",
+        {"order_id": str(new_order.id), "items_sent": 0, "reason": "ORDER_SPLIT"},
+    )
     return result
 
 

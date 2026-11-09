@@ -385,7 +385,8 @@ def qr_submit(
             Order.table_session_id == table_session.id,
             Order.status.in_(_OPEN_ORDER_STATUSES),
         )
-        .order_by(Order.created_at.desc())
+        # Đơn cũ nhất: bàn đã tách đơn thì món khách gọi thêm vào hóa đơn gốc.
+        .order_by(Order.created_at, Order.id)
         .with_for_update()
     ).scalars().first()
     if order is None:

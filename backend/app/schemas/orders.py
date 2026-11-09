@@ -139,5 +139,19 @@ class SendToKitchenResponse(BaseModel):
     kitchen_queue_entries_created: int
 
 
+class SplitLine(BaseModel):
+    order_item_id: uuid.UUID
+    quantity: int = Field(ge=1, le=50)
+
+
+class SplitOrderRequest(BaseModel):
+    items: list[SplitLine] = Field(min_length=1, max_length=50)
+
+
+class SplitOrderOut(BaseModel):
+    order: OrderDetailOut  # đơn cũ sau khi tách
+    new_order: OrderDetailOut
+
+
 class VoidItemRequest(BaseModel):
     reason: str | None = None

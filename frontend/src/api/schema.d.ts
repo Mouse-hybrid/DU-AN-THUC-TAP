@@ -592,15 +592,39 @@ export interface paths {
         put?: never;
         /**
          * Pay Order
-         * @description BILLING -> PAID. Đóng luôn table_session (status CLOSED) và chuyển bàn
-         *     sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới dọn bàn,
-         *     không nhảy thẳng về AVAILABLE).
+         * @description BILLING -> PAID. Đơn cuối cùng của bàn được trả thì đóng table_session (status
+         *     CLOSED) và chuyển bàn sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới
+         *     dọn bàn, không nhảy thẳng về AVAILABLE). Bàn còn đơn khác chưa trả (đã tách đơn) thì
+         *     phiên vẫn mở, bàn về OCCUPIED, hoặc giữ BILLING nếu đơn còn lại đang chờ thanh toán.
          *
          *     LƯU Ý: đây là bước ghi nhận "đã thanh toán", KHÔNG xử lý cổng thanh toán
          *     thật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài
          *     phạm vi vertical slice này.
          */
         post: operations["pay_order_api_v1_orders__order_id__pay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split Order
+         * @description Tách một phần đơn sang hóa đơn mới cùng bàn, mỗi hóa đơn thanh toán riêng. Tách theo
+         *     món và số lượng; món đang ở bếp chỉ chuyển nguyên dòng (phiếu bếp đi theo). Đơn đang áp
+         *     ưu đãi thì phải gỡ trước. Phải để lại ít nhất 1 món ở đơn cũ, muốn chuyển hết thì dùng
+         *     chuyển bàn. Khách hàng đã gắn vẫn ở đơn cũ.
+         */
+        post: operations["split_order_api_v1_orders__order_id__split_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2366,6 +2390,26 @@ export interface components {
             /** Kitchen Queue Entries Created */
             kitchen_queue_entries_created: number;
         };
+        /** SplitLine */
+        SplitLine: {
+            /**
+             * Order Item Id
+             * Format: uuid
+             */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** SplitOrderOut */
+        SplitOrderOut: {
+            order: components["schemas"]["OrderDetailOut"];
+            new_order: components["schemas"]["OrderDetailOut"];
+        };
+        /** SplitOrderRequest */
+        SplitOrderRequest: {
+            /** Items */
+            items: components["schemas"]["SplitLine"][];
+        };
         /** StaffCreate */
         StaffCreate: {
             /** Username */
@@ -3894,6 +3938,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    split_order_api_v1_orders__order_id__split_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitOrderOut"];
                 };
             };
             /** @description Validation Error */
