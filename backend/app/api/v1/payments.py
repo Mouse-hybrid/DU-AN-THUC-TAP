@@ -23,6 +23,7 @@ from app.api.v1.orders import (
     _load_order_or_404,
     _publish_order_updated,
     finalize_paid_order,
+    lock_order_for_payment,
     publish_order_paid,
 )
 from app.core.audit import write_audit_log
@@ -78,12 +79,12 @@ def _order_payments_out(session: Session, order: Order) -> OrderPaymentsOut:
 def _load_payment_and_order(
     session: Session, payment_id: uuid.UUID, current: CurrentStaff
 ) -> tuple[Payment, Order]:
-    """Khóa đơn trước rồi mới khóa dòng thanh toán, cùng thứ tự với API nhận tiền để không
+    """Khóa phiên bàn, đơn rồi mới khóa dòng thanh toán, cùng thứ tự với API nhận tiền để không
     deadlock."""
     found = session.get(Payment, payment_id)
     if found is None or found.outlet_id != current.outlet_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Không tìm thấy lần thanh toán")
-    order = _load_order_or_404(session, found.order_id, current.outlet_id)
+    order = lock_order_for_payment(session, found.order_id, current.outlet_id)
     payment = session.execute(
         select(Payment)
         .where(Payment.id == payment_id)
@@ -146,7 +147,7 @@ def create_payment(
             status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Thanh toán thẻ không có tiền khách đưa"
         )
 
-    order = _load_order_or_404(session, order_id, current.outlet_id)
+    order = lock_order_for_payment(session, order_id, current.outlet_id)
     if order.status != "BILLING":
         raise HTTPException(
             status.HTTP_409_CONFLICT,

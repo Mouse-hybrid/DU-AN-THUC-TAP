@@ -131,6 +131,19 @@ def _load_order_or_404(
     return order
 
 
+def lock_order_for_payment(session: Session, order_id: uuid.UUID, outlet_id: uuid.UUID) -> Order:
+    """Khóa phiên bàn TRƯỚC rồi mới khóa đơn, cho mọi API thu tiền và chốt đơn. Lần trả cuối
+    còn khóa các đơn khác cùng bàn (tách đơn) để quyết định đóng phiên; nếu khóa đơn trước thì
+    hai thu ngân trả hai hóa đơn tách cùng lúc sẽ chờ nhau (A giữ A chờ B, B giữ B chờ A) và
+    Postgres hủy một bên. Khóa phiên trước làm hai lần trả cùng bàn chạy lần lượt."""
+    session_id = session.scalar(select(Order.table_session_id).where(Order.id == order_id))
+    if session_id is not None:
+        session.execute(
+            select(TableSession.id).where(TableSession.id == session_id).with_for_update()
+        )
+    return _load_order_or_404(session, order_id, outlet_id)
+
+
 def _publish_order_updated(
     current: CurrentStaff, order: Order, reason: str, *, item_id: uuid.UUID | None = None
 ) -> None:
@@ -1216,7 +1229,7 @@ def pay_order(
             raise HTTPException(existing.response_status, detail=existing.response_body)
         return OrderOut.model_validate_json(existing.response_body)
 
-    order = _load_order_or_404(session, order_id, current.outlet_id)
+    order = lock_order_for_payment(session, order_id, current.outlet_id)
     if order.status != "BILLING":
         raise HTTPException(
             status.HTTP_409_CONFLICT,
