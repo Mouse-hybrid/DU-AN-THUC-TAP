@@ -264,7 +264,26 @@ Seed: `Đổi điểm` và `Giảm 10% đơn từ 200.000đ` (tối đa 50.000đ
 - Bàn chính đang có bàn gộp vào thì không chuyển bàn được (409).
 - Event: kênh `tables` có `TABLE_MERGED`, `TABLE_STATUS_CHANGED` cho bàn phụ, `ORDER_UPDATED` với `reason: "TABLES_MERGED"`; kênh `kitchen` có `KITCHEN_QUEUE_UPDATED`.
 
-Chưa có: bỏ gộp giữa chừng (tách bàn ra lại), tách đơn.
+Chưa có: bỏ gộp giữa chừng (tách bàn ra lại).
+
+### A16. Tách đơn (từ 09/11)
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 80 | POST | `/api/v1/orders/{id}/split` (cần `Idempotency-Key`) | W, S | 18 Tách hóa đơn: body `{"items": [{"order_item_id": "...", "quantity": 1}]}`; trả `order` (đơn cũ) và `new_order`, cả hai dạng chi tiết đơn | ✅ |
+
+**Quy tắc:**
+- Tách sang hóa đơn mới **cùng bàn**, mỗi hóa đơn yêu cầu thanh toán và thanh toán riêng.
+- Món chưa gửi bếp (`CREATED`) hoặc đã phục vụ (`SERVED`) tách lẻ số lượng được; tùy chọn món, ghi chú, giá đi theo. **Món đang ở bếp chỉ tách nguyên dòng** (409), phiếu bếp đi theo món.
+- Phải để lại ít nhất 1 món ở đơn cũ (422). Món đã hủy, đơn đang chờ thanh toán, bàn đang chờ thanh toán, hoặc đơn đang áp ưu đãi thì 409.
+- Khách hàng đã gắn vẫn ở đơn cũ. Trạng thái hai đơn tính lại theo món còn lại. Có snapshot `order_version` cho cả hai đơn.
+- Event: `ORDER_UPDATED` (`reason: "ORDER_SPLIT"`) cho cả hai đơn; kênh `kitchen` có `KITCHEN_QUEUE_UPDATED` vì phiếu bếp của món chuyển nguyên dòng giờ thuộc đơn mới.
+
+**Thay đổi ở thanh toán (áp dụng cho mọi bàn có nhiều đơn):**
+- `POST /orders/{id}/pay` chỉ đóng phiên bàn khi **không còn đơn nào có món chưa trả**. Còn đơn chưa trả thì phiên vẫn mở và bàn về `OCCUPIED`, hoặc giữ `BILLING` nếu đơn còn lại đang chờ thanh toán.
+- Đơn rỗng (không còn món) được đóng cùng phiên, không giữ bàn.
+- Khi bàn đang `BILLING` thì mọi đơn của bàn đều không gọi thêm món được (như trước).
+- Khách quét QR gọi thêm thì món vào **đơn cũ nhất** của bàn.
 
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
@@ -319,7 +338,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | Nhóm (Board) | Endpoint đề xuất | Vì sao chưa làm |
 |---|---|---|
 | **Thanh toán đa phương thức** (BRD Payment) | `POST /orders/{id}/payments` (CASH/CARD/QR, số tiền), `GET /orders/{id}/payments`, `POST /payments/{id}/cancel`, `POST /payments/webhooks/{provider}` (callback có chữ ký), `POST /orders/{id}/split-bill` | Cần sandbox cổng thanh toán và quyết định gateway (SEC-05 đang bị chặn). Pha 1 `/pay` chỉ ghi nhận đã trả |
-| **Merge / Split / Transfer bàn** | Chuyển bàn, gộp bàn **đã có từ 09/11** (mục A14, A15). Còn: `POST /orders/{id}/split` | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
+| **Merge / Split / Transfer bàn** | Chuyển bàn, gộp bàn, tách đơn **đã có từ 09/11** (mục A14–A16) | Còn bỏ gộp giữa chừng | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
 | **Audit search / report** | Phần đọc đã có từ 15/10 (mục A7). Pha 2 còn: màn hình tra cứu, xuất báo cáo | Bảng `audit_log` đã ghi từ Pha 1; chỉ thiếu API đọc + màn hình |

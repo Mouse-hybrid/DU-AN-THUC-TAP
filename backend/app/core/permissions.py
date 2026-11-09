@@ -89,7 +89,9 @@ PERMISSION_MATRIX: dict[Permission, PermissionRule] = {
     # Gán nhóm quản lý bàn — cần BA/PM xác nhận lại.
     Permission.TABLE_MARK_CLEAN: PermissionRule(("WAITER", "SUPERVISOR"), "Xác nhận đã dọn bàn"),
     # = "Merge/Split/Transfer Table" (Waiter, Supervisor; Customer không áp dụng cho staff).
-    Permission.TABLE_TRANSFER: PermissionRule(("WAITER", "SUPERVISOR"), "Chuyển bàn, gộp bàn"),
+    Permission.TABLE_TRANSFER: PermissionRule(
+        ("WAITER", "SUPERVISOR"), "Chuyển bàn, gộp bàn, tách đơn"
+    ),
     # Không có trong BRD Matrix; cấu hình nhà hàng, gán Supervisor như quản lý thực đơn.
     Permission.TABLE_LAYOUT_MANAGE: PermissionRule(
         ("SUPERVISOR",), "Quản lý tầng/khu và gán bàn vào khu"
