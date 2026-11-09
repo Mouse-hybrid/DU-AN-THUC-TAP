@@ -90,6 +90,25 @@ test('P2-QR-012 | invalid QR modifier creates no partial order or ticket', async
       await checked('POST', `/api/v1/orders/${owned.orderId}/send-to-kitchen`, 200, 'waiter');
       order = await ownOrder();
     }
+    // Complete only the items belonging to this QA order before billing. A
+    // rejected QR cart must not leave an active Kitchen ticket after cleanup.
+    for (const item of order.items) {
+      for (const [status, action, role] of [
+        ['SENT', 'start-cooking', 'kitchen'],
+        ['PREPARING', 'mark-ready', 'kitchen'],
+        ['READY', 'pickup', 'waiter'],
+        ['PICKED_UP', 'served', 'waiter'],
+      ]) {
+        const current = (await ownOrder()).items.find(row => row.id === item.id);
+        if (current?.status === status) {
+          await checked('POST', `/api/v1/orders/${owned.orderId}/items/${item.id}/${action}`,
+            200, role);
+        }
+      }
+      const finalItem = (await ownOrder()).items.find(row => row.id === item.id);
+      expect(finalItem?.status, `cleanup item ${item.id}`).toBe('SERVED');
+    }
+    order = await ownOrder();
     if (['SENT', 'SERVED'].includes(order.status)) {
       await checked('POST', `/api/v1/orders/${owned.orderId}/request-billing`, 200, 'waiter');
       order = await ownOrder();
@@ -107,6 +126,12 @@ test('P2-QR-012 | invalid QR modifier creates no partial order or ticket', async
     expect(finalOrder.status).toBe('CLOSED');
     expect(finalTable.status).toBe('AVAILABLE');
     expect(finalTable.current_session).toBeNull();
+    expect(finalOrder.items.every(item => item.status === 'SERVED')).toBe(true);
+    const active = await ownQueue();
+    expect(active, 'no active tickets for owned order').toEqual([]);
+    const done = await checked('GET', '/api/v1/kitchen/queue?status=DONE', 200, 'kitchen');
+    expect(done.filter(ticket => ticket.order_id === owned.orderId).length,
+      'one completed ticket per owned item').toBe(finalOrder.items.length);
     return true;
   }
   try {
