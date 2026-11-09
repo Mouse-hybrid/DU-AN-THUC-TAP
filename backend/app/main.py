@@ -9,7 +9,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.v1 import api_v1_router
 from app.core.config import APP_ENV, BUILT_AT, CORS_ALLOW_ORIGINS, GIT_COMMIT
 from app.core.error_handlers import register_exception_handlers
+from app.core.observability import configure_logging, init_sentry, install_request_middleware
 from app.db.base import engine as database_engine
+
+configure_logging()
+init_sentry()
 
 app = FastAPI(
     title="POS Staging API",
@@ -23,11 +27,15 @@ if CORS_ALLOW_ORIGINS:
         CORSMiddleware,
         allow_origins=CORS_ALLOW_ORIGINS,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
+        expose_headers=["X-Request-ID", "X-Total-Count", "X-Truncated"],
         max_age=600,
     )
 app.include_router(api_v1_router)
 register_exception_handlers(app)
+# Middleware thêm sau cùng nằm ngoài cùng (chỉ trong lớp xử lý lỗi 500 của Starlette): mọi
+# response, kể cả preflight CORS và 4xx, đều có X-Request-ID và được đo.
+install_request_middleware(app)
 
 
 @app.get("/", include_in_schema=False)

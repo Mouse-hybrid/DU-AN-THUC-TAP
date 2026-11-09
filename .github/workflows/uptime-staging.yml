@@ -1,0 +1,33 @@
+name: Uptime staging
+# Canh bao "he thong ngung" (SDD R3): 15 phut goi /health cua staging (qua nginx toi API) tu may
+# cua GitHub (ngoai server, nen server sap han van bao duoc). Loi 3 lan lien tiep trong 1
+# lan chay thi job do, GitHub gui email cho nguoi sua cron gan nhat va hien do tren tab Actions.
+# Dia chi staging lay tu Settings -> Variables -> STAGING_URL, chua dat thi dung IP hien tai.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      STAGING_URL: ${{ vars.STAGING_URL || 'http://160.191.47.17' }}
+    steps:
+      - name: Goi /health
+        run: |
+          for attempt in 1 2 3; do
+            if curl -fsS --max-time 10 "$STAGING_URL/health" | grep -q '"status":"ok"'; then
+              echo "Staging dang chay."
+              exit 0
+            fi
+            echo "Lan $attempt that bai, thu lai sau 30 giay."
+            sleep 30
+          done
+          echo "::error::Staging khong tra loi /health sau 3 lan thu."
+          exit 1
