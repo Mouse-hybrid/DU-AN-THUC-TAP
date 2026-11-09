@@ -344,8 +344,18 @@ def test_paying_split_bills_together_closes_session_once(client, seed, db_sessio
         )
         assert split.status_code == 201, split.text
         new_id = split.json()["new_order"]["id"]
-        _bill(client, order_id, waiter, f"sb-a{round_no}")
-        _bill(client, new_id, waiter, f"sb-b{round_no}")
+        # Gửi bếp cả hai đơn trước: bàn sang BILLING rồi thì không gửi bếp thêm được.
+        for oid, tag in ((order_id, "a"), (new_id, "b")):
+            client.post(
+                f"/api/v1/orders/{oid}/send-to-kitchen",
+                headers={**waiter, "Idempotency-Key": f"sb-send-{tag}{round_no}"},
+            )
+        for oid, tag in ((order_id, "a"), (new_id, "b")):
+            resp = client.post(
+                f"/api/v1/orders/{oid}/request-billing",
+                headers={**waiter, "Idempotency-Key": f"sb-bill-{tag}{round_no}"},
+            )
+            assert resp.status_code == 200, resp.text
         statuses = _run_concurrently(
             [
                 (
