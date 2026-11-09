@@ -143,6 +143,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tables/{table_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Tables
+         * @description Gộp các bàn trong `table_ids` vào bàn chính (bàn trong URL): một phiên, một đơn, một
+         *     hóa đơn. Món của bàn phụ chuyển sang đơn của bàn chính (phiếu bếp đi theo món), phiên
+         *     bàn phụ đóng, mã QR của bàn phụ hết dùng. Bàn phụ sang MERGED, trỏ về bàn chính; khi bàn
+         *     chính thanh toán thì bàn phụ cùng sang CLEANING.
+         *
+         *     Bàn phụ có thể đang có khách hoặc đang trống (kê thêm bàn). Bàn đang chờ thanh toán,
+         *     đang dọn hoặc đã gộp thì không gộp được. Đơn bàn phụ đang áp ưu đãi thì phải gỡ trước,
+         *     vì điều kiện ưu đãi tính trên hóa đơn mới sẽ khác.
+         */
+        post: operations["merge_tables_api_v1_tables__table_id__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tables/{table_id}/mark-clean": {
         parameters: {
             query?: never;
@@ -2446,6 +2473,8 @@ export interface components {
             area_id?: string | null;
             /** Area Name */
             area_name?: string | null;
+            /** Merged Into Table Id */
+            merged_into_table_id?: string | null;
             /** Current Session Id */
             current_session_id?: string | null;
             /** Guest Count */
@@ -2473,12 +2502,35 @@ export interface components {
             area_id?: string | null;
             /** Area Name */
             area_name?: string | null;
+            /** Merged Into Table Id */
+            merged_into_table_id?: string | null;
             current_session?: components["schemas"]["TableSessionOut"] | null;
             /**
              * Orders
              * @default []
              */
             orders: components["schemas"]["OrderDetailOut"][];
+        };
+        /** TableMergeOut */
+        TableMergeOut: {
+            /**
+             * Table Session Id
+             * Format: uuid
+             */
+            table_session_id: string;
+            table: components["schemas"]["TableOut"];
+            /** Merged Tables */
+            merged_tables: components["schemas"]["TableOut"][];
+            /** Order Id */
+            order_id: string | null;
+        };
+        /**
+         * TableMergeRequest
+         * @description Các bàn gộp vào bàn trong URL (bàn chính).
+         */
+        TableMergeRequest: {
+            /** Table Ids */
+            table_ids: string[];
         };
         /** TableOut */
         TableOut: {
@@ -2497,6 +2549,8 @@ export interface components {
             area_id?: string | null;
             /** Area Name */
             area_name?: string | null;
+            /** Merged Into Table Id */
+            merged_into_table_id?: string | null;
         };
         /** TableSessionOut */
         TableSessionOut: {
@@ -2829,6 +2883,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TableTransferOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_tables_api_v1_tables__table_id__merge_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TableMergeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableMergeOut"];
                 };
             };
             /** @description Validation Error */
