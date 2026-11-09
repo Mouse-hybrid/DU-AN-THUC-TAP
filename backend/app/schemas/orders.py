@@ -117,6 +117,9 @@ class OrderDetailOut(BaseModel):
     discount_total: Decimal = Decimal("0")
     total: Decimal
     applied_reward: AppliedRewardOut | None = None
+    # Đã thu qua các lần thanh toán (không tính lần đã hủy) và số còn phải thu.
+    amount_paid: Decimal = Decimal("0")
+    amount_due: Decimal = Decimal("0")
 
 
 class OrderSummaryOut(BaseModel):

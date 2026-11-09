@@ -3,8 +3,8 @@
 và để diễn tập/demo (sơ đồ bàn trống, hàng đợi bếp trống).
 
 XÓA: table_session, order, order_item, order_item_modifier, order_version, kitchen_queue,
-idempotency_key, customer, points_ledger, order_reward (mọi phiên bàn, đơn, món, phiếu bếp,
-khách và điểm tạo ra khi test).
+idempotency_key, customer, points_ledger, order_reward, payment, payment_refund (mọi phiên
+bàn, đơn, món, phiếu bếp, thanh toán, khách và điểm tạo ra khi test).
 ĐƯA VỀ: mọi bàn AVAILABLE, mọi món menu is_available = true, số lượt dùng ưu đãi về 0.
 GIỮ NGUYÊN: outlet, tài khoản staff, menu/nhóm món/trạm bếp, audit_log (lịch sử
 thao tác không bị xóa; script ghi thêm 1 dòng STAGING_DATA_RESET).
@@ -70,6 +70,8 @@ from app.db.models import (  # noqa: E402
     OrderReward,
     OrderVersion,
     Outlet,
+    Payment,
+    PaymentRefund,
     PointsLedger,
     RestaurantTable,
     Reward,
@@ -81,6 +83,8 @@ ALLOWED_ENVS = ("development", "staging", "test")
 
 # Xóa con trước cha để không vướng khóa ngoại.
 _WIPE_ORDER = (
+    ("payment_refund", PaymentRefund),
+    ("payment", Payment),
     ("points_ledger", PointsLedger),
     ("order_reward", OrderReward),
     ("kitchen_queue", KitchenQueue),

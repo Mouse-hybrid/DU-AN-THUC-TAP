@@ -87,7 +87,7 @@ header `Idempotency-Key`. Màn hình theo mã Figma NOVA POS.
 | # | Method | Endpoint | Quyền | Màn hình dùng | Trạng thái |
 |---|---|---|---|---|---|
 | 29 | POST | `/api/v1/orders/{id}/request-billing` (order + bàn → BILLING) | S C W | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
-| 30 | POST | `/api/v1/orders/{id}/pay` | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
+| 30 | POST | `/api/v1/orders/{id}/pay` (từ 09/11: lối tắt trả nốt bằng tiền mặt, xem A17) | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 31 | POST | `/api/v1/orders/{id}/close` | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 32 | POST | `/api/v1/orders/{id}/items/{item_id}/void` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 33 | POST | `/api/v1/orders/{id}/items/{item_id}/refire` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
@@ -293,6 +293,28 @@ Chưa có: bỏ gộp giữa chừng (tách bàn ra lại).
 - Khi bàn đang `BILLING` thì mọi đơn của bàn đều không gọi thêm món được (như trước).
 - Khách quét QR gọi thêm thì món vào **đơn cũ nhất** của bàn.
 
+### A17. Thanh toán v2: nhiều lần, nhiều hình thức, hoàn tiền (từ 09/11)
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 81 | POST | `/api/v1/orders/{id}/payments` (cần `Idempotency-Key`) | S C | 20, 21 Thanh toán: body `{"method": "CASH" \| "CARD", "amount"?, "cash_received"?, "provider_ref"?, "note"?}`; trả `payment`, `order_status`, `summary` | ✅ |
+| 82 | GET | `/api/v1/orders/{id}/payments` | S C | Danh sách lần thanh toán, kèm `summary` (`total`, `paid`, `refunded`, `remaining`) | ✅ |
+| 83 | POST | `/api/v1/payments/{id}/cancel` (cần `Idempotency-Key`) | S | Hủy lần ghi nhầm khi đơn chưa trả xong: body `{"reason"}` | ✅ |
+| 84 | POST | `/api/v1/payments/{id}/refunds` (cần `Idempotency-Key`) | S | 100 Hoàn tiền: body `{"amount"?, "reason"}`, sau khi đơn đã PAID | ✅ |
+
+**Quy tắc:**
+- Đơn phải ở `BILLING`. `amount` bỏ trống = trả hết số còn lại. **Không nhận quá số còn phải thu** (409); khách đưa dư tiền mặt thì là tiền thối (`change_due`), không phải trả vượt.
+- Tiền mặt: `cash_received` bỏ trống = đưa vừa đủ; ít hơn `amount` thì 422. Thẻ: không có `cash_received` (422); thu ngân xác nhận máy POS đã quẹt, `provider_ref` là số hóa đơn trên máy. `VNPAY` chưa nhận (422), làm ở R2.
+- Lần trả đủ tiền chạy đúng logic `/pay`: chốt ưu đãi, trừ và tích điểm, đóng phiên khi là đơn cuối của bàn, bàn sang `CLEANING`.
+- Đã nhận một phần tiền thì **không áp thêm ưu đãi và không đổi khách** (409), vì số phải trả có thể thấp hơn số đã thu. Gỡ ưu đãi vẫn được (số phải trả tăng).
+- Mọi API ghi khóa dòng đơn: hai thu ngân cùng bấm trả hết thì một bên 201, bên kia 409 (BRD "No duplicate payment").
+- Hủy (`cancel`): chỉ khi đơn còn `BILLING`. Đơn đã `PAID` thì dùng hoàn tiền. Hoàn tiền tối đa phần chưa hoàn của lần đó; hoàn hết thì lần thanh toán thành `REFUNDED`. Đơn giữ nguyên trạng thái; **điểm đã tích chưa tự trừ lại** (làm cùng Rewards đợt 3).
+- `/pay` vẫn dùng được, giờ là lối tắt: ghi 1 lần `CASH` cho số còn lại rồi chốt đơn.
+- Chi tiết đơn (`GET /orders/{id}`, `GET /tables/{id}`) có thêm `amount_paid`, `amount_due`.
+- Audit: `PAYMENT_RECORDED`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED` (hai cái sau là thao tác ngoại lệ trong báo cáo audit). Quyền mới `PAYMENT_REFUND` (chỉ Supervisor).
+- Event `ORDER_UPDATED` với `reason`: `PAYMENT_RECORDED`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED`; lần trả đủ là `ORDER_PAID` như cũ.
+- Đơn đã PAID trước 09/11 không có dòng thanh toán.
+
 **Event WebSocket** (không phải endpoint, liệt kê để FE/QA đối chiếu):
 Mọi message có dạng `{"type", "channel", "data", "at"}`. Event chỉ là tín hiệu "có thay đổi" —
 FE gọi lại REST để lấy dữ liệu; mất kết nối thì kết nối lại rồi gọi lại REST (server không phát
@@ -302,7 +324,7 @@ lại event đã lỡ).
 |---|---|---|---|
 | `tables` | `TABLE_SESSION_OPENED` | `table_id`, `status`, `table_session_id` | Mở bàn |
 | `tables` | `TABLE_STATUS_CHANGED` | `table_id`, `status` | Bàn sang BILLING, CLEANING, AVAILABLE |
-| `tables` | `ORDER_UPDATED` (từ 15/10) | `order_id`, `table_id`, `table_session_id`, `status`, `current_version`, `reason`, `item_id` | **Mọi** thao tác ghi vào order. `reason`: `ORDER_CREATED`, `ITEMS_ADDED`, `ITEM_UPDATED`, `ITEM_REMOVED`, `SENT_TO_KITCHEN`, `ITEM_STARTED`, `ITEM_READY`, `ITEM_PICKED_UP`, `ITEM_SERVED`, `ITEM_VOIDED`, `ITEM_REFIRED`, `BILLING_REQUESTED`, `ORDER_PAID`, `ORDER_CLOSED`; `item_id` có khi thao tác trên 1 món |
+| `tables` | `ORDER_UPDATED` (từ 15/10) | `order_id`, `table_id`, `table_session_id`, `status`, `current_version`, `reason`, `item_id` | **Mọi** thao tác ghi vào order. `reason`: `ORDER_CREATED`, `ITEMS_ADDED`, `ITEM_UPDATED`, `ITEM_REMOVED`, `SENT_TO_KITCHEN`, `ITEM_STARTED`, `ITEM_READY`, `ITEM_PICKED_UP`, `ITEM_SERVED`, `ITEM_VOIDED`, `ITEM_REFIRED`, `BILLING_REQUESTED`, `PAYMENT_RECORDED`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED`, `ORDER_PAID`, `ORDER_CLOSED`; `item_id` có khi thao tác trên 1 món |
 | `kitchen` | `KITCHEN_QUEUE_UPDATED` | `order_id`, `items_sent` | Gửi bếp |
 | `kitchen` | `ORDER_ITEM_STATUS_CHANGED` / `ORDER_ITEM_VOIDED` / `ORDER_ITEM_REFIRED` | `order_id`, `item_id`, `status` | Bếp nấu/xong, phục vụ lấy/mang ra, hủy, làm lại |
 
@@ -345,7 +367,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 
 | Nhóm (Board) | Endpoint đề xuất | Vì sao chưa làm |
 |---|---|---|
-| **Thanh toán đa phương thức** (BRD Payment) | `POST /orders/{id}/payments` (CASH/CARD/QR, số tiền), `GET /orders/{id}/payments`, `POST /payments/{id}/cancel`, `POST /payments/webhooks/{provider}` (callback có chữ ký), `POST /orders/{id}/split-bill` | Cần sandbox cổng thanh toán và quyết định gateway (SEC-05 đang bị chặn). Pha 1 `/pay` chỉ ghi nhận đã trả |
+| **Thanh toán đa phương thức** (BRD Payment) | Tiền mặt, thẻ, trả nhiều lần, hủy, hoàn tiền **đã có từ 09/11** (mục A17). Còn: VNPay sandbox (`GET /payments/vnpay/return`, `POST /payments/{id}/check`, `GET /payments/vnpay/ipn`) | Chờ tài khoản sandbox VNPay (SDD R2) |
 | **Merge / Split / Transfer bàn** | Chuyển bàn, gộp bàn, tách đơn **đã có từ 09/11** (mục A14–A16) | Còn bỏ gộp giữa chừng | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |

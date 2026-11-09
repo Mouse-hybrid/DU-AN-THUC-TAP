@@ -56,6 +56,8 @@ EXCEPTION_ACTIONS = frozenset(
         "MENU_ITEM_UPDATED",
         "LOYALTY_RULE_CREATED",
         "STAGING_DATA_RESET",
+        "PAYMENT_CANCELLED",
+        "PAYMENT_REFUNDED",
     }
 )
 VN_TZ = timezone(timedelta(hours=7))

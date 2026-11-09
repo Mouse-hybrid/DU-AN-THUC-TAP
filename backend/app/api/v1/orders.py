@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -58,6 +59,7 @@ from app.core.loyalty import (
     price_order,
 )
 from app.core.modifiers import resolve_modifiers
+from app.core.payments import has_collected_payment, order_payments, payment_totals
 from app.core.permissions import PERMISSION_MATRIX, Permission
 from app.core.realtime import manager
 from app.db.base import get_session
@@ -73,6 +75,7 @@ from app.db.models import (
     OrderItemModifier,
     OrderReward,
     OrderVersion,
+    Payment,
     RestaurantTable,
     Reward,
     TableSession,
@@ -230,6 +233,7 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
     ]
     table = order.table_session.table
     pricing = price_order(session, order)
+    totals = payment_totals(order_payments(session, order.id))
     return OrderDetailOut(
         id=order.id,
         table_session_id=order.table_session_id,
@@ -244,6 +248,8 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         discount_total=pricing.discount,
         total=pricing.total,
         applied_reward=_applied_reward_out(pricing),
+        amount_paid=totals.paid,
+        amount_due=totals.remaining(pricing.total) if order.status in _UNPAID_ORDER_STATUSES else 0,
     )
 
 
@@ -835,6 +841,11 @@ def attach_customer(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', không thể đổi khách",
         )
+    if has_collected_payment(session, order.id):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Đơn đã nhận một phần tiền, không đổi khách được",
+        )
     active = active_order_reward(session, order.id)
     if (
         active is not None
@@ -954,6 +965,12 @@ def apply_reward(
     if active_order_reward(session, order.id) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Đơn đã có ưu đãi, hãy gỡ trước khi áp ưu đãi khác"
+        )
+    if has_collected_payment(session, order.id):
+        # Áp ưu đãi làm giảm số phải trả, có thể thấp hơn số khách đã trả.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Đơn đã nhận một phần tiền, không áp thêm ưu đãi được",
         )
     reward = session.get(Reward, payload.reward_id)
     if reward is None or reward.outlet_id != current.outlet_id:
@@ -1079,40 +1096,20 @@ def remove_reward(
     return result
 
 
-@router.post("/{order_id}/pay", response_model=OrderOut)
-def pay_order(
-    order_id: uuid.UUID,
-    idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
-    session: Session = Depends(get_session),
-) -> OrderOut:
-    """BILLING -> PAID. Đơn cuối cùng của bàn được trả thì đóng table_session (status
-    CLOSED) và chuyển bàn sang CLEANING (theo state machine bàn trong BRD: PAID rồi mới
-    dọn bàn, không nhảy thẳng về AVAILABLE). Bàn còn đơn khác chưa trả (đã tách đơn) thì
-    phiên vẫn mở, bàn về OCCUPIED, hoặc giữ BILLING nếu đơn còn lại đang chờ thanh toán.
+@dataclass
+class PaidOrderResult:
+    pricing: OrderPricing
+    table: RestaurantTable
+    released: list[RestaurantTable]
 
-    LƯU Ý: đây là bước ghi nhận "đã thanh toán", KHÔNG xử lý cổng thanh toán
-    thật (thẻ/QR/momo...) — tích hợp payment gateway là việc riêng, ngoài
-    phạm vi vertical slice này.
-    """
-    endpoint = f"POST /api/v1/orders/{order_id}/pay"
-    request_hash = hash_request_body({"order_id": str(order_id)})
 
-    existing = get_idempotent_response(
-        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
-    )
-    if existing is not None:
-        if existing.response_status != status.HTTP_200_OK:
-            raise HTTPException(existing.response_status, detail=existing.response_body)
-        return OrderOut.model_validate_json(existing.response_body)
-
-    order = _load_order_or_404(session, order_id, current.outlet_id)
-    if order.status != "BILLING":
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            detail=f"Order đang ở trạng thái '{order.status}', phải ở BILLING mới pay được",
-        )
-
+def finalize_paid_order(
+    session: Session, order: Order, current: CurrentStaff, *, extra_audit: dict | None = None
+) -> PaidOrderResult:
+    """BILLING -> PAID trong transaction của người gọi (order đã bị khóa): chốt ưu đãi, tích
+    điểm, đóng phiên bàn khi không còn đơn nào chưa trả, ghi audit ORDER_PAID. Dùng chung cho
+    /pay và cho lần thanh toán cuối của API payments. Gọi xong thì commit rồi
+    `publish_order_paid`."""
     order.status = "PAID"
 
     table_session = order.table_session
@@ -1168,6 +1165,7 @@ def pay_order(
         "subtotal": pricing.subtotal,
         "discount": pricing.discount,
         "total": pricing.total,
+        **(extra_audit or {}),
     }
     if pricing.points:
         audit_payload["points_redeemed"] = pricing.points
@@ -1182,6 +1180,67 @@ def pay_order(
         entity_id=order.id,
         payload=audit_payload,
     )
+    return PaidOrderResult(pricing=pricing, table=table, released=released)
+
+
+def publish_order_paid(current: CurrentStaff, order: Order, result: PaidOrderResult) -> None:
+    _publish_order_updated(current, order, "ORDER_PAID")
+    for changed in (result.table, *result.released):
+        manager.publish(
+            current.outlet_id,
+            "tables",
+            "TABLE_STATUS_CHANGED",
+            {"table_id": str(changed.id), "status": changed.status},
+        )
+
+
+@router.post("/{order_id}/pay", response_model=OrderOut)
+def pay_order(
+    order_id: uuid.UUID,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
+    session: Session = Depends(get_session),
+) -> OrderOut:
+    """Lối tắt "khách trả nốt bằng tiền mặt": ghi 1 lần thanh toán CASH cho số còn lại rồi
+    BILLING -> PAID. Muốn trả nhiều lần, bằng thẻ, hoặc tính tiền thối thì dùng
+    POST /orders/{id}/payments. Đơn cuối cùng của bàn được trả thì đóng table_session và
+    chuyển bàn sang CLEANING; bàn còn đơn khác chưa trả (đã tách đơn) thì phiên vẫn mở."""
+    endpoint = f"POST /api/v1/orders/{order_id}/pay"
+    request_hash = hash_request_body({"order_id": str(order_id)})
+
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return OrderOut.model_validate_json(existing.response_body)
+
+    order = _load_order_or_404(session, order_id, current.outlet_id)
+    if order.status != "BILLING":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Order đang ở trạng thái '{order.status}', phải ở BILLING mới pay được",
+        )
+
+    totals = payment_totals(order_payments(session, order.id, for_update=True))
+    paid = finalize_paid_order(session, order, current)
+    remaining = totals.remaining(paid.pricing.total)
+    if remaining > 0:
+        session.add(
+            Payment(
+                order_id=order.id,
+                outlet_id=current.outlet_id,
+                method="CASH",
+                amount=remaining,
+                status="SUCCEEDED",
+                cash_received=remaining,
+                change_due=Decimal("0"),
+                note="Thanh toán nhanh (/pay)",
+                created_by_staff_id=current.id,
+            )
+        )
+        session.flush()
 
     result = OrderOut.model_validate(order)
     session.add(
@@ -1194,14 +1253,7 @@ def pay_order(
         )
     )
     session.commit()
-    _publish_order_updated(current, order, "ORDER_PAID")
-    for changed in (table, *released):
-        manager.publish(
-            current.outlet_id,
-            "tables",
-            "TABLE_STATUS_CHANGED",
-            {"table_id": str(changed.id), "status": changed.status},
-        )
+    publish_order_paid(current, order, paid)
     return result
 
 
