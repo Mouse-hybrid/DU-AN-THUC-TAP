@@ -14,6 +14,7 @@ if (!expected) { console.error('PENDING_BUILD: POS_EXPECTED_COMMIT missing; no r
 if (!password) { console.error('PENDING_FIXTURE: P2_QA_SEED_PASSWORD missing; no request sent'); process.exit(2); }
 
 const roles = {};
+const staffIds = {};
 const owned = { code: 'Q3-1', tableId: null, sessionId: null, orderId: null,
   itemId: null, ticketId: null, menuId: null };
 function redact(value) {
@@ -115,6 +116,7 @@ try {
     if (login.staff?.role !== role || !login.access_token)
       throw new Error('PENDING_FIXTURE: QA3 role mismatch');
     roles[name.slice(4)] = login.access_token;
+    staffIds[name.slice(4)] = login.staff.id;
   }
   const tables = must(get('/api/v1/tables', 'waiter'), 200, 'tables');
   const matches = tables.filter(x => x.code === owned.code && x.status === 'AVAILABLE');
@@ -162,6 +164,8 @@ try {
     exact_cash_payment: recorded.payment?.method === 'CASH' &&
       recorded.payment?.status === 'SUCCEEDED' &&
       recorded.payment?.order_id === owned.orderId &&
+      recorded.payment?.created_by_staff_id === staffIds.cashier &&
+      Number.isFinite(Date.parse(recorded.payment?.created_at)) &&
       Math.round(Number(recorded.payment?.amount) * 100) === cents &&
       Math.round(Number(recorded.payment?.cash_received) * 100) === cents &&
       Number(recorded.payment?.change_due) === 0,
@@ -173,9 +177,12 @@ try {
       Math.round(Number(payments.summary?.paid) * 100) === cents &&
       Number(payments.summary?.remaining) === 0 && Number(detail.amount_due) === 0,
     table_cleaning: paidTable.status === 'CLEANING' && !paidTable.current_session,
-    audit_exact: paidAudit.filter(x => x.action === 'ORDER_PAID' && x.entity_id === owned.orderId).length === 1 &&
+    audit_exact: paidAudit.filter(x => x.action === 'ORDER_PAID' && x.entity_id === owned.orderId &&
+      x.staff_id === staffIds.cashier && x.staff_role === 'CASHIER' &&
+      Number.isFinite(Date.parse(x.created_at))).length === 1 &&
       paymentAudit.filter(x => x.action === 'PAYMENT_RECORDED' && x.entity_id === owned.orderId &&
-        x.payload?.payment_id === paymentId).length === 1,
+        x.payload?.payment_id === paymentId && x.staff_id === staffIds.cashier &&
+        x.staff_role === 'CASHIER' && Number.isFinite(Date.parse(x.created_at))).length === 1,
   };
   report.table_code = owned.code; report.order_id = owned.orderId;
   report.payment_id = paymentId || null; report.expected_amount = amount;
