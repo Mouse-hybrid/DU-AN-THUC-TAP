@@ -30,7 +30,10 @@ for(const file of files){
   if(!data||typeof data!=='object'||Array.isArray(data))continue;
   const build=data.staging_commit||data.build_before||data.commit;
   if(build!==sha)continue;
-  if(data.cleanup_required)cleanupRequired.push(relative(root,file));
+  const needsCleanup=Array.isArray(data.cleanup_required)
+    ?data.cleanup_required.length>0
+    :data.cleanup_required===true;
+  if(needsCleanup)cleanupRequired.push(relative(root,file));
   const source=relative(root,file).replaceAll('\\','/');
   const raw=[];
   if(typeof data.test_ref==='string')raw.push([data.test_ref,data.result]);
