@@ -17,6 +17,13 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
   expect(base, 'approved staging only').toBe('http://160.191.47.17');
   const pin = process.env.S2_STAGING_PIN;
   test.skip(!pin, 'Local staging PIN required');
+  const expectedSha = process.env.POS_EXPECTED_COMMIT;
+  expect(expectedSha, 'full expected staging SHA required').toMatch(/^[0-9a-f]{40}$/);
+  const versionBefore = await request.get(base + '/version', {timeout: 20_000});
+  expect(versionBefore.status(), 'staging version before').toBe(200);
+  const initialBuild = await versionBefore.json();
+  expect(initialBuild.environment, 'staging environment').toBe('staging');
+  expect(initialBuild.commit, 'pinned staging build').toBe(expectedSha);
 
   type Table = {id: string; code: string; status: string; current_session_id?: string};
   type Item = {id: string; name: string; is_available: boolean; station_id: string; has_modifiers?: boolean};
@@ -113,6 +120,22 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
       }
       await checked('POST', `/api/v1/orders/${fixture.orderId}/send-to-kitchen`, 'waiter', 200);
       current = await order();
+    }
+    for (const item of current.items) {
+      for (const [state, action, role] of [
+        ['SENT', 'start-cooking', 'kitchen'],
+        ['PREPARING', 'mark-ready', 'kitchen'],
+        ['READY', 'pickup', 'waiter'],
+        ['PICKED_UP', 'served', 'waiter'],
+      ] as const) {
+        const latest = (await order()).items.find(row => row.id === item.id);
+        if (latest?.status === state) {
+          await checked('POST', `/api/v1/orders/${fixture.orderId}/items/${item.id}/${action}`,
+            role, 200);
+        }
+      }
+      expect((await order()).items.find(row => row.id === item.id)?.status,
+        'owned item served during cleanup').toBe('SERVED');
     }
     if (current.status === 'SENT' || current.status === 'SERVED') {
       await checked('POST', `/api/v1/orders/${fixture.orderId}/request-billing`, 'waiter', 200);
@@ -260,6 +283,9 @@ test(`${runId} | open table, order, KDS, serve, pay and clean`, async ({browser,
       }
       console.log(`[QA3] Supervisor audit PASS: ${audit.length} rows for own order ${fixture.orderId}`);
     }
+    const versionAfter = await request.get(base + '/version', {timeout: 20_000});
+    expect(versionAfter.status(), 'staging version after').toBe(200);
+    expect((await versionAfter.json()).commit, 'stable staging build').toBe(expectedSha);
     console.log(`[S2-UI] ${qa3Rehearsal ? 'QA REHEARSAL' : 'BUSINESS'} PASS: ` +
       `${fixture.table!.code}; order ${fixture.orderId} CLOSED; item ${fixture.itemId} SERVED; ` +
       'simulated staging payment; table AVAILABLE');
