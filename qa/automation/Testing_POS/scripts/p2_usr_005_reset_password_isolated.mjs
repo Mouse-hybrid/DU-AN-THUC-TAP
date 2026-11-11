@@ -64,7 +64,7 @@ try {
     {username, password: oldPassword});
   if (initial.http !== 200 || !initial.data?.access_token) throw Error('Initial fixture login failed');
   const reset = await req('POST', `/api/v1/staff/${staffId}/reset-password`, adminToken,
-    {new_password: newPassword});
+    {new_password: newPassword}, randomUUID());
   const stale = await req('GET', '/api/v1/auth/me', initial.data.access_token);
   const oldLogin = await req('POST', '/api/v1/auth/login', null,
     {username, password: oldPassword});
@@ -87,11 +87,21 @@ try {
   report.assertions_passed = assertions;
 } catch (e) { error = e.message; }
 finally {
+  if (!staffId && username && adminToken) {
+    try {
+      const list = await req('GET', '/api/v1/staff', adminToken);
+      const matches = Array.isArray(list.data) ? list.data.filter(x => x.username === username) : [];
+      if (list.http === 200 && matches.length === 1) {
+        staffId = matches[0].id;
+        report.fixture_staff_id = staffId;
+      }
+    } catch { /* preserve original error */ }
+  }
   if (staffId && adminToken) {
     try {
-      const locked = await req('POST', `/api/v1/staff/${staffId}/lock`, adminToken);
+      const locked = await req('POST', `/api/v1/staff/${staffId}/lock`, adminToken, undefined, randomUUID());
       const verify = await req('GET', `/api/v1/staff/${staffId}`, adminToken);
-      cleanup = locked.http === 200 && verify.http === 200 && verify.data?.is_active === false;
+      cleanup = [200, 409].includes(locked.http) && verify.http === 200 && verify.data?.is_active === false;
       report.cleanup = {lock_http: locked.http, verify_http: verify.http, locked: cleanup};
     } catch (e) { report.cleanup = {locked: false, error: e.message}; }
   }
