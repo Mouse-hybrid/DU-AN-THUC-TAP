@@ -46,6 +46,14 @@ async function finishOrder(){
   if(o.table_session_id!==own.sessionId||t.id!==own.tableId||
      (t.current_session?.id&&t.current_session.id!==own.sessionId))
     throw new Error('CLEANUP REQUIRED: owned table/session identity changed');
+  if(!o.items.length){
+    const menu=must(await call('GET','/api/v1/menu?available_only=true','cashier'),200,'cleanup menu');
+    const item=menu.find(x=>x.is_available&&x.station_id&&Number(x.price)>=1);
+    if(!item)throw new Error('CLEANUP REQUIRED: no mapped menu item');
+    must(await post(`/api/v1/orders/${own.orderId}/items`,'cashier',
+      {items:[{menu_item_id:item.id,quantity:1,note:'QA P2RWD004 cleanup'}]}),201,'cleanup add item');
+    o=await order();
+  }
   if(o.status==='NEW')must(await post(`/api/v1/orders/${own.orderId}/send-to-kitchen`,'waiter'),200,'cleanup send');
   for(const item of (await order()).items){
     for(const [state,action,role] of [['SENT','start-cooking','kitchen'],
