@@ -31,7 +31,8 @@ function readEvidence(path,label){
   requireTrue(x.cleanup_pass===true,label+': cleanup not proven');
   const id=label==='payment'?x.scenarios?.find(s=>s.permitted_payment===true)?.order_id:x.order_id;
   requireTrue(typeof id==='string'&&/^[a-f0-9-]{36}$/i.test(id),label+': order ID missing');
-  return {label,id,source:path,source_case_result:x.result};
+  return {label,id,source:path,source_case_result:x.result,checked_at:x.checked_at,
+    source_table:x.source_table,target_table:x.target_table,session_id:x.session_id};
 }
 async function request(method,path,token,body){
   const headers={Accept:'application/json'};
@@ -79,6 +80,35 @@ try{
       entity_filter_http:byEntity.http,
       entity_filter_rows:Array.isArray(byEntity.data)?byEntity.data.length:null});
   }
+  const transfer=sources.find(x=>x.label==='table');
+  const tableRows=sampled.get('table')?.response.data||[];
+  if(!tableRows.some(x=>/TRANSFER/i.test(String(x.action)))){
+    const tables=await get('/api/v1/tables',token3);
+    requireTrue(Array.isArray(tables),'QA3 table inventory unavailable');
+    const start=Date.parse(transfer.checked_at),end=start+120000;
+    requireTrue(Number.isFinite(start),'Transfer evidence timestamp missing');
+    const tableIds=[transfer.source_table,transfer.target_table].map(code=>{
+      const matches=tables.filter(x=>x.code===code);
+      requireTrue(matches.length===1,`QA3 table ${code} not unique`);
+      return {label:code,id:matches[0].id};
+    });
+    if(transfer.session_id)tableIds.push({label:'session',id:transfer.session_id});
+    for(const candidate of tableIds){
+      const path='/api/v1/audit-logs?entity_id='+encodeURIComponent(candidate.id)+'&limit=500&offset=0';
+      const response=await request('GET',path,token3);
+      const rows=Array.isArray(response.data)?response.data:[];
+      const related=rows.filter(x=>/TRANSFER/i.test(String(x.action))&&
+        Number.isFinite(Date.parse(x.created_at))&&Date.parse(x.created_at)>=start-10000&&
+        Date.parse(x.created_at)<=end);
+      report.probes.push({area:'table/'+candidate.label,entity_filter_http:response.http,
+        entity_filter_rows:rows.length,time_correlated_transfer_rows:related.length});
+      if(response.http===200&&related.length>0){
+        sampled.set('table',{path,response,
+          filter:'entity_id:'+candidate.label});
+        break;
+      }
+    }
+  }
   for(const source of sources){
     const selected=sampled.get(source.label);
     requireTrue(selected,source.label+': neither audit filter returned QA3 rows');
@@ -89,7 +119,10 @@ try{
     requireTrue(valid,source.label+': actor/time/entity missing');
     const keys=source.label==='payment'?['PAYMENT_RECORDED']:
       source.label==='reward'?['ORDER_REWARD_APPLIED','ORDER_REWARD_REMOVED']:['TRANSFER'];
-    const matched=rows.filter(x=>keys.some(k=>String(x.action).includes(k)));
+    const matched=rows.filter(x=>keys.some(k=>String(x.action).includes(k))&&
+      (source.label!=='table'||filter==='order_id'||filter==='entity_id'||
+        Date.parse(x.created_at)>=Date.parse(source.checked_at)-10000&&
+        Date.parse(x.created_at)<=Date.parse(source.checked_at)+120000));
     const noSecret=!/"(?:access_token|refresh_token|password|pin)"\s*:/i.test(JSON.stringify(rows));
     requireTrue(noSecret,source.label+': credential key exposed in audit');
     const second=await get(path,token3);
