@@ -70,11 +70,11 @@ try {
   if (before.http !== 200 || before.data?.id !== staffId || before.data?.role !== 'WAITER')
     throw Error('Own fixture identity mismatch');
 
-  const lock = await req('POST', `/api/v1/staff/${staffId}/lock`, adminToken);
+  const lock = await req('POST', `/api/v1/staff/${staffId}/lock`, adminToken, undefined, randomUUID());
   const oldToken = await req('GET', '/api/v1/auth/me', memberToken);
   const deniedLogin = await req('POST', '/api/v1/auth/login', null,
     {username, password: memberPassword});
-  const unlock = await req('POST', `/api/v1/staff/${staffId}/unlock`, adminToken);
+  const unlock = await req('POST', `/api/v1/staff/${staffId}/unlock`, adminToken, undefined, randomUUID());
   const freshLogin = await req('POST', '/api/v1/auth/login', null,
     {username, password: memberPassword});
   const freshMe = freshLogin.data?.access_token
@@ -92,11 +92,21 @@ try {
   report.assertions_passed = assertions;
 } catch (e) { error = e.message; }
 finally {
+  if (!staffId && username && adminToken) {
+    try {
+      const list = await req('GET', '/api/v1/staff', adminToken);
+      const matches = Array.isArray(list.data) ? list.data.filter(x => x.username === username) : [];
+      if (list.http === 200 && matches.length === 1) {
+        staffId = matches[0].id;
+        report.fixture_staff_id = staffId;
+      }
+    } catch { /* retain original error */ }
+  }
   if (staffId && adminToken) {
     try {
-      const lock = await req('POST', `/api/v1/staff/${staffId}/lock`, adminToken);
+      const lock = await req('POST', `/api/v1/staff/${staffId}/lock`, adminToken, undefined, randomUUID());
       const verify = await req('GET', `/api/v1/staff/${staffId}`, adminToken);
-      cleanup = lock.http === 200 && verify.http === 200 && verify.data?.is_active === false;
+      cleanup = [200, 409].includes(lock.http) && verify.http === 200 && verify.data?.is_active === false;
       report.cleanup = {lock_http: lock.http, verify_http: verify.http, locked: cleanup};
     } catch (e) { report.cleanup = {locked: false, error: e.message}; }
   }
