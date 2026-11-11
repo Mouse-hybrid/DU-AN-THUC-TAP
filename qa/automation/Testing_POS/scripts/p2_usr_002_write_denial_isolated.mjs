@@ -59,7 +59,7 @@ finally{
       present=all.data.filter(s=>users.some(u=>u.candidate===s.username));
       for(const staff of present){
         try{
-          const lock=await request('POST',`/api/v1/staff/${staff.id}/lock`,admin.token);
+          const lock=await request('POST',`/api/v1/staff/${staff.id}/lock`,admin.token,undefined,randomUUID());
           const verify=await request('GET',`/api/v1/staff/${staff.id}`,admin.token);
           if(lock.status!==200||verify.status!==200||verify.data?.is_active!==false)
             cleanupRequired.push({username:staff.username,id:staff.id});
