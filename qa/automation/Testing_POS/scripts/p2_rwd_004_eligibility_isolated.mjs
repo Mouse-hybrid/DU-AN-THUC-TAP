@@ -35,12 +35,28 @@ async function order(){return must(await call('GET',`/api/v1/orders/${own.orderI
 async function table(){return must(await call('GET',`/api/v1/tables/${own.tableId}`,'waiter'),200,'own table');}
 async function finishOrder(){
   if(!own.sessionId)return true;
-  if(!own.orderId)throw new Error(`CLEANUP REQUIRED: ${own.tableCode} session ${own.sessionId}; no order id`);
+  if(!own.orderId){
+    const rows=(await table()).orders?.filter(x=>x.table_session_id===own.sessionId)||[];
+    if(rows.length===1)own.orderId=rows[0].id;
+    else if(!rows.length)own.orderId=must(await post('/api/v1/orders','waiter',
+      {table_session_id:own.sessionId}),201,'cleanup create order')?.id;
+    if(!own.orderId)throw new Error(`CLEANUP REQUIRED: ${own.tableCode} session ${own.sessionId}; no order id`);
+  }
   let o=await order(),t=await table();
   if(o.table_session_id!==own.sessionId||t.id!==own.tableId||
      (t.current_session?.id&&t.current_session.id!==own.sessionId))
     throw new Error('CLEANUP REQUIRED: owned table/session identity changed');
   if(o.status==='NEW')must(await post(`/api/v1/orders/${own.orderId}/send-to-kitchen`,'waiter'),200,'cleanup send');
+  for(const item of (await order()).items){
+    for(const [state,action,role] of [['SENT','start-cooking','kitchen'],
+      ['PREPARING','mark-ready','kitchen'],['READY','pickup','waiter'],
+      ['PICKED_UP','served','waiter']]){
+      if((await order()).items.find(x=>x.id===item.id)?.status===state)
+        must(await post(`/api/v1/orders/${own.orderId}/items/${item.id}/${action}`,role),200,`cleanup ${action}`);
+    }
+    if((await order()).items.find(x=>x.id===item.id)?.status!=='SERVED')
+      throw new Error(`CLEANUP REQUIRED: item ${item.id} not SERVED`);
+  }
   o=await order();
   if(!['BILLING','PAID','CLOSED'].includes(o.status))
     must(await post(`/api/v1/orders/${own.orderId}/request-billing`,'waiter'),200,'cleanup billing');
@@ -65,7 +81,8 @@ try{
     ['/api/v1/orders/{order_id}/eligible-rewards','get']])
     if(!spec?.paths?.[path]?.[method])throw new Error(`Missing ${method.toUpperCase()} ${path}`);
   for(const [user,role,key] of [
-    ['qa3_admin','SUPERVISOR','admin'],['qa3_waiter','WAITER','waiter'],['qa3_cashier','CASHIER','cashier']]){
+    ['qa3_admin','SUPERVISOR','admin'],['qa3_waiter','WAITER','waiter'],
+    ['qa3_cashier','CASHIER','cashier'],['qa3_kitchen','KITCHEN','kitchen']]){
     const login=must(await post('/api/v1/auth/login',null,{username:user,password}),200,`${user} login`);
     if(!login?.access_token)throw new Error(`${user} token missing`);
     tokens[key]=login.access_token;
