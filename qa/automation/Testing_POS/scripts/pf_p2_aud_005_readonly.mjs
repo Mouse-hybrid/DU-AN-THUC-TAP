@@ -20,7 +20,7 @@ const report={run_id:'RUN-'+new Date().toISOString().replace(/\D/g,'')+'-PFAUD00
   test_ref:'PF-P2-AUD-005',checked_at:new Date().toISOString(),result:'PENDING',
   scope:'QA3 read-only audit observation for prior payment, table transfer and reward runs; API contract and stable GET; no audit write attempts',
   business_case:'P2-AUD-005 NOT_EXECUTED: no DB-level immutability, system-error trace, or freshly generated three-action fixture asserted',
-  secrets_recorded:false,mutations:0,checks:{},observations:[]};
+  secrets_recorded:false,mutations:0,checks:{},observations:[],probes:[]};
 const stamp=/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
 let before,after,error,token3,token2;
 function requireTrue(value,label){if(!value)throw Error(label);}
@@ -63,8 +63,22 @@ try{
   const a=await login('qa3_admin','SUPERVISOR'),b=await login('qa2_admin','SUPERVISOR');
   token3=a.token;token2=b.token;
   requireTrue(a.outlet&&b.outlet&&a.outlet!==b.outlet,'QA3/QA2 outlet isolation unavailable');
+  const sampled=new Map();
   for(const source of sources){
-    const path=auditPath(source.id),rows=await get(path,token3);
+    const path=auditPath(source.id);
+    const byOrder=await request('GET',path,token3);
+    const entityPath='/api/v1/audit-logs?entity_id='+encodeURIComponent(source.id)+'&limit=500&offset=0';
+    const byEntity=await request('GET',entityPath,token3);
+    sampled.set(source.label,byOrder);
+    report.probes.push({area:source.label,order_filter_http:byOrder.http,
+      order_filter_rows:Array.isArray(byOrder.data)?byOrder.data.length:null,
+      entity_filter_http:byEntity.http,
+      entity_filter_rows:Array.isArray(byEntity.data)?byEntity.data.length:null});
+  }
+  for(const source of sources){
+    const path=auditPath(source.id),byOrder=sampled.get(source.label);
+    requireTrue(byOrder.http===200,source.label+': order_id audit filter HTTP '+byOrder.http);
+    const rows=byOrder.data;
     requireTrue(Array.isArray(rows)&&rows.length<500,source.label+': audit rows missing/truncated');
     requireTrue(new Set(rows.map(x=>x.id)).size===rows.length,source.label+': duplicate audit ID');
     const valid=rows.every(x=>x.id&&x.action&&x.entity_id&&x.staff_id&&stamp.test(x.created_at||''));
