@@ -47,14 +47,16 @@ for(const file of files){
       /(?:ONLY|UI_NOT_TESTED)/.test(String(data.case_coverage||'')+' '+String(data.full_case_status||''));
     const executed=data.business_execution==='EXECUTED';
     const readOnlyAudit=id.startsWith('P2-AUD-')&&data.mutations===0;
-    const cleanupOk=readOnlyAudit||data.cleanup_pass===true;
+    const cleanupOk=readOnlyAudit||data.cleanup_pass===true||
+      data.cleanup?.inactive===true;
     const stable=data.build_stable===true||data.build_before===sha&&data.build_after===sha;
     const pass=result==='PASSED'&&!limited&&(executed||readOnlyAudit)&&cleanupOk&&stable&&
       data.secrets_recorded!==true;
     const time=data.checked_at||data.run_at_utc||null;
     evidence.push({ref:id,result,review:pass?'BUSINESS_PASS_EVIDENCE':'REVIEW_REQUIRED',
       source,run_id:data.run_id||null,checked_at:time,
-      reason:pass?null:limited?'Partial/not executed scope':
+      reason:pass?null:result!=='PASSED'?'Outcome '+String(result):
+        limited?'Partial/not executed scope':
         !stable?'Build not proven stable':!cleanupOk?'Cleanup not proven':
         !(executed||readOnlyAudit)?'Business execution not proven':'Outcome requires review'});
   }
