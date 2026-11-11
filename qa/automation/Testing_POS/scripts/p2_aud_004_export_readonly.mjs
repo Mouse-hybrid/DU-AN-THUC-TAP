@@ -103,29 +103,38 @@ try{
     row_count:csv.rows.length,
     matching_get_rows:listed.data.length,
   };
-  const cols=['id','action','entity_id','staff_id','staff_role','created_at'];
+  const cols=['action','entity_type','entity_id','staff_username','staff_role','created_at'];
   if(!cols.every(x=>csv.head.includes(x)))
     throw Error('PENDING_MAPPING: exported CSV columns differ from runner field names; compare export_shape.columns');
   if(csv.rows.length!==listed.data.length)throw Error('Export row count differs from filtered GET');
-  const byId=new Map(listed.data.map(x=>[x.id,x]));
-  if(byId.size!==listed.data.length)throw Error('Duplicate audit IDs in GET result');
-  for(const row of csv.rows){
-    const found=byId.get(row.id);
-    if(!found)throw Error('Export includes a row outside the filtered GET result');
-    for(const field of ['action','entity_id','staff_id','staff_role'])
-      if(String(found[field]??'')!==row[field])throw Error(`Export field ${field} differs from GET`);
-    if(!Number.isFinite(Date.parse(row.created_at))||
-       Date.parse(row.created_at)!==Date.parse(found.created_at))
-      throw Error('Export actor timestamp differs from GET');
-    if(!row.staff_id||!row.staff_role||!row.entity_id)throw Error('Export row missing actor/entity');
+  const fingerprint=row=>JSON.stringify([
+    row.action,row.entity_type,row.entity_id,row.staff_username,row.staff_role,
+    Date.parse(row.created_at),
+  ]);
+  const expectedRows=new Map();
+  for(const row of listed.data){
+    if(cols.some(field=>!row[field])||!Number.isFinite(Date.parse(row.created_at)))
+      throw Error('PENDING_MAPPING: GET audit lacks actor/entity/time fields for CSV comparison');
+    const key=fingerprint(row);
+    expectedRows.set(key,(expectedRows.get(key)||0)+1);
   }
+  for(const row of csv.rows){
+    if(cols.some(field=>!row[field])||!Number.isFinite(Date.parse(row.created_at)))
+      throw Error('Export row missing actor/entity/time');
+    const key=fingerprint(row);
+    const remaining=expectedRows.get(key)||0;
+    if(remaining<1)throw Error('Export row actor/entity/time differs from filtered GET');
+    expectedRows.set(key,remaining-1);
+  }
+  if([...expectedRows.values()].some(count=>count!==0))
+    throw Error('Export omitted one or more filtered GET rows');
   const leaked=[password,qa3.token,qa2.token].some(s=>s&&exported.raw.includes(s))||
     /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\./.test(exported.raw);
   if(leaked)throw Error('Export contains a secret');
   const foreign=await request('GET',`/api/v1/audit-logs/export?${query}`,qa2.token);
   if(![200,403,404].includes(foreign.http))
     throw Error(`Other outlet export HTTP ${foreign.http} is unexpected`);
-  if(foreign.raw.includes(orderId)||csv.rows.some(x=>foreign.raw.includes(x.id)))
+  if(foreign.raw.includes(orderId)||csv.rows.some(x=>foreign.raw.includes(x.entity_id)))
     throw Error('Other outlet export exposed QA3 order/audit row');
   report.checks={get_rows:listed.data.length,export_rows:csv.rows.length,action:first.action,
     actor_time_entity_match:true,download_csv:true,secret_absent:true,
