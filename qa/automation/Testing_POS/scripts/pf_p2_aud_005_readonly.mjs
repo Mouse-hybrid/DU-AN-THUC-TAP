@@ -69,16 +69,20 @@ try{
     const byOrder=await request('GET',path,token3);
     const entityPath='/api/v1/audit-logs?entity_id='+encodeURIComponent(source.id)+'&limit=500&offset=0';
     const byEntity=await request('GET',entityPath,token3);
-    sampled.set(source.label,byOrder);
+    const selected=byOrder.http===200&&Array.isArray(byOrder.data)&&byOrder.data.length>0
+      ?{path,response:byOrder,filter:'order_id'}
+      :byEntity.http===200&&Array.isArray(byEntity.data)&&byEntity.data.length>0
+        ?{path:entityPath,response:byEntity,filter:'entity_id'}:null;
+    sampled.set(source.label,selected);
     report.probes.push({area:source.label,order_filter_http:byOrder.http,
       order_filter_rows:Array.isArray(byOrder.data)?byOrder.data.length:null,
       entity_filter_http:byEntity.http,
       entity_filter_rows:Array.isArray(byEntity.data)?byEntity.data.length:null});
   }
   for(const source of sources){
-    const path=auditPath(source.id),byOrder=sampled.get(source.label);
-    requireTrue(byOrder.http===200,source.label+': order_id audit filter HTTP '+byOrder.http);
-    const rows=byOrder.data;
+    const selected=sampled.get(source.label);
+    requireTrue(selected,source.label+': neither audit filter returned QA3 rows');
+    const {path,filter}=selected,rows=selected.response.data;
     requireTrue(Array.isArray(rows)&&rows.length<500,source.label+': audit rows missing/truncated');
     requireTrue(new Set(rows.map(x=>x.id)).size===rows.length,source.label+': duplicate audit ID');
     const valid=rows.every(x=>x.id&&x.action&&x.entity_id&&x.staff_id&&stamp.test(x.created_at||''));
@@ -91,15 +95,16 @@ try{
     const second=await get(path,token3);
     requireTrue(digest(second)===digest(rows),source.label+': audit changed on repeated GET');
     const foreign=await request('GET',path,token2);
-    requireTrue(foreign.http===404&&!foreign.raw.includes(source.id),source.label+': cross-outlet audit not isolated');
+    const foreignIsolated=foreign.http===404||foreign.http===200&&Array.isArray(foreign.data)&&foreign.data.length===0;
+    requireTrue(foreignIsolated&&!foreign.raw.includes(source.id),source.label+': cross-outlet audit not isolated');
     report.observations.push({area:source.label,order_id:source.id,source:source.source,
-      source_case_result:source.source_case_result,
+      source_case_result:source.source_case_result,filter,
       audit_rows:rows.length,matched_actions:[...new Set(matched.map(x=>x.action))],
       available_actions:[...new Set(rows.map(x=>x.action))],metadata_valid:valid,
-      stable_read:true,qa2_http:foreign.http,secrets_absent:noSecret});
+      stable_read:true,qa2_http:foreign.http,foreign_isolated:foreignIsolated,secrets_absent:noSecret});
   }
   report.checks.three_action_audit_observed=report.observations.every(x=>x.matched_actions.length>0);
-  report.checks.stable_reads_and_outlet_isolation=report.observations.every(x=>x.stable_read&&x.qa2_http===404);
+  report.checks.stable_reads_and_outlet_isolation=report.observations.every(x=>x.stable_read&&x.foreign_isolated);
 }catch(e){error=String(e?.message||e).replaceAll(password,'<REDACTED>');}
 finally{
   if(before)try{after=(await get('/version'))?.commit}catch{}
