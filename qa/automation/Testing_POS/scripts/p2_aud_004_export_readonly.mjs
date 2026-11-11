@@ -97,8 +97,15 @@ try{
   if(!/csv/i.test(media)||!/attachment/i.test(disposition))
     throw Error('PENDING_CONTRACT: export is not a downloadable CSV');
   const csv=csvRows(exported.raw);
+  report.export_shape={
+    content_type:media,
+    columns:csv.head.map(name=>name.length<=80&&!/[0-9]{8,}/.test(name)?name:'<REDACTED>'),
+    row_count:csv.rows.length,
+    matching_get_rows:listed.data.length,
+  };
   const cols=['id','action','entity_id','staff_id','staff_role','created_at'];
-  if(!cols.every(x=>csv.head.includes(x)))throw Error('PENDING_CONTRACT: CSV omits audit id/action/entity/actor/time columns');
+  if(!cols.every(x=>csv.head.includes(x)))
+    throw Error('PENDING_MAPPING: exported CSV columns differ from runner field names; compare export_shape.columns');
   if(csv.rows.length!==listed.data.length)throw Error('Export row count differs from filtered GET');
   const byId=new Map(listed.data.map(x=>[x.id,x]));
   if(byId.size!==listed.data.length)throw Error('Duplicate audit IDs in GET result');
