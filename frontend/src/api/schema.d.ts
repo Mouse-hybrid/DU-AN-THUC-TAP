@@ -519,6 +519,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{order_id}/pending-member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pending Member
+         * @description Số điện thoại khách nhập trên QR cho bàn của đơn này (specs/002-rewards-dot-3, FR-010).
+         *     Thu ngân xác nhận đồng ý rồi đăng ký bằng POST /customers, gắn bằng POST .../customer.
+         */
+        get: operations["get_pending_member_api_v1_orders__order_id__pending_member_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{order_id}/eligible-rewards": {
         parameters: {
             query?: never;
@@ -832,7 +853,9 @@ export interface paths {
         /**
          * Refund Payment
          * @description Hoàn tiền sau khi đơn đã PAID/CLOSED, tối đa phần chưa hoàn của lần thanh toán đó. Đơn
-         *     giữ nguyên trạng thái; điểm đã tích không tự trừ lại (làm cùng Rewards đợt 3).
+         *     giữ nguyên trạng thái. Lần hoàn làm đơn được hoàn HẾT thì đảo điểm của khách (trả điểm đã
+         *     đổi, thu điểm đã tích) và trả lại lượt dùng ưu đãi; hoàn một phần không đổi điểm
+         *     (specs/002-rewards-dot-3, FR-001..004).
          */
         post: operations["refund_payment_api_v1_payments__payment_id__refunds_post"];
         delete?: never;
@@ -1374,6 +1397,29 @@ export interface paths {
         put?: never;
         /** Qr Submit */
         post: operations["qr_submit_api_v1_public_qr__token__orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/qr/{token}/member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Qr Member
+         * @description Khách nhập số điện thoại (specs/002-rewards-dot-3, US3). Số của thành viên đang hoạt
+         *     động: gắn vào các đơn chưa thanh toán, chưa có khách của phiên. Số chưa là thành viên, hoặc
+         *     bàn đã gắn khách khác: giữ trên phiên cho thu ngân (thu ngân xác nhận đồng ý rồi mới tạo
+         *     khách). Phản hồi giống nhau mọi trường hợp; tối đa QR_MEMBER_MAX_ATTEMPTS lần mỗi phiên.
+         */
+        post: operations["qr_member_api_v1_public_qr__token__member_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2211,6 +2257,11 @@ export interface components {
              * @default 0
              */
             amount_due: string;
+            /**
+             * Has Pending Member
+             * @default false
+             */
+            has_pending_member: boolean;
         };
         /** OrderItemCreate */
         OrderItemCreate: {
@@ -2512,6 +2563,17 @@ export interface components {
             remaining: string;
         };
         /**
+         * PendingMemberOut
+         * @description `phone`: số khách nhập trên QR (null nếu không có). `member_customer_id`: thành viên
+         *     đang hoạt động có số đó, nếu có (chưa gắn được vì đơn đã có khách khác hoặc bàn chưa có đơn).
+         */
+        PendingMemberOut: {
+            /** Phone */
+            phone?: string | null;
+            /** Member Customer Id */
+            member_customer_id?: string | null;
+        };
+        /**
          * Permission
          * @enum {string}
          */
@@ -2603,6 +2665,28 @@ export interface components {
             expires_at: string;
             /** Ordering Locked */
             ordering_locked: boolean;
+        };
+        /**
+         * QrMemberOut
+         * @description Giống nhau cho số đã là thành viên và số chưa là thành viên, để không dò được ai là
+         *     thành viên. Chỉ trả số đã che.
+         */
+        QrMemberOut: {
+            /**
+             * Status
+             * @default RECEIVED
+             */
+            status: string;
+            /** Phone Masked */
+            phone_masked: string;
+        };
+        /**
+         * QrMemberRequest
+         * @description Khách nhập số điện thoại để tích điểm (chỉ tích, không đổi điểm trên QR).
+         */
+        QrMemberRequest: {
+            /** Phone */
+            phone: string;
         };
         /** QrMenuItemOut */
         QrMenuItemOut: {
@@ -4299,6 +4383,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pending_member_api_v1_orders__order_id__pending_member_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingMemberOut"];
                 };
             };
             /** @description Validation Error */
@@ -6045,6 +6160,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QrOrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_member_api_v1_public_qr__token__member_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrMemberOut"];
                 };
             };
             /** @description Validation Error */

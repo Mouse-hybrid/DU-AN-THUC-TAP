@@ -2155,6 +2155,55 @@
         }
       }
     },
+    "/api/v1/orders/{order_id}/pending-member": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Get Pending Member",
+        "description": "Số điện thoại khách nhập trên QR cho bàn của đơn này (specs/002-rewards-dot-3, FR-010).\nThu ngân xác nhận đồng ý rồi đăng ký bằng POST /customers, gắn bằng POST .../customer.",
+        "operationId": "get_pending_member_api_v1_orders__order_id__pending_member_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{order_id}/eligible-rewards": {
       "get": {
         "tags": [
@@ -3225,7 +3274,7 @@
           "payments"
         ],
         "summary": "Refund Payment",
-        "description": "Hoàn tiền sau khi đơn đã PAID/CLOSED, tối đa phần chưa hoàn của lần thanh toán đó. Đơn\ngiữ nguyên trạng thái; điểm đã tích không tự trừ lại (làm cùng Rewards đợt 3).",
+        "description": "Hoàn tiền sau khi đơn đã PAID/CLOSED, tối đa phần chưa hoàn của lần thanh toán đó. Đơn\ngiữ nguyên trạng thái. Lần hoàn làm đơn được hoàn HẾT thì đảo điểm của khách (trả điểm đã\nđổi, thu điểm đã tích) và trả lại lượt dùng ưu đãi; hoàn một phần không đổi điểm\n(specs/002-rewards-dot-3, FR-001..004).",
         "operationId": "refund_payment_api_v1_payments__payment_id__refunds_post",
         "security": [
           {
@@ -5761,6 +5810,76 @@
         }
       }
     },
+    "/api/v1/public/qr/{token}/member": {
+      "post": {
+        "tags": [
+          "qr-public"
+        ],
+        "summary": "Qr Member",
+        "description": "Khách nhập số điện thoại (specs/002-rewards-dot-3, US3). Số của thành viên đang hoạt\nđộng: gắn vào các đơn chưa thanh toán, chưa có khách của phiên. Số chưa là thành viên, hoặc\nbàn đã gắn khách khác: giữ trên phiên cho thu ngân (thu ngân xác nhận đồng ý rồi mới tạo\nkhách). Phản hồi giống nhau mọi trường hợp; tối đa QR_MEMBER_MAX_ATTEMPTS lần mỗi phiên.",
+        "operationId": "qr_member_api_v1_public_qr__token__member_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "title": "Token"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QrMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -7750,6 +7869,11 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Amount Due",
             "default": "0"
+          },
+          "has_pending_member": {
+            "type": "boolean",
+            "title": "Has Pending Member",
+            "default": false
           }
         },
         "type": "object",
@@ -8445,6 +8569,36 @@
         "title": "PaymentSummaryOut",
         "description": "`total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính\nlần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ)."
       },
+      "PendingMemberOut": {
+        "properties": {
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "member_customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Customer Id"
+          }
+        },
+        "type": "object",
+        "title": "PendingMemberOut",
+        "description": "`phone`: số khách nhập trên QR (null nếu không có). `member_customer_id`: thành viên\nđang hoạt động có số đó, nếu có (chưa gắn được vì đơn đã có khách khác hoặc bàn chưa có đơn)."
+      },
       "Permission": {
         "type": "string",
         "enum": [
@@ -8702,6 +8856,40 @@
           "ordering_locked"
         ],
         "title": "QrInfoOut"
+      },
+      "QrMemberOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "RECEIVED"
+          },
+          "phone_masked": {
+            "type": "string",
+            "title": "Phone Masked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone_masked"
+        ],
+        "title": "QrMemberOut",
+        "description": "Giống nhau cho số đã là thành viên và số chưa là thành viên, để không dò được ai là\nthành viên. Chỉ trả số đã che."
+      },
+      "QrMemberRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "QrMemberRequest",
+        "description": "Khách nhập số điện thoại để tích điểm (chỉ tích, không đổi điểm trên QR)."
       },
       "QrMenuItemOut": {
         "properties": {

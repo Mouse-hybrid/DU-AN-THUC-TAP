@@ -18,7 +18,7 @@ Ba phần độc lập, cùng dựa trên sổ điểm (`points_ledger`) và cá
 |---|---|
 | Language/Version | Python 3.11 |
 | Primary Dependencies | FastAPI, SQLAlchemy 2 (không thêm thư viện) |
-| Storage | PostgreSQL 16. Migration `0013`: thêm `EXPIRE` vào CHECK của `points_ledger`, thêm 2 cột vào `table_session` |
+| Storage | PostgreSQL 16. Migration `0012`: thêm `EXPIRE` vào CHECK của `points_ledger`, thêm 2 cột vào `table_session` |
 | Testing | pytest; test Postgres cho hoàn điểm đồng thời với đổi điểm ở đơn khác |
 | Target Platform | Docker Compose trên staging |
 | Performance Goals | Job hết hạn: 10.000 khách < 1 phút; API QR < 200 ms |
@@ -34,7 +34,7 @@ Ba phần độc lập, cùng dựa trên sổ điểm (`points_ledger`) và cá
 | III. Phân quyền | API QR nằm dưới `/public/`, chỉ nhận mã phiên. API xem số chờ dùng quyền `CUSTOMER_ACCESS` |
 | IV. Dấu vết | Sổ điểm chỉ ghi thêm (`REVERSAL`, `EXPIRE`). Audit `POINTS_REVERSED`, `POINTS_REVERSAL_SHORTFALL` (ngoại lệ), `POINTS_EXPIRED`, `QR_MEMBER_LINKED`, `QR_MEMBER_PENDING` |
 | V. Test, CI | Test cho đủ ba phần, kèm cách ly outlet và gửi lại |
-| VI. Migration | `0013` sửa CHECK và thêm cột cho phép null, có downgrade |
+| VI. Migration | `0012` sửa CHECK và thêm cột cho phép null, có downgrade |
 | VII. Bí mật, dữ liệu cá nhân | QR chỉ trả số đã che. Log không ghi số điện thoại (bộ lọc của R3 đã che) |
 | VIII. Đơn giản | Job dùng script + workflow như backup; không thêm scheduler |
 
@@ -51,7 +51,7 @@ backend/
     api/v1/orders.py          # + GET /orders/{id}/pending-member
     core/config.py            # + QR_MEMBER_MAX_ATTEMPTS
     db/models.py              # + EXPIRE, cột table_session
-  migrations/versions/0013_rewards_dot3.py
+  migrations/versions/0012_rewards_dot3.py
   scripts/expire_points.py
   tests/test_rewards_dot3.py
   tests/test_concurrency_postgres.py   # + hoàn điểm song song với đổi điểm
@@ -74,11 +74,7 @@ Trong `refund_payment`, sau khi ghi `PaymentRefund`:
 
 ### Hết hạn điểm (FIFO)
 
-- **Công thức:** với mỗi khách có dòng `EARN` mà `expires_at <= now`:
-  - `đã_hết_hạn_chưa_trừ` = tổng `EARN` đã quá hạn − (tổng điểm đã dùng + tổng `EXPIRE` trước đó);
-  - điểm đã dùng = |`REDEEM`| + |`ADJUST` âm| − phần `REVERSAL` trả lại cho `REDEEM`;
-  - nếu kết quả > 0 thì ghi `EXPIRE` −min(kết quả, số dư).
-- **Ví dụ** cho FIFO đúng: điểm đã dùng được tính trừ vào lô cũ nhất trước. Chi tiết và ví dụ số ở [research.md](research.md).
+- **Cách tính:** duyệt lại sổ điểm của khách theo thời gian, xếp thành các lô, điểm dùng lấy từ lô cũ nhất. Phần còn lại của các lô đã quá hạn (không vượt số dư) được ghi `EXPIRE`. Chi tiết, và vì sao không dùng công thức gộp, ở [research.md](research.md) R-3.
 - **Chạy:** `scripts/expire_points.py` chạy theo từng outlet, khóa từng khách, commit theo lô 500 khách.
 
 ### Số điện thoại trên QR

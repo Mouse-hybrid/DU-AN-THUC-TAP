@@ -33,15 +33,27 @@
 - Lô 50 còn 10 điểm chưa dùng nên 10 điểm này hết hạn: ghi `EXPIRE` −10.
 - Số dư từ 40 còn 30, đúng bằng lô 30 điểm còn hạn.
 
-**Công thức** (đúng với FIFO, không cần lưu điểm dùng từ lô nào):
+**Cách tính đã chọn khi code: duyệt lại sổ điểm theo thời gian** (`expiring_points` trong `app/core/loyalty.py`), không lưu thêm gì:
+
+- Mỗi dòng cộng điểm tạo một **lô**: EARN có hạn; ADJUST dương và phần điểm đổi được trả lại khi hoàn tiền không có hạn.
+- Mỗi dòng trừ (REDEEM, ADJUST âm) lấy dần từ **lô cũ nhất**.
+- Dòng REVERSAL thu điểm tích từ đúng lô EARN của đơn đó trước.
+- Dòng EXPIRE lấy từ các lô đã hết hạn.
+- **Kết quả:** điểm hết hạn = tổng phần còn lại của các lô đã quá hạn, không vượt số dư.
+- **Thứ tự khi trùng thời điểm:** REDEEM trước EARN (cùng một lần thanh toán).
+
+Bản nháp ban đầu dùng công thức gộp:
 
 ```text
-hết_hạn_mới = max(0, Σ EARN đã quá hạn − Σ điểm đã dùng − Σ EXPIRE trước đó)
+max(0, Σ EARN quá hạn − Σ đã dùng − Σ EXPIRE)
 ```
 
-- **Điểm đã dùng** = |REDEEM| + |ADJUST âm| − phần REVERSAL trả lại điểm đổi.
-- **ADJUST dương:** coi như điểm không hạn, không vào công thức.
-- **Phần REVERSAL thu lại điểm tích:** trừ vào chính lô EARN của đơn đó; script loại các lô EARN đã bị đảo.
+Công thức này **sai** khi khách có điểm cộng tay cũ hơn. Ví dụ:
+1. Cộng tay 100 điểm (không hạn).
+2. Đổi 50 điểm.
+3. Tích 50 điểm (có hạn), rồi lô này quá hạn.
+
+FIFO đúng là 50 điểm đổi ở bước 2 lấy từ lô cộng tay, nên lô tích 50 điểm hết hạn nguyên. Công thức gộp lại trừ 50 điểm đổi vào lô tích, cho ra 0 điểm hết hạn. Test `test_manual_adjust_is_consumed_first_when_older` giữ trường hợp này.
 
 **Alternatives considered:**
 - Lưu từng lô và đánh dấu tiêu thụ: chính xác tuyệt đối nhưng cần bảng mới, và phải sửa mọi luồng đổi điểm.

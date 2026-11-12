@@ -81,7 +81,7 @@ ORDER_ITEM_STATUS = (
 
 ORDER_ITEM_SOURCE = ("POS", "QR")
 
-POINTS_ENTRY_TYPE = ("EARN", "REDEEM", "REVERSAL", "ADJUST")
+POINTS_ENTRY_TYPE = ("EARN", "REDEEM", "REVERSAL", "ADJUST", "EXPIRE")
 
 REWARD_TYPE = ("PERCENT", "FIXED", "POINTS")
 
@@ -218,6 +218,12 @@ class TableSession(Base):
     # session token tạm cho khách quét QR gọi món — không cần login (theo BRD auth)
     qr_session_token: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
     qr_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Rewards đợt 3: số khách nhập trên QR, chờ thu ngân đăng ký (cần xác nhận đồng ý) hoặc
+    # gắn; xóa khi thu ngân gắn khách hoặc khi phiên đóng. Đếm số lần gửi để chặn dò số.
+    pending_member_phone: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    qr_member_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     table: Mapped["RestaurantTable"] = relationship(back_populates="sessions")
     orders: Mapped[list["Order"]] = relationship(back_populates="table_session")

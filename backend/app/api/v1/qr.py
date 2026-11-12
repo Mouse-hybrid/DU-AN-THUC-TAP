@@ -11,6 +11,7 @@ GET  /api/v1/public/qr/{token}/menu    — thực đơn (màn 41, 42).
 GET  /api/v1/public/qr/{token}/order   — các món của phiên bàn (màn 48, 53); gọi định kỳ
                                          vì khách không có JWT để mở WebSocket.
 POST /api/v1/public/qr/{token}/orders  — gửi món (màn 44, 47), cần Idempotency-Key.
+POST /api/v1/public/qr/{token}/member  — khách nhập số điện thoại để tích điểm (Rewards đợt 3).
 
 Token sai hoặc đã thu hồi trả 401; hết hạn hoặc phiên đã đóng trả 410 (màn 54).
 
@@ -32,7 +33,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit_log
-from app.core.config import QR_MAX_PENDING_ITEMS, QR_SESSION_TTL_MINUTES
+from app.core.config import QR_MAX_PENDING_ITEMS, QR_MEMBER_MAX_ATTEMPTS, QR_SESSION_TTL_MINUTES
 from app.core.deps import (
     CurrentStaff,
     get_idempotent_response,
@@ -42,10 +43,12 @@ from app.core.deps import (
 )
 from app.core.loyalty import price_order
 from app.core.modifiers import resolve_modifiers
+from app.core.payments import has_collected_payment
 from app.core.permissions import Permission
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
+    Customer,
     IdempotencyKey,
     MenuCategory,
     MenuItem,
@@ -59,6 +62,8 @@ from app.schemas.orders import OrderItemModifierOut
 from app.schemas.qr import (
     QrCategoryOut,
     QrInfoOut,
+    QrMemberOut,
+    QrMemberRequest,
     QrMenuItemOut,
     QrMenuOut,
     QrOrderItemOut,
@@ -453,4 +458,129 @@ def qr_submit(
             "item_id": None,
         },
     )
+    return result
+
+
+# Gắn khách được tới trước lúc thanh toán, kể cả khi bàn đang chờ thanh toán.
+_MEMBER_ORDER_STATUSES = ("NEW", "SENT", "SERVED", "BILLING")
+
+
+def mask_phone(phone: str) -> str:
+    return f"{phone[:3]}****{phone[-3:]}"
+
+
+@public_router.post("/{token}/member", response_model=QrMemberOut)
+def qr_member(
+    payload: QrMemberRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    table_session: TableSession = Depends(_session_from_token),
+    session: Session = Depends(get_session),
+) -> QrMemberOut:
+    """Khách nhập số điện thoại (specs/002-rewards-dot-3, US3). Số của thành viên đang hoạt
+    động: gắn vào các đơn chưa thanh toán, chưa có khách của phiên. Số chưa là thành viên, hoặc
+    bàn đã gắn khách khác: giữ trên phiên cho thu ngân (thu ngân xác nhận đồng ý rồi mới tạo
+    khách). Phản hồi giống nhau mọi trường hợp; tối đa QR_MEMBER_MAX_ATTEMPTS lần mỗi phiên."""
+    endpoint = f"POST /api/v1/public/qr/{table_session.id}/member"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return QrMemberOut.model_validate_json(existing.response_body)
+
+    session.execute(
+        select(TableSession)
+        .where(TableSession.id == table_session.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one()
+    _ensure_usable(table_session)
+    if table_session.qr_member_attempts >= QR_MEMBER_MAX_ATTEMPTS:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Đã nhập quá số lần cho phép, vui lòng nhờ thu ngân hỗ trợ",
+        )
+    table_session.qr_member_attempts += 1
+    table = table_session.table
+    phone = payload.phone
+
+    customer = session.execute(
+        select(Customer).where(Customer.outlet_id == table.outlet_id, Customer.phone == phone)
+    ).scalar_one_or_none()
+    linked: list[Order] = []
+    keep_pending = True
+    if customer is not None and customer.is_active:
+        orders = list(
+            session.scalars(
+                select(Order)
+                .where(
+                    Order.table_session_id == table_session.id,
+                    Order.status.in_(_MEMBER_ORDER_STATUSES),
+                )
+                .with_for_update()
+            )
+        )
+        for order in orders:
+            if order.customer_id is None and not has_collected_payment(session, order.id):
+                order.customer_id = customer.id
+                linked.append(order)
+        # Còn đơn đã gắn khách khác, hoặc bàn chưa có đơn nào: để thu ngân xem lại.
+        keep_pending = not orders or any(o.customer_id != customer.id for o in orders)
+    if keep_pending:
+        table_session.pending_member_phone = phone
+    session.flush()
+
+    for order in linked:
+        write_audit_log(
+            session,
+            outlet_id=table.outlet_id,
+            staff_id=None,
+            action="QR_MEMBER_LINKED",
+            entity_type="order",
+            entity_id=order.id,
+            payload={"customer_id": str(customer.id), "source": "QR"},
+        )
+    if keep_pending:
+        write_audit_log(
+            session,
+            outlet_id=table.outlet_id,
+            staff_id=None,
+            action="QR_MEMBER_PENDING",
+            entity_type="table_session",
+            entity_id=table_session.id,
+            payload={"phone_masked": mask_phone(phone), "source": "QR"},
+        )
+
+    result = QrMemberOut(phone_masked=mask_phone(phone))
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    for order in linked or session.scalars(
+        select(Order).where(
+            Order.table_session_id == table_session.id, Order.status.in_(_MEMBER_ORDER_STATUSES)
+        )
+    ):
+        manager.publish(
+            table.outlet_id,
+            "tables",
+            "ORDER_UPDATED",
+            {
+                "order_id": str(order.id),
+                "table_id": str(table.id),
+                "table_session_id": str(table_session.id),
+                "status": order.status,
+                "current_version": order.current_version,
+                "reason": "QR_MEMBER",
+                "item_id": None,
+            },
+        )
     return result

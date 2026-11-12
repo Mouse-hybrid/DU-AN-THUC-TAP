@@ -2,7 +2,7 @@
 
 - **Feature Branch**: `feat/rewards-dot-3`
 - **Created**: 2026-11-12
-- **Status**: Draft
+- **Status**: Implemented (PR `feat/rewards-dot-3`, 12/11/2026)
 - **Hạng mục SDD**: R5 (Pha 2, P0)
 - **Input**: "Hoàn điểm khi hoàn tiền; điểm hết hạn theo luật; khách trên QR nhập số điện thoại để tích điểm (chỉ tích, không đổi)."
 
@@ -67,7 +67,7 @@ Khách không đổi điểm được trên QR và không xem được số dư.
 - **Khách bị khóa:** vẫn đảo điểm, vì sổ điểm phải khớp tiền; ghi audit.
 - **Điều chỉnh tay (`ADJUST`) cộng điểm:** không có hạn, không bao giờ hết hạn.
 - **Số điện thoại sai định dạng:** 422, không tính vào số lần thử.
-- **Đoán số thành viên:** mã QR hết hạn hoặc bị thu hồi thì 404 như các API QR khác. Phản hồi giống nhau cho thành viên và không phải thành viên, nên không dò được số nào là thành viên.
+- **Đoán số thành viên:** mã QR sai hoặc bị thu hồi thì 401, hết hạn thì 410, như các API QR khác. Phản hồi giống nhau cho thành viên và không phải thành viên, nên không dò được số nào là thành viên.
 
 ## Requirements
 

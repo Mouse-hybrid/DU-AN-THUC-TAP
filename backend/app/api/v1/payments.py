@@ -34,7 +34,7 @@ from app.core.deps import (
     require_idempotency_key,
     require_permission,
 )
-from app.core.loyalty import REASONS, price_order
+from app.core.loyalty import REASONS, price_order, reverse_order_points
 from app.core.payments import order_payments, payment_totals
 from app.core.permissions import Permission
 from app.db.base import get_session
@@ -321,7 +321,9 @@ def refund_payment(
     session: Session = Depends(get_session),
 ) -> OrderPaymentsOut:
     """Hoàn tiền sau khi đơn đã PAID/CLOSED, tối đa phần chưa hoàn của lần thanh toán đó. Đơn
-    giữ nguyên trạng thái; điểm đã tích không tự trừ lại (làm cùng Rewards đợt 3)."""
+    giữ nguyên trạng thái. Lần hoàn làm đơn được hoàn HẾT thì đảo điểm của khách (trả điểm đã
+    đổi, thu điểm đã tích) và trả lại lượt dùng ưu đãi; hoàn một phần không đổi điểm
+    (specs/002-rewards-dot-3, FR-001..004)."""
     endpoint = f"POST /api/v1/payments/{payment_id}/refunds"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
     replay = _replay(
@@ -377,6 +379,9 @@ def refund_payment(
             "reason": payload.reason,
         },
     )
+    totals = payment_totals(order_payments(session, order.id))
+    if totals.paid > 0 and totals.refunded >= totals.paid:
+        _reverse_points(session, order, current)
     session.expire(payment, ["refunds"])
     result = _order_payments_out(session, order)
     _remember(
@@ -390,3 +395,32 @@ def refund_payment(
     session.commit()
     _publish_order_updated(current, order, "PAYMENT_REFUNDED")
     return result
+
+
+def _reverse_points(session: Session, order: Order, current: CurrentStaff) -> None:
+    reversal = reverse_order_points(session, order, current.id)
+    if reversal is None:
+        return
+    write_audit_log(
+        session,
+        outlet_id=current.outlet_id,
+        staff_id=current.id,
+        action="POINTS_REVERSED",
+        entity_type="order",
+        entity_id=order.id,
+        payload={
+            "customer_id": str(order.customer_id),
+            "redeemed_returned": reversal.redeemed_returned,
+            "earned_taken": reversal.earned_taken,
+        },
+    )
+    if reversal.shortfall:
+        write_audit_log(
+            session,
+            outlet_id=current.outlet_id,
+            staff_id=current.id,
+            action="POINTS_REVERSAL_SHORTFALL",
+            entity_type="order",
+            entity_id=order.id,
+            payload={"customer_id": str(order.customer_id), "points_not_taken": reversal.shortfall},
+        )

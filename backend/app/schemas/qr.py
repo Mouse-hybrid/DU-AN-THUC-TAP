@@ -7,10 +7,11 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.menu import ModifierGroupOut
 from app.schemas.orders import OrderItemModifierOut
+from app.schemas.rewards import Phone
 
 
 class QrSessionOut(BaseModel):
@@ -82,3 +83,19 @@ class QrOrderOut(BaseModel):
     subtotal: Decimal
     discount_total: Decimal = Decimal("0")  # ưu đãi do thu ngân áp
     total: Decimal
+
+
+class QrMemberRequest(BaseModel):
+    """Khách nhập số điện thoại để tích điểm (chỉ tích, không đổi điểm trên QR)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    phone: Phone
+
+
+class QrMemberOut(BaseModel):
+    """Giống nhau cho số đã là thành viên và số chưa là thành viên, để không dò được ai là
+    thành viên. Chỉ trả số đã che."""
+
+    status: str = "RECEIVED"
+    phone_masked: str

@@ -11,7 +11,7 @@
 
 ## Phase 2: Foundational (chặn mọi user story)
 
-- [ ] T003 Migration `backend/migrations/versions/0012_payment_vnpay.py`: thêm cột và chỉ mục theo data-model; cập nhật `Payment` trong `backend/app/db/models.py`
+- [ ] T003 Migration `backend/migrations/versions/0013_payment_vnpay.py`: thêm cột và chỉ mục theo data-model; cập nhật `Payment` trong `backend/app/db/models.py`
 - [ ] T004 `backend/app/core/vnpay.py`: `build_payment_url`, `verify_signature`, `query_transaction` (QueryDR, thời hạn chờ 10 giây)
 - [ ] T005 [P] Unit test ký/kiểm chữ ký với bộ tham số mẫu, và QueryDR giả lập bằng `httpx.MockTransport`, trong `backend/tests/test_vnpay.py`
 - [ ] T006 Hàm `confirm_vnpay_payment(session, payment_id, result, source)` trong `backend/app/api/v1/payments.py`: khóa theo thứ tự, kết quả idempotent, so số tiền, gọi `finalize_paid_order`, ghi audit

@@ -18,7 +18,8 @@ Hợp đồng cho FE và QA. Sau khi code, `docs/api/openapi.json` là nguồn c
 
 | Mã | Khi nào |
 |---|---|
-| 404 | Mã QR không đúng, đã hết hạn hoặc đã bị thu hồi |
+| 401 | Mã QR không đúng hoặc đã bị thu hồi |
+| 410 | Mã QR đã hết hạn hoặc phiên bàn đã đóng |
 | 422 | Số điện thoại sai định dạng (không tính vào số lần thử) |
 | 429 | `"Đã nhập quá số lần cho phép, vui lòng nhờ thu ngân hỗ trợ"` |
 

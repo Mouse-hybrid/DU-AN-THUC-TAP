@@ -1,6 +1,6 @@
 # Data Model: Thanh toán VNPay (sandbox)
 
-## Bảng `payment` (đã có từ R1, migration `0012` thêm cột)
+## Bảng `payment` (đã có từ R1, migration `0013` thêm cột)
 
 | Cột | Kiểu | Null | Ý nghĩa |
 |---|---|---|---|

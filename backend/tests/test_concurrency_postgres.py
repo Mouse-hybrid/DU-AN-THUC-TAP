@@ -374,3 +374,81 @@ def test_paying_split_bills_together_closes_session_once(client, seed, db_sessio
         )
         assert table.status == "CLEANING", f"vòng {round_no}: bàn {table.status}"
         session.close()
+
+
+def test_refund_and_redeem_for_same_customer_keep_balance(client, seed, db_session_factory):
+    """Rewards đợt 3 (T006): hoàn tiền đơn A (thu lại điểm tích) chạy cùng lúc với thanh toán
+    đơn B có đổi điểm của cùng khách; số dư cuối luôn đúng, không ai ghi đè ai."""
+    supervisor = login(client, "supervisor_test")
+    cashier = login(client, "cashier_test")
+    client.post(
+        "/api/v1/loyalty-rules",
+        json={
+            "earn_amount_per_point": "10000",
+            "redeem_value_per_point": "100",
+            "max_redeem_percent": 50,
+        },
+        headers={**supervisor, "Idempotency-Key": "rf-rule"},
+    )
+    reward = client.post(
+        "/api/v1/rewards",
+        json={"name": "Doi diem", "reward_type": "POINTS"},
+        headers={**supervisor, "Idempotency-Key": "rf-reward"},
+    ).json()
+    for round_no in range(ROUNDS):
+        customer = client.post(
+            "/api/v1/customers",
+            json={"phone": f"09100000{round_no:02d}", "consent": True},
+            headers={**cashier, "Idempotency-Key": f"rf-cust-{round_no}"},
+        ).json()
+        client.post(
+            f"/api/v1/customers/{customer['id']}/points/adjust",
+            json={"points": 300, "reason": "test"},
+            headers={**supervisor, "Idempotency-Key": f"rf-adj-{round_no}"},
+        )
+        order_a, waiter = _order_with_item_on_new_table(
+            client, seed, db_session_factory, f"FA{round_no}"
+        )
+        order_b, _ = _order_with_item_on_new_table(
+            client, seed, db_session_factory, f"FB{round_no}"
+        )
+        for oid, tag in ((order_a, "a"), (order_b, "b")):
+            client.post(
+                f"/api/v1/orders/{oid}/customer",
+                json={"customer_id": customer["id"]},
+                headers={**cashier, "Idempotency-Key": f"rf-att-{tag}{round_no}"},
+            )
+        applied = client.post(
+            f"/api/v1/orders/{order_b}/rewards",
+            json={"reward_id": reward["id"], "points": 100},
+            headers={**cashier, "Idempotency-Key": f"rf-app-{round_no}"},
+        )
+        assert applied.status_code == 201, applied.text
+        _bill(client, order_a, waiter, f"rf-a{round_no}")
+        _bill(client, order_b, waiter, f"rf-b{round_no}")
+        paid_a = client.post(
+            f"/api/v1/orders/{order_a}/payments",
+            json={"method": "CASH"},
+            headers={**cashier, "Idempotency-Key": f"rf-pay-a{round_no}"},
+        ).json()["payment"]["id"]
+
+        statuses = _run_concurrently(
+            [
+                (
+                    "POST",
+                    f"/api/v1/payments/{paid_a}/refunds",
+                    {"reason": "test dong thoi"},
+                    {**supervisor, "Idempotency-Key": f"rf-refund-{round_no}"},
+                ),
+                (
+                    "POST",
+                    f"/api/v1/orders/{order_b}/payments",
+                    {"method": "CARD"},
+                    {**cashier, "Idempotency-Key": f"rf-pay-b{round_no}"},
+                ),
+            ]
+        )
+        assert statuses == [201, 201], f"vòng {round_no}: {statuses}"
+        balance = client.get(f"/api/v1/customers/{customer['id']}", headers=cashier).json()
+        # 300 + 5 (A) - 5 (hoàn A) - 100 (đổi ở B) + 4 (B trả 40.000đ) = 204.
+        assert balance["points_balance"] == 204, f"vòng {round_no}: {balance}"
