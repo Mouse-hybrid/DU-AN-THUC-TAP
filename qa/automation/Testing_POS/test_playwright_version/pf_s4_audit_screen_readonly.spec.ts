@@ -13,12 +13,19 @@ test('PF-S4-AUDIT-READONLY | supervisor opens audit screen', async ({page, reque
   test.skip(build!==expected, `PENDING_BUILD: expected ${expected}, staging ${build}; UI not opened`);
 
   const reads:Array<{path:string;status:number}>=[];
+  const auditResponses:Array<{status:number;rows:number|null;filterKeys:string[]}>=[];
   const writes:string[]=[];
   page.on('response',res=>{
     try {
       const path=new URL(res.url()).pathname;
       if(res.request().method()==='GET'&&path.startsWith('/api/v1/'))
         reads.push({path,status:res.status()});
+      if(res.request().method()==='GET'&&path==='/api/v1/audit-logs') {
+        const filterKeys=[...new URL(res.url()).searchParams.keys()];
+        void res.json().then(body=>auditResponses.push({status:res.status(),
+          rows:Array.isArray(body)?body.length:Array.isArray(body?.items)?body.items.length:null,
+          filterKeys})).catch(()=>auditResponses.push({status:res.status(),rows:null,filterKeys}));
+      }
     } catch { /* unrelated response */ }
   });
   page.on('request',req=>{
@@ -43,13 +50,18 @@ test('PF-S4-AUDIT-READONLY | supervisor opens audit screen', async ({page, reque
   await expect(page.getByRole('heading').first()).toBeVisible({timeout:15_000});
   await expect.poll(()=>reads.some(x=>x.path==='/api/v1/audit-logs'&&x.status===200),
     {timeout:15_000,message:'Audit screen must load GET /api/v1/audit-logs'}).toBe(true);
+  await expect.poll(()=>auditResponses.length,{timeout:5000}).toBeGreaterThan(0);
+  const totalCard=page.getByText('Tổng thao tác',{exact:true}).locator('..');
+  const visibleTotal=await totalCard.innerText().catch(()=>null);
+  const diagnostics={auditResponses,visibleTotal};
+  console.log('PF_S4_AUDIT_DIAGNOSTICS='+JSON.stringify(diagnostics));
   expect(writes).toEqual([]);
   const after=await request.get(base+'/version',{timeout:20_000});
   expect(after.status()).toBe(200);
   expect((await after.json()).commit).toBe(build);
   await testInfo.attach('PF_S4_AUDIT_readonly',{
     body:JSON.stringify({build,role:'SUPERVISOR',path:new URL(page.url()).pathname,
-      reads,writes,scope:'read-only audit UI; export/immutability/system-error trace not tested'},null,2),
+      reads,writes,diagnostics,scope:'read-only audit UI; count is observation only; export/immutability/system-error trace not tested'},null,2),
     contentType:'application/json',
   });
   await testInfo.attach('PF_S4_AUDIT_screen',{
