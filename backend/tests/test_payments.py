@@ -131,7 +131,9 @@ def test_cash_received_must_cover_amount_and_card_has_no_cash(client, seed, ctx)
     assert resp.status_code == 422
     resp = _pay(client, ctx, order_id, method="CARD", cash_received="50000")
     assert resp.status_code == 422
-    resp = _pay(client, ctx, order_id, method="VNPAY")
+    resp = _pay(client, ctx, order_id, method="VNPAY", cash_received="50000")
+    assert resp.status_code == 422
+    resp = _pay(client, ctx, order_id, method="MOMO")
     assert resp.status_code == 422
     resp = _pay(client, ctx, order_id, method="CASH", amount="0")
     assert resp.status_code == 422
