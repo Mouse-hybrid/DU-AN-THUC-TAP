@@ -59,7 +59,11 @@ for(const {path:file,sourceRoot} of files){
     const limited=staffRolePartial||String(data.business_case||data.business_cases||'').includes('NOT_EXECUTED')||
       /(?:ONLY|UI_NOT_TESTED)/.test(String(data.case_coverage||'')+' '+String(data.full_case_status||''));
     const executed=data.business_execution==='EXECUTED';
-    const readOnlyAudit=id.startsWith('P2-AUD-')&&data.mutations===0;
+    const auditRequestOnly=Array.isArray(data.requests)&&data.requests.length>0&&
+      data.requests.every(req=>req?.method==='GET'||
+        req?.method==='POST'&&req?.path==='/api/v1/auth/login');
+    const readOnlyAudit=id.startsWith('P2-AUD-')&&
+      (data.mutations===0||auditRequestOnly);
     const cleanupOk=readOnlyAudit||historicalRewards||data.cleanup_pass===true||
       data.cleanup?.inactive===true||
       id.startsWith('P2-USR-')&&data.cleanup?.locked===true;
