@@ -3,6 +3,7 @@
 - Trạng thái: Đang thực hiện — cập nhật 12/11/2026
 - Người viết: Backend Developer (Linh), soạn cùng Claude
 - Bản để góp ý: [Claude Docs](https://claude.ai/artifact/ETivRA2nzTRjS6zM7dMkkS) (bản đầu ngày 09/11). **File này là bản chuẩn**; thay đổi thiết kế thì sửa ở đây qua PR.
+- Spec từng tính năng (Spec-Driven Development): `.specify/memory/constitution.md` và `specs/` — R2 ở `specs/001-vnpay-sandbox/`, R5 ở `specs/002-rewards-dot-3/`
 - Nguồn đối chiếu: Pos System BRD 1.0 (28/04/2026), Rollout Board, `docs/api/api-catalog.md`, code trên `main`
 
 ## 1. Mục đích và phạm vi
