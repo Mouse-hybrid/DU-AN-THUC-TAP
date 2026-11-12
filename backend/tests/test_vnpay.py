@@ -446,3 +446,69 @@ def test_ipn_codes(client, seed, ctx, vnp, monkeypatch):
     assert _order_status(client, ctx, order_id) == "PAID"
     assert client.get(url, params=params).json()["RspCode"] == "02"
     assert vnp["calls"] == []  # IPN đã có chữ ký VNPay, không cần QueryDR
+
+
+def _vnpay_style_hash(data: dict, null_as: str) -> str:
+    """Cách VNPay ghép chuỗi ký phản hồi: số in nguyên, null theo `null_as`."""
+    import hashlib
+    import hmac as _hmac
+
+    def text(v):
+        return null_as if v is None else str(v)
+
+    raw = "|".join(text(data.get(f, "")) for f in vnpay._QUERYDR_RESPONSE_FIELDS)
+    return _hmac.new(b"secret-test-123", raw.encode(), hashlib.sha512).hexdigest()
+
+
+@pytest.mark.parametrize("null_as", ["", "null"])
+def test_querydr_response_with_numbers_and_nulls(vnp, monkeypatch, null_as):
+    """Phản hồi thật của VNPay có số (vnp_Amount, vnp_PromotionAmount = 0) và có thể có null:
+    0 phải ký thành "0" (bản đầu đổi thành rỗng nên lệch chữ ký trên sandbox 12/11)."""
+    pid = uuid.uuid4()
+
+    def handler(request):
+        data = {
+            "vnp_ResponseId": "abc",
+            "vnp_Command": "querydr",
+            "vnp_ResponseCode": "00",
+            "vnp_Message": "QueryDR Success",
+            "vnp_TmnCode": TMN,
+            "vnp_TxnRef": pid.hex,
+            "vnp_Amount": 4000000,
+            "vnp_BankCode": "NCB",
+            "vnp_PayDate": "20261112111700",
+            "vnp_TransactionNo": 14000001,
+            "vnp_TransactionType": "01",
+            "vnp_TransactionStatus": "00",
+            "vnp_OrderInfo": "Thanh toan don f0fb9e",
+            "vnp_PromotionCode": None,
+            "vnp_PromotionAmount": 0,
+        }
+        data["vnp_SecureHash"] = _vnpay_style_hash(data, null_as)
+        return httpx.Response(200, json=data)
+
+    monkeypatch.setattr(vnpay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    result = vnpay.query_transaction(pid, "20261112111342", "Thanh toan don f0fb9e")
+    assert result.status == vnpay.PAID
+    assert result.amount == Decimal("40000")
+    assert result.txn_no == "14000001"
+
+
+def test_querydr_missing_status_is_not_paid(vnp, monkeypatch):
+    pid = uuid.uuid4()
+
+    def handler(request):
+        data = {
+            "vnp_ResponseId": "abc",
+            "vnp_Command": "querydr",
+            "vnp_ResponseCode": "00",
+            "vnp_Message": "ok",
+            "vnp_TmnCode": TMN,
+            "vnp_TxnRef": pid.hex,
+            "vnp_Amount": 4000000,
+        }
+        data["vnp_SecureHash"] = _vnpay_style_hash(data, "")
+        return httpx.Response(200, json=data)
+
+    monkeypatch.setattr(vnpay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    assert vnpay.query_transaction(pid, "20261112111342", "x").status == vnpay.FAILED

@@ -191,22 +191,45 @@ def query_transaction(
         logger.warning("QueryDR lỗi: %s", type(exc).__name__)
         return VnpayResult(ERROR)
 
+    response_code = str(data.get("vnp_ResponseCode") or "")
     if not _querydr_response_valid(data):
-        logger.warning("QueryDR: chữ ký phản hồi không khớp, bỏ qua kết quả")
-        return VnpayResult(ERROR, code=data.get("vnp_ResponseCode"))
-    response_code = data.get("vnp_ResponseCode")
+        # Không ghi giá trị (có số tiền, mã giao dịch); chỉ tên trường và kiểu để đối chiếu.
+        logger.warning(
+            "QueryDR: chữ ký phản hồi không khớp, bỏ qua kết quả",
+            extra={
+                "fields": {
+                    "vnp_response_code": response_code,
+                    "vnp_message": str(data.get("vnp_Message") or "")[:200],
+                    "response_shape": {k: type(v).__name__ for k, v in data.items()},
+                }
+            },
+        )
+        return VnpayResult(ERROR, code=response_code or None)
     if response_code == "91":
         return VnpayResult(NOT_FOUND, code=response_code)
     if response_code != "00":
+        logger.warning(
+            "QueryDR: VNPay trả mã lỗi",
+            extra={
+                "fields": {
+                    "vnp_response_code": response_code,
+                    "vnp_message": str(data.get("vnp_Message") or "")[:200],
+                }
+            },
+        )
         return VnpayResult(ERROR, code=response_code)
-    txn_status = data.get("vnp_TransactionStatus")
+    # VNPay có thể trả số thay vì chuỗi: đưa hết về chữ trước khi so và lưu.
+    txn_status = _text(data.get("vnp_TransactionStatus"), "")
+    if txn_status.isdigit():
+        txn_status = txn_status.zfill(2)  # 0 → "00"; thiếu trường thì giữ rỗng (không phải đã trả)
     status = {"00": PAID, "01": PENDING}.get(txn_status, FAILED)
-    amount = str(data.get("vnp_Amount") or "")
+    amount = _text(data.get("vnp_Amount"), "")
+    txn_no = _text(data.get("vnp_TransactionNo"), "")
     return VnpayResult(
         status=status,
         amount=Decimal(amount) / 100 if amount.isdigit() else None,
-        txn_no=data.get("vnp_TransactionNo"),
-        paid_at=parse_vn_time(data.get("vnp_PayDate")),
+        txn_no=txn_no or None,
+        paid_at=parse_vn_time(_text(data.get("vnp_PayDate"), "")),
         code=txn_status,
     )
 
@@ -220,17 +243,37 @@ _QUERYDR_RESPONSE_FIELDS = (
 )  # fmt: skip
 
 
+def _text(value, null_as: str) -> str:
+    """Giá trị → chữ như VNPay ký: trường thiếu = rỗng; số giữ nguyên (0 → "0", không bị coi
+    là rỗng); null theo `null_as`."""
+    if value is None:
+        return null_as
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
+
+
+def _querydr_response_data(data: dict, null_as: str = "") -> str:
+    return "|".join(
+        _text(data[f], null_as) if f in data else "" for f in _QUERYDR_RESPONSE_FIELDS
+    )
+
+
 def _querydr_response_valid(data: dict) -> bool:
-    received = str(data.get("vnp_SecureHash") or "")
+    """So chữ ký phản hồi QueryDR. Tài liệu VNPay không nói trường null ghép thành gì, nên
+    thử cả "" và "null"; mỗi cách vẫn phải khớp HMAC bằng khóa bí mật."""
+    received = str(data.get("vnp_SecureHash") or "").lower()
     if not received:
         return False
-    expected = _hmac("|".join(str(data.get(f) or "") for f in _QUERYDR_RESPONSE_FIELDS))
-    return hmac.compare_digest(expected.lower(), received.lower())
+    return any(
+        hmac.compare_digest(_hmac(_querydr_response_data(data, null_as)).lower(), received)
+        for null_as in ("", "null")
+    )
 
 
-def sign_querydr_response(data: dict) -> str:
+def sign_querydr_response(data: dict, null_as: str = "") -> str:
     """Dùng trong test để giả lập phản hồi QueryDR hợp lệ."""
-    return _hmac("|".join(str(data.get(f) or "") for f in _QUERYDR_RESPONSE_FIELDS))
+    return _hmac(_querydr_response_data(data, null_as))
 
 
 def sign_params(params: dict[str, str]) -> str:
