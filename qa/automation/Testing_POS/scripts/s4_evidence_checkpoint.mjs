@@ -13,7 +13,7 @@ const manifest=JSON.parse(readFileSync(manifestArg,'utf8'));
 const ids=new Set(manifest.cases?.map(x=>x.id));
 if(ids.size!==71)throw Error('Expected exactly 71 unique baseline IDs');
 const root=resolve(evidenceArg),output=resolve(outputArg);
-const roots=[evidenceArg,...extraEvidenceArgs].map(resolve);
+const roots=[evidenceArg,...extraEvidenceArgs].map(dir=>resolve(dir));
 const files=[];
 function walk(dir,sourceRoot){
   for(const ent of readdirSync(dir,{withFileTypes:true})){
