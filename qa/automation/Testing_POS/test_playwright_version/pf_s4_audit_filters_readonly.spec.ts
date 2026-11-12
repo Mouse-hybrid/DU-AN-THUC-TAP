@@ -41,7 +41,7 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
   await expect(page).toHaveURL(/\/admin\/audit-logs$/,{timeout:15_000});
   await expect(page.getByText('Tổng thao tác',{exact:true})).toBeVisible({timeout:15_000});
   const observations:Array<{range:string;status:number;createdFrom:string|null;
-    filterKeys:string[];rows:number|null;visibleTotal:string;responsesSeen:number}>=[];
+    filterKeys:string[];rows:number|null;visibleTotal:string;responsesSeen:number;allCreatedFrom:Array<string|null>;selectedClass:string}>=[];
   for(const range of ['Hôm nay','30 ngày','7 ngày']){
     const startIndex=auditResponses.length;
     const [first]=await Promise.all([
@@ -65,8 +65,12 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
     expect(filterKeys,`${range}: time query`).toContain('created_from');
     const card=page.getByText('Tổng thao tác',{exact:true}).locator('..');
     await expect(card).toBeVisible();
+    const selectedClass=await page.getByText(range,{exact:true}).evaluate(el=>
+      `${el.getAttribute('class')||''} | parent:${el.parentElement?.getAttribute('class')||''}`);
     observations.push({range,status:response.status(),createdFrom:query.get('created_from'),
-      filterKeys,rows,visibleTotal:await card.innerText(),responsesSeen:responses.length});
+      filterKeys,rows,visibleTotal:await card.innerText(),responsesSeen:responses.length,
+      allCreatedFrom:responses.map(res=>new URL(res.url()).searchParams.get('created_from')),
+      selectedClass});
   }
   console.log('PF_S4_AUDIT_FILTERS_DIAGNOSTICS='+JSON.stringify(observations));
   const byRange=Object.fromEntries(observations.map(x=>[x.range,x.createdFrom]));
