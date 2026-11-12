@@ -47,6 +47,8 @@ erDiagram
     "order" ||--o{ "payment_refund" : "order_id"
     "staff" ||--o{ "payment_refund" : "created_by_staff_id"
     "outlet" ||--o{ "staff" : "outlet_id"
+    "outlet" ||--o{ "role_permission_override" : "outlet_id"
+    "staff" ||--o{ "role_permission_override" : "updated_by_staff_id"
     "outlet" {
         uuid id PK
         str name
@@ -278,6 +280,15 @@ erDiagram
         bool is_active
         int token_version
         datetime created_at
+        datetime updated_at
+    }
+    "role_permission_override" {
+        uuid id PK
+        uuid outlet_id FK
+        str permission
+        str role
+        bool allowed
+        uuid updated_by_staff_id FK
         datetime updated_at
     }
     "audit_log" {

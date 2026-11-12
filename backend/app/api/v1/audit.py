@@ -58,6 +58,8 @@ EXCEPTION_ACTIONS = frozenset(
         "STAGING_DATA_RESET",
         "PAYMENT_CANCELLED",
         "PAYMENT_REFUNDED",
+        "ROLE_PERMISSION_UPDATED",
+        "ROLE_PERMISSIONS_RESET",
     }
 )
 VN_TZ = timezone(timedelta(hours=7))

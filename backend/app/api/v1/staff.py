@@ -10,6 +10,10 @@ Supervisor khác đang hoạt động thực hiện, nên luôn còn ít nhất 
 Tự đổi mật khẩu đi qua POST /auth/change-password, phải nhập mật khẩu hiện tại.
 
 Đổi role, khóa, đặt lại mật khẩu đều tăng token_version: người đó phải đăng nhập lại.
+
+Màn Vai trò sửa được ma trận quyền (từ 09/11): PUT /staff/permissions/{permission} đặt danh
+sách vai trò có 1 quyền, POST /staff/permissions/reset về mặc định. Lưu theo outlet, có hiệu
+lực ngay ở request kế tiếp (app/core/rbac.py); không bỏ được quyền này của Supervisor.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -30,9 +35,16 @@ from app.core.deps import (
     require_permission,
 )
 from app.core.permissions import PERMISSION_MATRIX, Permission
+from app.core.rbac import (
+    default_roles,
+    effective_matrix,
+    locked_roles,
+    reset_to_default,
+    set_roles,
+)
 from app.core.security import hash_password
 from app.db.base import get_session
-from app.db.models import IdempotencyKey, Staff
+from app.db.models import STAFF_ROLE, IdempotencyKey, Outlet, Staff
 from app.schemas.staff import (
     PermissionRuleOut,
     StaffCreate,
@@ -40,6 +52,7 @@ from app.schemas.staff import (
     StaffResetPassword,
     StaffRole,
     StaffUpdate,
+    UpdatePermissionRolesRequest,
 )
 
 router = APIRouter(prefix="/staff", tags=["staff"])
@@ -57,15 +70,122 @@ def _reject_self(staff: Staff, current: CurrentStaff, detail: str) -> None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=detail)
 
 
-@router.get("/permissions", response_model=list[PermissionRuleOut])
-def list_permissions(
-    _current: CurrentStaff = Depends(require_permission(Permission.STAFF_MANAGE)),
-) -> list[PermissionRuleOut]:
-    """Ma trận quyền hiện hành (chỉ đọc), cho màn 94 Vai trò & quyền."""
+def _permission_rows(session: Session, outlet_id: uuid.UUID) -> list[PermissionRuleOut]:
+    matrix = effective_matrix(session, outlet_id)
     return [
-        PermissionRuleOut(permission=perm.value, description=rule.description, roles=rule.roles)
+        PermissionRuleOut(
+            permission=perm.value,
+            description=rule.description,
+            roles=_ordered(matrix[perm]),
+            default_roles=_ordered(default_roles(perm)),
+            locked_roles=_ordered(locked_roles(perm)),
+            customized=matrix[perm] != default_roles(perm),
+        )
         for perm, rule in PERMISSION_MATRIX.items()
     ]
+
+
+def _ordered(roles) -> list[str]:
+    return [role for role in STAFF_ROLE if role in roles]
+
+
+@router.get("/permissions", response_model=list[PermissionRuleOut])
+def list_permissions(
+    current: CurrentStaff = Depends(require_permission(Permission.STAFF_MANAGE)),
+    session: Session = Depends(get_session),
+) -> list[PermissionRuleOut]:
+    """Ma trận quyền đang áp dụng ở outlet, cho màn 94 Vai trò & quyền."""
+    return _permission_rows(session, current.outlet_id)
+
+
+@router.put("/permissions/{permission}", response_model=list[PermissionRuleOut])
+def update_permission_roles(
+    permission: Permission,
+    payload: UpdatePermissionRolesRequest,
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.STAFF_MANAGE)),
+    session: Session = Depends(get_session),
+) -> list[PermissionRuleOut]:
+    """Đặt lại danh sách vai trò có 1 quyền (một dòng của màn Vai trò). Có hiệu lực ngay ở
+    request kế tiếp của mọi nhân viên, không cần đăng nhập lại. Không bỏ được quyền Quản lý
+    nhân viên của Supervisor. Trả lại cả ma trận để màn hình vẽ lại."""
+    endpoint = f"PUT /api/v1/staff/permissions/{permission.value}"
+    request_hash = hash_request_body(payload.model_dump(mode="json"))
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return TypeAdapter(list[PermissionRuleOut]).validate_json(existing.response_body)
+
+    # Khóa outlet để hai Supervisor sửa cùng lúc chạy lần lượt, không ghi đè lẫn nhau.
+    session.execute(select(Outlet.id).where(Outlet.id == current.outlet_id).with_for_update())
+    try:
+        added, removed = set_roles(
+            session, current.outlet_id, permission, set(payload.roles), current.id
+        )
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    if added or removed:
+        write_audit_log(
+            session,
+            outlet_id=current.outlet_id,
+            staff_id=current.id,
+            action="ROLE_PERMISSION_UPDATED",
+            entity_type="permission",
+            entity_id=permission.value,
+            payload={"added": sorted(added), "removed": sorted(removed)},
+        )
+    result = _permission_rows(session, current.outlet_id)
+    _remember(session, idempotency_key, endpoint, request_hash, result)
+    session.commit()
+    return result
+
+
+@router.post("/permissions/reset", response_model=list[PermissionRuleOut])
+def reset_permissions(
+    idempotency_key: str = Depends(require_idempotency_key),
+    current: CurrentStaff = Depends(require_permission(Permission.STAFF_MANAGE)),
+    session: Session = Depends(get_session),
+) -> list[PermissionRuleOut]:
+    """Khôi phục toàn bộ ma trận quyền của outlet về mặc định."""
+    endpoint = "POST /api/v1/staff/permissions/reset"
+    request_hash = hash_request_body({})
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        return TypeAdapter(list[PermissionRuleOut]).validate_json(existing.response_body)
+
+    session.execute(select(Outlet.id).where(Outlet.id == current.outlet_id).with_for_update())
+    removed = reset_to_default(session, current.outlet_id)
+    if removed:
+        write_audit_log(
+            session,
+            outlet_id=current.outlet_id,
+            staff_id=current.id,
+            action="ROLE_PERMISSIONS_RESET",
+            entity_type="permission",
+            entity_id="ALL",
+            payload={"overrides_removed": removed},
+        )
+    result = _permission_rows(session, current.outlet_id)
+    _remember(session, idempotency_key, endpoint, request_hash, result)
+    session.commit()
+    return result
+
+
+def _remember(session, key, endpoint, request_hash, result: list[PermissionRuleOut]) -> None:
+    session.add(
+        IdempotencyKey(
+            key=key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=TypeAdapter(list[PermissionRuleOut]).dump_json(result).decode(),
+        )
+    )
 
 
 @router.get("", response_model=list[StaffDetailOut])

@@ -38,7 +38,8 @@ from app.core.deps import (
     require_permission,
 )
 from app.core.loyalty import add_points, current_rule, lock_customer
-from app.core.permissions import PERMISSION_MATRIX, Permission
+from app.core.permissions import Permission
+from app.core.rbac import role_has
 from app.db.base import get_session
 from app.db.models import (
     Customer,
@@ -98,7 +99,7 @@ def list_customers(
     """Thu ngân chỉ tra được đúng 1 số, không xem được cả danh sách khách (RW-015)."""
     stmt = select(Customer).where(Customer.outlet_id == current.outlet_id)
     if phone is None:
-        if current.role not in PERMISSION_MATRIX[Permission.LOYALTY_MANAGE].roles:
+        if not role_has(session, current.outlet_id, current.role, Permission.LOYALTY_MANAGE):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, detail="Cần số điện thoại để tra cứu khách hàng"
             )

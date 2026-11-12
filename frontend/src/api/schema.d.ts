@@ -986,11 +986,53 @@ export interface paths {
         };
         /**
          * List Permissions
-         * @description Ma trận quyền hiện hành (chỉ đọc), cho màn 94 Vai trò & quyền.
+         * @description Ma trận quyền đang áp dụng ở outlet, cho màn 94 Vai trò & quyền.
          */
         get: operations["list_permissions_api_v1_staff_permissions_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/permissions/{permission}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Permission Roles
+         * @description Đặt lại danh sách vai trò có 1 quyền (một dòng của màn Vai trò). Có hiệu lực ngay ở
+         *     request kế tiếp của mọi nhân viên, không cần đăng nhập lại. Không bỏ được quyền Quản lý
+         *     nhân viên của Supervisor. Trả lại cả ma trận để màn hình vẽ lại.
+         */
+        put: operations["update_permission_roles_api_v1_staff_permissions__permission__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/permissions/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Permissions
+         * @description Khôi phục toàn bộ ma trận quyền của outlet về mặc định.
+         */
+        post: operations["reset_permissions_api_v1_staff_permissions_reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2469,7 +2511,16 @@ export interface components {
             /** Remaining */
             remaining: string;
         };
-        /** PermissionRuleOut */
+        /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "ORDER_WRITE" | "SEND_TO_KITCHEN" | "REQUEST_BILLING" | "PROCESS_PAYMENT" | "OVERRIDE" | "VIEW_KDS" | "KITCHEN_ACTION" | "SERVE_FOOD" | "TABLE_OPEN" | "TABLE_MARK_CLEAN" | "TABLE_LAYOUT_MANAGE" | "TABLE_TRANSFER" | "QR_SESSION_MANAGE" | "MENU_WRITE" | "AUDIT_READ" | "STAFF_MANAGE" | "CUSTOMER_ACCESS" | "REWARD_APPLY" | "LOYALTY_MANAGE" | "PAYMENT_REFUND";
+        /**
+         * PermissionRuleOut
+         * @description `roles` = vai trò đang có quyền (đã tính các ô Supervisor sửa). `default_roles` = theo
+         *     mặc định của hệ thống. `locked_roles` = ô không bỏ được. `customized` = khác mặc định.
+         */
         PermissionRuleOut: {
             /** Permission */
             permission: string;
@@ -2477,6 +2528,21 @@ export interface components {
             description: string;
             /** Roles */
             roles: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR")[];
+            /**
+             * Default Roles
+             * @default []
+             */
+            default_roles: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR")[];
+            /**
+             * Locked Roles
+             * @default []
+             */
+            locked_roles: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR")[];
+            /**
+             * Customized
+             * @default false
+             */
+            customized: boolean;
         };
         /** PointsAdjustRequest */
         PointsAdjustRequest: {
@@ -3080,6 +3146,14 @@ export interface components {
             quantity?: number | null;
             /** Note */
             note?: string | null;
+        };
+        /**
+         * UpdatePermissionRolesRequest
+         * @description Danh sách đầy đủ vai trò được có quyền này sau khi sửa (không phải phần thêm/bớt).
+         */
+        UpdatePermissionRolesRequest: {
+            /** Roles */
+            roles: ("CASHIER" | "WAITER" | "KITCHEN" | "SUPERVISOR")[];
         };
         /** ValidationError */
         ValidationError: {
@@ -5063,6 +5137,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PermissionRuleOut"][];
+                };
+            };
+        };
+    };
+    update_permission_roles_api_v1_staff_permissions__permission__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                permission: components["schemas"]["Permission"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePermissionRolesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionRuleOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_permissions_api_v1_staff_permissions_reset_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionRuleOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
