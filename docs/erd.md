@@ -85,6 +85,8 @@ erDiagram
         datetime closed_at
         str qr_session_token
         datetime qr_expires_at
+        str pending_member_phone
+        int qr_member_attempts
     }
     "kitchen_station" {
         uuid id PK

@@ -248,11 +248,40 @@ Khách hàng, luật điểm và tích điểm khi thanh toán. Ưu đãi và đ
 - Đổi điểm: tối đa theo `max_redeem_percent` của luật và `max_discount` của ưu đãi. Vượt lúc áp trả 409 kèm số tối đa; hóa đơn giảm sau đó thì tự giảm số điểm dùng theo trần mới.
 - `override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt, có ghi audit. Không bỏ qua được số dư và trần đổi điểm.
 - Đang đổi điểm thì không đổi hoặc bỏ khách được (409).
-- Đã thanh toán thì `COMMITTED`: số giảm, điểm và tên ưu đãi không đổi khi sửa ưu đãi, không gỡ được. **Hoàn điểm chưa có**, làm cùng VNPay.
+- Đã thanh toán thì `COMMITTED`: số giảm, điểm và tên ưu đãi không đổi khi sửa ưu đãi, không gỡ được. Đơn được hoàn tiền hết thì thành `REVERSED` (xem mục A18); hóa đơn vẫn giữ số tiền đã giảm.
 
 `reason_code`: `INACTIVE`, `NOT_STARTED`, `EXPIRED`, `MIN_ORDER`, `USAGE_LIMIT`, `NO_CUSTOMER`, `CUSTOMER_LOCKED`, `NO_RULE`, `INSUFFICIENT_POINTS`, `ZERO_DISCOUNT`.
 
 Seed: `Đổi điểm` và `Giảm 10% đơn từ 200.000đ` (tối đa 50.000đ) ở khu demo và khu QA 3. Số liệu tạm, chờ PO chốt.
+
+### A18. Rewards đợt 3: hoàn điểm, hết hạn điểm, số điện thoại trên QR (từ 12/11)
+
+Spec: `specs/002-rewards-dot-3/`.
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 90 | POST | `/api/v1/public/qr/{token}/member` (cần `Idempotency-Key`) | token | Khách nhập số điện thoại để tích điểm: body `{"phone"}`; luôn trả `{"status": "RECEIVED", "phone_masked": "090****567"}` | ✅ |
+| 91 | GET | `/api/v1/orders/{id}/pending-member` | C, S | Thu ngân xem số khách đã nhập: `{"phone", "member_customer_id"}` | ✅ |
+
+**Số điện thoại trên QR:**
+- Số của thành viên đang hoạt động: tự gắn vào các đơn chưa thanh toán, chưa có khách của bàn. Thanh toán xong khách được tích điểm như bình thường.
+- Số chưa là thành viên, bàn đã gắn khách khác, khách bị khóa, hoặc bàn chưa có đơn: số được giữ lại cho thu ngân. Chi tiết đơn/bàn có cờ `has_pending_member: true`. Thu ngân xác nhận đồng ý, đăng ký bằng `POST /customers`, rồi gắn bằng `POST /orders/{id}/customer`. Gắn xong (hoặc phiên đóng) thì số chờ bị xóa.
+- **Phản hồi giống nhau mọi trường hợp**, để không dò được số nào là thành viên. Khách không đổi điểm, không xem số dư trên QR.
+- Mỗi phiên tối đa 5 lần (`QR_MEMBER_MAX_ATTEMPTS`), lần thứ 6 trả 429. Số sai định dạng trả 422, không tính lần. Mã sai/thu hồi trả 401, hết hạn trả 410.
+- Event `ORDER_UPDATED` với `reason: "QR_MEMBER"` để màn thu ngân tải lại.
+
+**Hoàn điểm** (khi đơn được hoàn tiền hết):
+- Ghi một dòng `REVERSAL` gộp: trả lại điểm đã đổi, thu lại điểm đã tích.
+- Ưu đãi của đơn chuyển `REVERSED`, trả lại một lượt dùng.
+- Số dư không âm. Không thu đủ điểm tích (khách đã tiêu) thì ghi audit `POINTS_REVERSAL_SHORTFALL` để Supervisor xử lý.
+- Hoàn một phần không đổi điểm (chờ PO chốt có thu theo tỉ lệ không).
+
+**Hết hạn điểm:**
+- `scripts/expire_points.py` chạy mỗi ngày 03:00 giờ Việt Nam (workflow *Expire loyalty points*, có chạy thử `dry run`).
+- Trừ phần điểm tích đã quá hạn mà chưa dùng, điểm dùng tính vào lô cũ nhất trước. Mỗi khách một dòng `EXPIRE` và một dòng audit `POINTS_EXPIRED`.
+- Điểm cộng tay và điểm được trả lại khi hoàn tiền không có hạn. Chạy lại không trừ thêm.
+
+Audit mới: `POINTS_REVERSED`, `POINTS_REVERSAL_SHORTFALL` (cả hai là thao tác ngoại lệ), `POINTS_EXPIRED`, `QR_MEMBER_LINKED`, `QR_MEMBER_PENDING`.
 
 ### A14. Chuyển bàn (từ 09/11)
 
@@ -319,7 +348,7 @@ Chưa có: bỏ gộp giữa chừng (tách bàn ra lại).
 - Lần trả đủ tiền chạy đúng logic `/pay`: chốt ưu đãi, trừ và tích điểm, đóng phiên khi là đơn cuối của bàn, bàn sang `CLEANING`.
 - Đã nhận một phần tiền thì **không áp thêm ưu đãi và không đổi khách** (409), vì số phải trả có thể thấp hơn số đã thu. Gỡ ưu đãi vẫn được (số phải trả tăng).
 - Mọi API ghi khóa dòng đơn: hai thu ngân cùng bấm trả hết thì một bên 201, bên kia 409 (BRD "No duplicate payment").
-- Hủy (`cancel`): chỉ khi đơn còn `BILLING`. Đơn đã `PAID` thì dùng hoàn tiền. Hoàn tiền tối đa phần chưa hoàn của lần đó; hoàn hết thì lần thanh toán thành `REFUNDED`. Đơn giữ nguyên trạng thái; **điểm đã tích chưa tự trừ lại** (làm cùng Rewards đợt 3).
+- Hủy (`cancel`): chỉ khi đơn còn `BILLING`. Đơn đã `PAID` thì dùng hoàn tiền. Hoàn tiền tối đa phần chưa hoàn của lần đó; hoàn hết thì lần thanh toán thành `REFUNDED`. Đơn giữ nguyên trạng thái. Lần hoàn làm đơn được **hoàn hết** thì tự đảo điểm (mục A18); hoàn một phần không đổi điểm.
 - `/pay` vẫn dùng được, giờ là lối tắt: ghi 1 lần `CASH` cho số còn lại rồi chốt đơn.
 - Chi tiết đơn (`GET /orders/{id}`, `GET /tables/{id}`) có thêm `amount_paid`, `amount_due`.
 - Audit: `PAYMENT_RECORDED`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED` (hai cái sau là thao tác ngoại lệ trong báo cáo audit). Quyền mới `PAYMENT_REFUND` (chỉ Supervisor).

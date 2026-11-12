@@ -4,6 +4,7 @@ và sổ điểm luôn khớp. Tiền giảm luôn do server tính, API không n
 from __future__ import annotations
 
 import uuid
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_FLOOR, Decimal
@@ -181,7 +182,9 @@ def evaluate_reward(
 def active_order_reward(session: Session, order_id: uuid.UUID) -> OrderReward | None:
     return session.scalars(
         select(OrderReward).where(
-            OrderReward.order_id == order_id, OrderReward.status.in_(("APPLIED", "COMMITTED"))
+            OrderReward.order_id == order_id,
+            # REVERSED (đơn đã hoàn hết) vẫn trả về để hóa đơn cũ giữ đúng số tiền đã giảm.
+            OrderReward.status.in_(("APPLIED", "COMMITTED", "REVERSED")),
         )
     ).first()
 
@@ -205,7 +208,7 @@ def price_order(session: Session, order: Order) -> OrderPricing:
     active = active_order_reward(session, order.id)
     if active is None:
         return OrderPricing(subtotal)
-    if active.status == "COMMITTED":
+    if active.status in ("COMMITTED", "REVERSED"):
         return OrderPricing(
             subtotal,
             discount=Decimal(active.discount_amount),
@@ -305,4 +308,144 @@ def earn_points_for_order(
         rule_version=rule.version,
         staff_id=staff_id,
         expires_at=expires_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Rewards đợt 3 (specs/002-rewards-dot-3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PointsReversal:
+    entry: PointsLedger | None
+    redeemed_returned: int
+    earned_taken: int
+    shortfall: int
+
+
+def reverse_order_points(
+    session: Session, order: Order, staff_id: uuid.UUID
+) -> PointsReversal | None:
+    """Đơn được hoàn tiền hết: ghi MỘT dòng REVERSAL gộp (trả lại điểm đã đổi, thu lại điểm
+    đã tích), chuyển ưu đãi đã chốt sang REVERSED và trả lại một lượt dùng. Số dư không âm:
+    thu không đủ điểm tích thì phần thiếu nằm ở `shortfall` để người gọi ghi audit. Gọi lần
+    hai cho cùng đơn không làm gì (ràng buộc unique (order_id, entry_type) cũng chặn)."""
+    reward = session.scalars(
+        select(OrderReward).where(
+            OrderReward.order_id == order.id, OrderReward.status == "COMMITTED"
+        )
+    ).first()
+    if reward is not None:
+        reward.status = "REVERSED"
+        locked = session.execute(
+            select(Reward).where(Reward.id == reward.reward_id).with_for_update()
+        ).scalar_one()
+        locked.used_count = max(0, locked.used_count - 1)
+
+    if order.customer_id is None:
+        return None
+    rows = {
+        row.entry_type: row
+        for row in session.scalars(select(PointsLedger).where(PointsLedger.order_id == order.id))
+    }
+    if "REVERSAL" in rows or not ({"EARN", "REDEEM"} & rows.keys()):
+        return None
+    redeemed = -rows["REDEEM"].points if "REDEEM" in rows else 0
+    earned = rows["EARN"].points if "EARN" in rows else 0
+    customer = lock_customer(session, order.customer_id)
+    available = customer.points_balance + redeemed
+    taken = min(earned, max(available, 0))
+    entry = add_points(
+        session,
+        customer,
+        entry_type="REVERSAL",
+        points=redeemed - taken,
+        order_id=order.id,
+        reason=f"Hoàn tiền: trả {redeemed} điểm đổi, thu {taken} điểm tích",
+        staff_id=staff_id,
+    )
+    return PointsReversal(entry, redeemed, taken, earned - taken)
+
+
+_LEDGER_ORDER = {"REDEEM": 0, "ADJUST": 1, "EARN": 2, "REVERSAL": 3, "EXPIRE": 4}
+
+
+def _consume(lots: deque, amount: int, expired_before: datetime | None = None) -> None:
+    """Trừ `amount` điểm theo thứ tự lô cũ trước. `expired_before`: ưu tiên các lô đã hết hạn
+    tại thời điểm đó (dòng EXPIRE chỉ trừ vào lô hết hạn)."""
+    if expired_before is not None:
+        for lot in lots:
+            if amount <= 0:
+                return
+            if lot[1] is not None and lot[1] <= expired_before and lot[0] > 0:
+                used = min(lot[0], amount)
+                lot[0] -= used
+                amount -= used
+    for lot in lots:
+        if amount <= 0:
+            return
+        used = min(lot[0], amount)
+        lot[0] -= used
+        amount -= used
+
+
+def expiring_points(session: Session, customer: Customer, now: datetime) -> int:
+    """Số điểm đã hết hạn mà chưa bị trừ, tính bằng cách duyệt lại sổ điểm theo thời gian
+    (FIFO: điểm dùng trước trừ vào lô cũ nhất). Lô = [còn lại, hạn, order_id]; điểm cộng tay
+    (ADJUST dương) và điểm được trả lại khi hoàn tiền không có hạn."""
+    lots: deque = deque()
+    earn_by_order: dict = {}
+    redeem_by_order: dict = {}
+    # Cùng thời điểm (vd REDEEM và EARN trong một lần thanh toán) thì xếp theo thứ tự nghiệp vụ.
+    rows = sorted(
+        session.scalars(select(PointsLedger).where(PointsLedger.customer_id == customer.id)),
+        key=lambda r: (_as_utc(r.created_at), _LEDGER_ORDER.get(r.entry_type, 9)),
+    )
+    for row in rows:
+        if row.entry_type == "EARN":
+            lot = [row.points, _as_utc(row.expires_at) if row.expires_at else None, row.order_id]
+            lots.append(lot)
+            earn_by_order[row.order_id] = lot
+        elif row.entry_type == "REDEEM":
+            redeem_by_order[row.order_id] = -row.points
+            _consume(lots, -row.points)
+        elif row.entry_type == "ADJUST":
+            if row.points > 0:
+                lots.append([row.points, None, None])
+            else:
+                _consume(lots, -row.points)
+        elif row.entry_type == "REVERSAL":
+            returned = redeem_by_order.get(row.order_id, 0)
+            taken = returned - row.points
+            lot = earn_by_order.get(row.order_id)
+            if lot is not None and taken > 0:
+                own = min(lot[0], taken)
+                lot[0] -= own
+                taken -= own
+            _consume(lots, taken)
+            if returned:
+                lots.append([returned, None, None])
+        elif row.entry_type == "EXPIRE":
+            _consume(lots, -row.points, expired_before=_as_utc(row.created_at))
+    due = sum(lot[0] for lot in lots if lot[1] is not None and lot[1] <= now and lot[0] > 0)
+    return min(due, max(customer.points_balance, 0))
+
+
+def expire_points_for_customer(
+    session: Session, customer_id: uuid.UUID, now: datetime
+) -> PointsLedger | None:
+    """Khóa khách rồi trừ phần điểm đã hết hạn. Chạy lại ngay sau đó không trừ thêm."""
+    customer = lock_customer(session, customer_id)
+    if customer is None:
+        return None
+    amount = expiring_points(session, customer, now)
+    if amount <= 0:
+        return None
+    return add_points(
+        session,
+        customer,
+        entry_type="EXPIRE",
+        points=-amount,
+        reason=f"Hết hạn điểm tích đến {now.astimezone(timezone(timedelta(hours=7))):%d/%m/%Y}",
     )

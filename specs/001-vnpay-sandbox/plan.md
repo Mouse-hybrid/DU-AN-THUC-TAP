@@ -23,7 +23,7 @@ Một script đối soát chạy định kỳ xử lý các lần thanh toán qu
 |---|---|
 | Language/Version | Python 3.11 |
 | Primary Dependencies | FastAPI, SQLAlchemy 2, `httpx` (đã có trong requirements-dev; chuyển sang requirements) để gọi QueryDR |
-| Storage | PostgreSQL 16, thêm cột vào bảng `payment` (migration `0012`) |
+| Storage | PostgreSQL 16, thêm cột vào bảng `payment` (migration `0013`) |
 | Testing | pytest; giả lập VNPay bằng khóa giả + `httpx.MockTransport` cho QueryDR |
 | Target Platform | Docker Compose trên staging (http, IP `160.191.47.17`) |
 | Performance Goals | Tạo link < 200 ms; xác nhận (gồm QueryDR) < 5 s, thời hạn chờ QueryDR 10 s |
@@ -39,7 +39,7 @@ Một script đối soát chạy định kỳ xử lý các lần thanh toán qu
 | III. Phân quyền | Tạo link, kiểm tra lại: `PROCESS_PAYMENT`. Return URL và IPN công khai nhưng chỉ tin dữ liệu có chữ ký, không trả dữ liệu cá nhân |
 | IV. Dấu vết | Audit `PAYMENT_LINK_CREATED`, `PAYMENT_CONFIRMED`, `PAYMENT_AMOUNT_MISMATCH` (ngoại lệ), `PAYMENT_LATE_SUCCESS` (ngoại lệ) |
 | V. Test, CI | Test luồng chính, chữ ký sai, sửa Return URL, lệch tiền, gửi lại, cách ly outlet; sinh lại `schema.d.ts` |
-| VI. Migration | `0012` chỉ thêm cột cho phép null, có downgrade |
+| VI. Migration | `0013` chỉ thêm cột cho phép null, có downgrade |
 | VII. Bí mật | `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` chỉ trong env; log không ghi `vnp_SecureHash` hay toàn bộ query |
 | VIII. Đơn giản | Đối soát bằng script + workflow trên runner sẵn có (như backup), không thêm Celery/Redis |
 
@@ -58,7 +58,7 @@ backend/
     schemas/payments.py       # + payment_url, các trường mới
     db/models.py              # + cột payment
   migrations/versions/
-    0012_payment_vnpay.py     # (mới)
+    0013_payment_vnpay.py     # (mới)
   scripts/
     reconcile_vnpay.py        # đối soát lần thanh toán quá hạn (mới)
   tests/

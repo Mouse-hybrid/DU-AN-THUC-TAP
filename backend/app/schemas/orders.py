@@ -120,6 +120,17 @@ class OrderDetailOut(BaseModel):
     # Đã thu qua các lần thanh toán (không tính lần đã hủy) và số còn phải thu.
     amount_paid: Decimal = Decimal("0")
     amount_due: Decimal = Decimal("0")
+    # Khách đã nhập số điện thoại trên QR, chờ thu ngân xử lý (số ở GET .../pending-member).
+    has_pending_member: bool = False
+
+
+class PendingMemberOut(BaseModel):
+    """`phone`: số khách nhập trên QR (null nếu không có). `member_customer_id`: thành viên
+    đang hoạt động có số đó, nếu có (chưa gắn được vì đơn đã có khách khác hoặc bàn chưa có đơn).
+    """
+
+    phone: str | None = None
+    member_customer_id: uuid.UUID | None = None
 
 
 class OrderSummaryOut(BaseModel):

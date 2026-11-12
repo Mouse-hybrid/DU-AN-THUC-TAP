@@ -79,6 +79,8 @@ KDS_SLA_CRITICAL_MINUTES = int(os.getenv("KDS_SLA_CRITICAL_MINUTES", "15"))
 # một phiên bàn (chống đặt bậy; phục vụ xác nhận xong thì khách gọi tiếp được).
 QR_SESSION_TTL_MINUTES = int(os.getenv("QR_SESSION_TTL_MINUTES", "240"))
 QR_MAX_PENDING_ITEMS = int(os.getenv("QR_MAX_PENDING_ITEMS", "30"))
+# Rewards đợt 3: số lần khách được gửi số điện thoại trong một phiên QR (chống dò số).
+QR_MEMBER_MAX_ATTEMPTS = int(os.getenv("QR_MEMBER_MAX_ATTEMPTS", "5"))
 
 # --- Bản đang chạy (GET /version) ---------------------------------------------
 # Gắn lúc build image (Dockerfile ARG GIT_COMMIT/BUILT_AT, deploy-staging.sh truyền

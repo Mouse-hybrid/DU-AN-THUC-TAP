@@ -60,7 +60,7 @@ Liệt kê phần BRD mà backend chưa làm, thiết kế cho từng phần, v�
 | R2 | VNPay sandbox: tạo link, Return URL + QueryDR, IPN viết sẵn | 2 | P0 | 2 ngày | Chờ tài khoản sandbox (mốc 13/11) |
 | R3 | Giám sát: Sentry, log JSON, số đo, cảnh báo | 2 | P0 | 1 ngày | **Xong** (#64), còn đặt DSN |
 | R4 | Chịu tải 200 người dùng, khóa đồng thời trên Postgres | 2 | P0 | 1 ngày | **Xong phần code** (#65), còn chạy trên staging |
-| R5 | Rewards đợt 3: số điện thoại trên QR, hoàn điểm, hết hạn điểm | 2 | P0 | 1,5 ngày | Chưa làm |
+| R5 | Rewards đợt 3: số điện thoại trên QR, hoàn điểm, hết hạn điểm | 2 | P0 | 1,5 ngày | **Xong** (PR `feat/rewards-dot-3`), còn đo hiệu năng job |
 | R6 | Thuế VAT, phí phục vụ, dữ liệu in hóa đơn | 3 | P0 | 1,5 ngày | Chờ PO chốt thuế suất |
 | R7 | KDS theo BRD: nhận món, ưu tiên, thu hồi, Expeditor, trạng thái trạm | 3 | P1 | 3 ngày | Chưa làm |
 | R8 | Bàn và đơn: sửa số khách, hủy phiên, bỏ gộp, `expected_version` | 3 | P1 | 1,5 ngày | Chưa làm |
@@ -101,7 +101,7 @@ Mọi API mới tuân theo các quy ước đã dùng:
   - Không nhận quá số còn phải trả.
   - Lần trả đủ tiền chạy đúng logic `/pay`: chốt ưu đãi, tích điểm, đóng phiên bàn khi là đơn cuối.
   - Đã nhận một phần tiền thì không áp thêm ưu đãi và không đổi khách.
-- **Còn lại:** hoàn tiền chưa trừ lại điểm đã tích. Phần này làm ở R5.
+- **Hoàn điểm:** đã làm ở R5 (hoàn hết đơn thì đảo điểm và lượt dùng ưu đãi).
 
 ### R2. VNPay (sandbox)
 

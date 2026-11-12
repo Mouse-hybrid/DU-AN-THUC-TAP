@@ -91,6 +91,7 @@ from app.schemas.orders import (
     OrderItemModifierOut,
     OrderOut,
     OrderSummaryOut,
+    PendingMemberOut,
     SendToKitchenResponse,
     SplitOrderOut,
     SplitOrderRequest,
@@ -264,6 +265,7 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         applied_reward=_applied_reward_out(pricing),
         amount_paid=totals.paid,
         amount_due=totals.remaining(pricing.total) if order.status in _UNPAID_ORDER_STATUSES else 0,
+        has_pending_member=order.table_session.pending_member_phone is not None,
     )
 
 
@@ -877,6 +879,9 @@ def attach_customer(
             raise HTTPException(status.HTTP_409_CONFLICT, detail="Khách hàng đang bị khóa")
 
     order.customer_id = payload.customer_id
+    if payload.customer_id is not None:
+        # Thu ngân đã xử lý số khách nhập trên QR (đăng ký hoặc chọn khách khác).
+        order.table_session.pending_member_phone = None
     session.flush()
     session.refresh(order)
     write_audit_log(
@@ -900,6 +905,28 @@ def attach_customer(
     )
     session.commit()
     return result
+
+
+@router.get("/{order_id}/pending-member", response_model=PendingMemberOut)
+def get_pending_member(
+    order_id: uuid.UUID,
+    current: CurrentStaff = Depends(require_permission(Permission.CUSTOMER_ACCESS)),
+    session: Session = Depends(get_session),
+) -> PendingMemberOut:
+    """Số điện thoại khách nhập trên QR cho bàn của đơn này (specs/002-rewards-dot-3, FR-010).
+    Thu ngân xác nhận đồng ý rồi đăng ký bằng POST /customers, gắn bằng POST .../customer."""
+    order = _load_order_or_404(session, order_id, current.outlet_id, for_update=False)
+    phone = order.table_session.pending_member_phone
+    if phone is None:
+        return PendingMemberOut()
+    member = session.execute(
+        select(Customer.id).where(
+            Customer.outlet_id == current.outlet_id,
+            Customer.phone == phone,
+            Customer.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+    return PendingMemberOut(phone=phone, member_customer_id=member)
 
 
 def _reward_context(session: Session, order: Order) -> tuple[Customer | None, LoyaltyRule | None]:
@@ -1152,6 +1179,7 @@ def finalize_paid_order(
             empty.status = "CLOSED"
         table_session.status = "CLOSED"
         table_session.closed_at = datetime.now(timezone.utc)
+        table_session.pending_member_phone = None  # không giữ số điện thoại sau khi khách về
         table.status = "CLEANING"
         # Bàn đã gộp vào bàn này cũng trả lại, chờ dọn như bàn chính.
         released = list(
