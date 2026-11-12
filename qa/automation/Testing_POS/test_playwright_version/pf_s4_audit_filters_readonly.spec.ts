@@ -13,6 +13,13 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
   test.skip(build!==expected, `PENDING_BUILD: expected ${expected}, staging ${build}; UI not opened`);
 
   const writes:string[]=[];
+  const auditResponses:import('@playwright/test').Response[]=[];
+  page.on('response',res=>{
+    try {
+      if(res.request().method()==='GET'&&new URL(res.url()).pathname==='/api/v1/audit-logs')
+        auditResponses.push(res);
+    } catch { /* unrelated response */ }
+  });
   page.on('request',req=>{
     try {
       const path=new URL(req.url()).pathname;
@@ -33,9 +40,11 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
   await page.goto('/admin/audit-logs',{waitUntil:'domcontentloaded'});
   await expect(page).toHaveURL(/\/admin\/audit-logs$/,{timeout:15_000});
   await expect(page.getByText('Tổng thao tác',{exact:true})).toBeVisible({timeout:15_000});
-  const observations:Array<{range:string;status:number;filterKeys:string[];rows:number|null;visibleTotal:string}>=[];
+  const observations:Array<{range:string;status:number;createdFrom:string|null;
+    filterKeys:string[];rows:number|null;visibleTotal:string;responsesSeen:number}>=[];
   for(const range of ['Hôm nay','30 ngày','7 ngày']){
-    const [response]=await Promise.all([
+    const startIndex=auditResponses.length;
+    const [first]=await Promise.all([
       page.waitForResponse(res=>{
         try {
           return res.request().method()==='GET'&&new URL(res.url()).pathname==='/api/v1/audit-logs';
@@ -43,16 +52,25 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
       },{timeout:15_000}),
       page.getByText(range,{exact:true}).click(),
     ]);
-    expect(response.status(),`${range}: audit GET`).toBe(200);
+    await first.finished();
+    await page.waitForLoadState('networkidle',{timeout:15_000});
+    const responses=auditResponses.slice(startIndex);
+    expect(responses.length,`${range}: audit GET after click`).toBeGreaterThan(0);
+    const response=responses.at(-1)!;
+    expect(response.status(),`${range}: latest audit GET`).toBe(200);
     const body=await response.json();
     const rows=Array.isArray(body)?body.length:Array.isArray(body?.items)?body.items.length:null;
-    const filterKeys=[...new URL(response.url()).searchParams.keys()];
+    const query=new URL(response.url()).searchParams;
+    const filterKeys=[...query.keys()];
     expect(filterKeys,`${range}: time query`).toContain('created_from');
     const card=page.getByText('Tổng thao tác',{exact:true}).locator('..');
     await expect(card).toBeVisible();
-    observations.push({range,status:response.status(),filterKeys,rows,
-      visibleTotal:await card.innerText()});
+    observations.push({range,status:response.status(),createdFrom:query.get('created_from'),
+      filterKeys,rows,visibleTotal:await card.innerText(),responsesSeen:responses.length});
   }
+  const byRange=Object.fromEntries(observations.map(x=>[x.range,x.createdFrom]));
+  expect(Date.parse(byRange['Hôm nay']!), 'Today must start later than 7 days').toBeGreaterThan(Date.parse(byRange['7 ngày']!));
+  expect(Date.parse(byRange['7 ngày']!), '7 days must start later than 30 days').toBeGreaterThan(Date.parse(byRange['30 ngày']!));
   expect(writes).toEqual([]);
   const after=await request.get(base+'/version',{timeout:20_000});
   expect(after.status()).toBe(200);
