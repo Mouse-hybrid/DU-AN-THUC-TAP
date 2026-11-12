@@ -45,7 +45,8 @@ for(const {path:file,sourceRoot} of files){
   for(const [id,result] of raw){
     if(id.startsWith('PF-')){preflight.push({ref:id,result,source});continue;}
     if(!ids.has(id))continue;
-    const staffRolePartial=id==='P2-USR-001'||
+    const staffRolePartial=id==='P2-USR-001'&&/\bWAITER\b/.test(String(data.scope||''))&&
+      !Array.isArray(data.roles)||
       id==='P2-USR-003'&&data.create_http===201&&data.patch_http===200&&
       data.assertions_passed===true&&!data.audit;
     const historicalRewards=['P2-RWD-003','P2-RWD-010'].includes(id)&&data.mutations===0&&
