@@ -662,6 +662,18 @@ class Payment(Base):
         GUID, ForeignKey("staff.id"), nullable=True
     )
     cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # VNPay (R2): link thanh toán và kết quả phía VNPay. Tiền mặt/thẻ để trống.
+    payment_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    vnp_create_date: Mapped[str | None] = mapped_column(String(14), nullable=True)
+    provider_txn_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    provider_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    provider_paid_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_checked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

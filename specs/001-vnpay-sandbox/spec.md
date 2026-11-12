@@ -2,7 +2,7 @@
 
 - **Feature Branch**: `feat/vnpay-sandbox`
 - **Created**: 2026-11-12
-- **Status**: Draft
+- **Status**: Implemented — chờ chạy thử trên sandbox thật (PR `feat/vnpay-sandbox`, 12/11/2026)
 - **Hạng mục SDD**: R2 (Pha 2, P0)
 - **Input**: "Thanh toán QR qua VNPay, thử trên môi trường sandbox; staging chưa có HTTPS."
 

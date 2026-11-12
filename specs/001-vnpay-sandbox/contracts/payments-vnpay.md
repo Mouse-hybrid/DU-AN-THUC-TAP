@@ -37,12 +37,18 @@ Hợp đồng cho FE và QA. Sau khi code, `docs/api/openapi.json` là nguồn c
 
 Đơn đã có một lần VNPay đang chờ, chưa hết hạn → trả lại lần đó (201), không tạo mới.
 
+Khi link còn hạn, `summary.pending` = số tiền đang chờ. Trong lúc đó tiền mặt/thẻ chỉ thu được phần còn lại (hết phần thì 409), `/pay` trả 409.
+
+**Hủy link đang chờ** — `POST /api/v1/payments/{id}/cancel` với `{"reason"}`:
+- Link `PENDING`/`UNKNOWN`: thu ngân (`PROCESS_PAYMENT`) hủy được, ví dụ khách đổi sang tiền mặt.
+- Lần đã thu tiền: vẫn cần quyền `PAYMENT_REFUND` như R1.
+
 ## 2. Kiểm tra lại — `POST /api/v1/payments/{payment_id}/check`
 
 - Quyền `PROCESS_PAYMENT`. Bắt buộc header `Idempotency-Key`.
 - Chỉ dùng cho lần thanh toán VNPay ở trạng thái `PENDING` hoặc `UNKNOWN`. Lần đã có kết quả cuối thì trả lại kết quả đó.
 
-**200** — kết quả cùng dạng với API tạo link:
+**200** — `PaymentRecordedOut`, cùng dạng với API tạo link:
 
 ```json
 { "payment": { "status": "SUCCEEDED" }, "order_status": "PAID", "summary": { } }

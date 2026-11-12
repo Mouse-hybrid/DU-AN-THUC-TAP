@@ -3078,7 +3078,7 @@
           "payments"
         ],
         "summary": "Create Payment",
-        "description": "Đơn phải ở BILLING. Không nhận quá số còn phải thu; tiền khách đưa dư thì là tiền thối,\nkhông phải trả vượt. Lần trả đủ tiền chạy đúng logic /pay: chốt ưu đãi, tích điểm, đóng\nphiên bàn khi là đơn cuối.",
+        "description": "Đơn phải ở BILLING. Không nhận quá số còn phải thu; tiền khách đưa dư thì là tiền thối,\nkhông phải trả vượt. Lần trả đủ tiền chạy đúng logic /pay: chốt ưu đãi, tích điểm, đóng\nphiên bàn khi là đơn cuối. VNPay (R2): tạo lần PENDING kèm link, kết quả xác nhận sau\n(app/api/v1/vnpay.py); link còn hạn thì giữ chỗ số tiền.",
         "operationId": "create_payment_api_v1_orders__order_id__payments_post",
         "security": [
           {
@@ -3199,7 +3199,7 @@
           "payments"
         ],
         "summary": "Cancel Payment",
-        "description": "Hủy lần thanh toán ghi nhầm khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng\nhoàn tiền, vì phiên bàn đã đóng và điểm đã tích.",
+        "description": "Hủy lần thanh toán khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng hoàn tiền,\nvì phiên bàn đã đóng và điểm đã tích.\n- Lần đã thu tiền (SUCCEEDED, ghi nhầm): cần quyền PAYMENT_REFUND (mặc định Supervisor).\n- Link VNPay đang chờ (PENDING, UNKNOWN): thu ngân hủy được (chưa có tiền), ví dụ khách\n  đổi ý trả tiền mặt. VNPay sau đó vẫn báo đã trả thì ghi audit PAYMENT_LATE_SUCCESS.",
         "operationId": "cancel_payment_api_v1_payments__payment_id__cancel_post",
         "security": [
           {
@@ -3337,6 +3337,113 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{payment_id}/check": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Check Vnpay Payment",
+        "description": "Thu ngân bấm \"Kiểm tra lại\" cho lần VNPay đang chờ: hỏi VNPay rồi ghi kết quả. Lần đã có\nkết quả cuối thì trả lại kết quả đó. VNPay không trả lời: 502, trạng thái giữ nguyên.",
+        "operationId": "check_vnpay_payment_api_v1_payments__payment_id__check_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Payment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRecordedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/vnpay/return": {
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Vnpay Return",
+        "description": "Trình duyệt khách quay về sau trang VNPay. Kiểm chữ ký, hỏi lại VNPay (QueryDR), ghi kết\nquả, trả trang HTML chỉ có kết quả và số tiền (không lộ đơn, khách).",
+        "operationId": "vnpay_return_api_v1_payments_vnpay_return_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/vnpay/ipn": {
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Vnpay Ipn",
+        "description": "VNPay gọi vào báo kết quả. Trả RspCode theo tài liệu VNPay (research.md R-4). Tắt mặc\nđịnh (VNPAY_IPN_ENABLED=false) vì cần HTTPS: khi tắt luôn trả 99 để VNPay gửi lại sau.",
+        "operationId": "vnpay_ipn_api_v1_payments_vnpay_ipn_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -6491,7 +6598,8 @@
             "type": "string",
             "enum": [
               "CASH",
-              "CARD"
+              "CARD",
+              "VNPAY"
             ],
             "title": "Method"
           },
@@ -6559,7 +6667,7 @@
           "method"
         ],
         "title": "CreatePaymentRequest",
-        "description": "Một lần nhận tiền. `amount` bỏ trống = trả hết số còn lại. Tiền mặt: `cash_received` là\nsố khách đưa (bỏ trống = đưa vừa đủ), server tính tiền thối. Thẻ: thu ngân xác nhận máy\nPOS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay làm ở R2."
+        "description": "Một lần nhận tiền. `amount` bỏ trống = trả hết số còn lại. Tiền mặt: `cash_received` là\nsố khách đưa (bỏ trống = đưa vừa đủ), server tính tiền thối. Thẻ: thu ngân xác nhận máy\nPOS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay: trả lần\nthanh toán PENDING kèm `payment_url`; đơn đã có link còn hạn thì trả lại link đó."
       },
       "CustomerCreate": {
         "properties": {
@@ -8445,6 +8553,63 @@
             ],
             "title": "Cancel Reason"
           },
+          "payment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Url"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "provider_txn_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Txn No"
+          },
+          "provider_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Code"
+          },
+          "provider_paid_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Paid At"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -8557,6 +8722,12 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Remaining"
+          },
+          "pending": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pending",
+            "default": "0"
           }
         },
         "type": "object",
@@ -8567,7 +8738,7 @@
           "remaining"
         ],
         "title": "PaymentSummaryOut",
-        "description": "`total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính\nlần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ)."
+        "description": "`total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính\nlần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ).\n`pending` = đang chờ khách trả qua VNPay (link còn hạn), đã nằm trong `remaining`."
       },
       "PendingMemberOut": {
         "properties": {

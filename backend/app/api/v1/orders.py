@@ -59,7 +59,12 @@ from app.core.loyalty import (
     price_order,
 )
 from app.core.modifiers import resolve_modifiers
-from app.core.payments import has_collected_payment, order_payments, payment_totals
+from app.core.payments import (
+    has_collected_payment,
+    order_payments,
+    payment_totals,
+    reserved_amount,
+)
 from app.core.permissions import Permission
 from app.core.rbac import role_has
 from app.core.realtime import manager
@@ -1267,7 +1272,13 @@ def pay_order(
             detail=f"Order đang ở trạng thái '{order.status}', phải ở BILLING mới pay được",
         )
 
-    totals = payment_totals(order_payments(session, order.id, for_update=True))
+    locked_payments = order_payments(session, order.id, for_update=True)
+    if reserved_amount(locked_payments, datetime.now(timezone.utc)) > 0:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Đang chờ khách trả qua VNPay; kiểm tra lại hoặc hủy link trước",
+        )
+    totals = payment_totals(locked_payments)
     paid = finalize_paid_order(session, order, current)
     remaining = totals.remaining(paid.pricing.total)
     if remaining > 0:

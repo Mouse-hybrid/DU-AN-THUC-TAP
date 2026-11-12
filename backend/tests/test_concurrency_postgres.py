@@ -452,3 +452,83 @@ def test_refund_and_redeem_for_same_customer_keep_balance(client, seed, db_sessi
         balance = client.get(f"/api/v1/customers/{customer['id']}", headers=cashier).json()
         # 300 + 5 (A) - 5 (hoàn A) - 100 (đổi ở B) + 4 (B trả 40.000đ) = 204.
         assert balance["points_balance"] == 204, f"vòng {round_no}: {balance}"
+
+
+def test_vnpay_return_and_check_together_close_order_once(
+    client, seed, db_session_factory, monkeypatch
+):
+    """VNPay (R2, T014): Return URL của khách và nút "Kiểm tra lại" của thu ngân tới cùng lúc;
+    đơn chỉ được chốt một lần."""
+    import json as _json
+
+    import httpx
+
+    from app.core import config, vnpay
+    from app.db.models import AuditLog
+
+    monkeypatch.setattr(config, "VNPAY_TMN_CODE", "TESTCODE")
+    monkeypatch.setattr(config, "VNPAY_HASH_SECRET", "secret-test-123")
+    monkeypatch.setattr(config, "VNPAY_RETURN_URL", "http://testserver/api/v1/payments/vnpay/return")
+
+    def handler(request):
+        body = _json.loads(request.content)
+        data = {
+            "vnp_ResponseId": "r",
+            "vnp_Command": "querydr",
+            "vnp_ResponseCode": "00",
+            "vnp_Message": "ok",
+            "vnp_TmnCode": "TESTCODE",
+            "vnp_TxnRef": body["vnp_TxnRef"],
+            "vnp_Amount": "5000000",
+            "vnp_BankCode": "NCB",
+            "vnp_PayDate": "20261112100000",
+            "vnp_TransactionNo": "14000001",
+            "vnp_TransactionType": "01",
+            "vnp_TransactionStatus": "00",
+            "vnp_OrderInfo": body["vnp_OrderInfo"],
+        }
+        data["vnp_SecureHash"] = vnpay.sign_querydr_response(data)
+        return httpx.Response(200, json=data)
+
+    monkeypatch.setattr(vnpay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
+    cashier = login(client, "cashier_test")
+    for round_no in range(ROUNDS):
+        order_id, waiter = _order_with_item_on_new_table(
+            client, seed, db_session_factory, f"VN{round_no}"
+        )
+        _bill(client, order_id, waiter, f"vn{round_no}")
+        payment = client.post(
+            f"/api/v1/orders/{order_id}/payments",
+            json={"method": "VNPAY"},
+            headers={**cashier, "Idempotency-Key": f"vn-link-{round_no}"},
+        ).json()["payment"]
+        params = {
+            "vnp_Amount": "5000000",
+            "vnp_ResponseCode": "00",
+            "vnp_TmnCode": "TESTCODE",
+            "vnp_TransactionNo": "14000001",
+            "vnp_TransactionStatus": "00",
+            "vnp_TxnRef": payment["provider_ref"],
+        }
+        params["vnp_SecureHash"] = vnpay.sign_params(params)
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        statuses = _run_concurrently(
+            [
+                ("GET", f"/api/v1/payments/vnpay/return?{query}", None, {}),
+                (
+                    "POST",
+                    f"/api/v1/payments/{payment['id']}/check",
+                    None,
+                    {**cashier, "Idempotency-Key": f"vn-check-{round_no}"},
+                ),
+            ]
+        )
+        assert statuses == [200, 200], f"vòng {round_no}: {statuses}"
+        session = db_session_factory()
+        paid = (
+            session.query(AuditLog)
+            .filter_by(action="ORDER_PAID", entity_id=str(order_id))
+            .count()
+        )
+        session.close()
+        assert paid == 1, f"vòng {round_no}: {paid} lần chốt đơn"

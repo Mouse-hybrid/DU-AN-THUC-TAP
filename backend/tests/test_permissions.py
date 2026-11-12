@@ -107,6 +107,10 @@ PUBLIC_ROUTES = {
     ("GET", "/ready"),
     ("GET", "/version"),
     ("GET", "/"),
+    # VNPay (R2): trình duyệt khách và máy chủ VNPay gọi, không có tài khoản nhân viên; chỉ tin
+    # dữ liệu có chữ ký VNPay (tests/test_vnpay.py kiểm chữ ký sai bị từ chối).
+    ("GET", "/api/v1/payments/vnpay/return"),
+    ("GET", "/api/v1/payments/vnpay/ipn"),
 }
 
 
