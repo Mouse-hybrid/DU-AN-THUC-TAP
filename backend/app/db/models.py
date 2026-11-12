@@ -716,6 +716,32 @@ class Staff(Base):
 
 
 # ---------------------------------------------------------------------------
+# RolePermissionOverride — Supervisor sửa ma trận quyền trên màn Vai trò. Chỉ lưu ô KHÁC
+# mặc định (app/core/permissions.py), theo từng outlet; khôi phục mặc định = xóa hết dòng.
+# ---------------------------------------------------------------------------
+
+
+class RolePermissionOverride(Base):
+    __tablename__ = "role_permission_override"
+    __table_args__ = (
+        UniqueConstraint("outlet_id", "permission", "role", name="uq_role_permission_override"),
+        _check(STAFF_ROLE, "role", "ck_role_permission_override_role"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
+    outlet_id: Mapped[uuid.UUID] = mapped_column(GUID, ForeignKey("outlet.id"), nullable=False)
+    permission: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    allowed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_by_staff_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID, ForeignKey("staff.id"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+# ---------------------------------------------------------------------------
 # AuditLog — append-only, KHÔNG FK cứng (chỉ lưu id dạng string) để log
 # không bao giờ bị chặn ghi vì lỗi ràng buộc, và giữ được sau khi record gốc
 # bị xóa/thay đổi. Theo BRD NFR: mọi thao tác quan trọng (mở bàn, hủy món,

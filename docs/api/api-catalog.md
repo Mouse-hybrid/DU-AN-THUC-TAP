@@ -113,7 +113,7 @@ Từ 09/11 danh sách `GET /audit-logs` có header `X-Total-Count` (tổng số 
 
 ### A8. Phân quyền và quản lý nhân viên (từ 04/11)
 
-Ma trận quyền nằm ở một chỗ: `backend/app/core/permissions.py`.
+Ma trận quyền **mặc định** nằm ở `backend/app/core/permissions.py`. Từ 09/11 Supervisor sửa được từng ô trên màn Vai trò; quyền thực tế = mặc định + các ô đã sửa, lưu theo outlet (`app/core/rbac.py`).
 
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
@@ -125,9 +125,17 @@ Ma trận quyền nằm ở một chỗ: `backend/app/core/permissions.py`.
 | 42 | PATCH | `/api/v1/staff/{id}` | S | Đổi `full_name`, `role`; đổi role thì người đó phải đăng nhập lại | ✅ |
 | 43 | POST | `/api/v1/staff/{id}/lock`, `/unlock` | S | Khóa có hiệu lực ngay; không có API xóa nhân viên | ✅ |
 | 44 | POST | `/api/v1/staff/{id}/reset-password` | S | Đặt lại mật khẩu; các phiên cũ hết hiệu lực | ✅ |
-| 45 | GET | `/api/v1/staff/permissions` | S | 94 Vai trò & quyền (chỉ đọc) | ✅ |
+| 45 | GET | `/api/v1/staff/permissions` | S | 94 Vai trò & quyền. Mỗi dòng: `roles` (đang áp dụng), `default_roles`, `locked_roles` (ô không bỏ được), `customized` | ✅ |
+| 88 | PUT | `/api/v1/staff/permissions/{permission}` (cần `Idempotency-Key`) | S | Tick/bỏ tick một dòng: body `{"roles": ["CASHIER", "SUPERVISOR"]}` là danh sách **đầy đủ** sau khi sửa; trả lại cả ma trận | ✅ từ 09/11 |
+| 89 | POST | `/api/v1/staff/permissions/reset` (cần `Idempotency-Key`) | S | Khôi phục toàn bộ về mặc định; trả lại cả ma trận | ✅ từ 09/11 |
 
 Không ai được tự đổi role, tự khóa hay tự đặt lại mật khẩu của chính mình qua `/staff` (trả 409). Token bị thu hồi trả 401 như token hết hạn.
+
+**Sửa quyền (từ 09/11):**
+- Có hiệu lực ngay ở request kế tiếp của mọi nhân viên, không cần đăng nhập lại.
+- Không bỏ được quyền `STAFF_MANAGE` của Supervisor (409), để luôn còn người vào sửa lại được.
+- Mỗi lần sửa ghi audit `ROLE_PERMISSION_UPDATED` (vai trò thêm, bớt); khôi phục ghi `ROLE_PERMISSIONS_RESET`. Cả hai là thao tác ngoại lệ trong báo cáo audit.
+- **FE cần ẩn/hiện nút theo `permissions[]` của `GET /auth/me`, không theo tên vai trò**; nếu không, quyền vừa sửa sẽ không hiện đúng trên giao diện (BE vẫn chặn đúng).
 
 ### A9. Tầng/khu (từ 04/11)
 

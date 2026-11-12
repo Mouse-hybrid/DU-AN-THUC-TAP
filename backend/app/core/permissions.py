@@ -1,6 +1,8 @@
-"""Ma trận phân quyền của hệ thống — nguồn duy nhất cho câu hỏi "role nào được
-làm gì". Endpoint khai báo quyền cần có bằng `Depends(require_permission(...))`
-(app/core/deps.py), không tự liệt kê role; đổi quyền chỉ sửa ở file này.
+"""Ma trận phân quyền MẶC ĐỊNH của hệ thống — "role nào được làm gì" khi Supervisor chưa
+sửa gì. Endpoint khai báo quyền cần có bằng `Depends(require_permission(...))`
+(app/core/deps.py), không tự liệt kê role. Từ 09/11 Supervisor sửa được từng ô trên màn
+Vai trò; quyền thực tế = file này + các ô đã sửa (app/core/rbac.py). Kiểm tra quyền trong
+code luôn đi qua app/core/rbac.py, không đọc thẳng PERMISSION_MATRIX.
 
 Permission Matrix gốc trong BRD (Action × Cashier/Waiter/Kitchen/Supervisor/
 Customer) — đọc trực tiếp từ XML của file .docx vì bản trích xuất text thông

@@ -4107,7 +4107,7 @@
           "staff"
         ],
         "summary": "List Permissions",
-        "description": "Ma trận quyền hiện hành (chỉ đọc), cho màn 94 Vai trò & quyền.",
+        "description": "Ma trận quyền đang áp dụng ở outlet, cho màn 94 Vai trò & quyền.",
         "operationId": "list_permissions_api_v1_staff_permissions_get",
         "responses": {
           "200": {
@@ -4130,6 +4130,142 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/staff/permissions/{permission}": {
+      "put": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Update Permission Roles",
+        "description": "Đặt lại danh sách vai trò có 1 quyền (một dòng của màn Vai trò). Có hiệu lực ngay ở\nrequest kế tiếp của mọi nhân viên, không cần đăng nhập lại. Không bỏ được quyền Quản lý\nnhân viên của Supervisor. Trả lại cả ma trận để màn hình vẽ lại.",
+        "operationId": "update_permission_roles_api_v1_staff_permissions__permission__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "permission",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Permission"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePermissionRolesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionRuleOut"
+                  },
+                  "title": "Response Update Permission Roles Api V1 Staff Permissions  Permission  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/staff/permissions/reset": {
+      "post": {
+        "tags": [
+          "staff"
+        ],
+        "summary": "Reset Permissions",
+        "description": "Khôi phục toàn bộ ma trận quyền của outlet về mặc định.",
+        "operationId": "reset_permissions_api_v1_staff_permissions_reset_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionRuleOut"
+                  },
+                  "title": "Response Reset Permissions Api V1 Staff Permissions Reset Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/staff": {
@@ -8309,6 +8445,32 @@
         "title": "PaymentSummaryOut",
         "description": "`total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính\nlần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ)."
       },
+      "Permission": {
+        "type": "string",
+        "enum": [
+          "ORDER_WRITE",
+          "SEND_TO_KITCHEN",
+          "REQUEST_BILLING",
+          "PROCESS_PAYMENT",
+          "OVERRIDE",
+          "VIEW_KDS",
+          "KITCHEN_ACTION",
+          "SERVE_FOOD",
+          "TABLE_OPEN",
+          "TABLE_MARK_CLEAN",
+          "TABLE_LAYOUT_MANAGE",
+          "TABLE_TRANSFER",
+          "QR_SESSION_MANAGE",
+          "MENU_WRITE",
+          "AUDIT_READ",
+          "STAFF_MANAGE",
+          "CUSTOMER_ACCESS",
+          "REWARD_APPLY",
+          "LOYALTY_MANAGE",
+          "PAYMENT_REFUND"
+        ],
+        "title": "Permission"
+      },
       "PermissionRuleOut": {
         "properties": {
           "permission": {
@@ -8331,6 +8493,39 @@
             },
             "type": "array",
             "title": "Roles"
+          },
+          "default_roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "CASHIER",
+                "WAITER",
+                "KITCHEN",
+                "SUPERVISOR"
+              ]
+            },
+            "type": "array",
+            "title": "Default Roles",
+            "default": []
+          },
+          "locked_roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "CASHIER",
+                "WAITER",
+                "KITCHEN",
+                "SUPERVISOR"
+              ]
+            },
+            "type": "array",
+            "title": "Locked Roles",
+            "default": []
+          },
+          "customized": {
+            "type": "boolean",
+            "title": "Customized",
+            "default": false
           }
         },
         "type": "object",
@@ -8339,7 +8534,8 @@
           "description",
           "roles"
         ],
-        "title": "PermissionRuleOut"
+        "title": "PermissionRuleOut",
+        "description": "`roles` = vai trò đang có quyền (đã tính các ô Supervisor sửa). `default_roles` = theo\nmặc định của hệ thống. `locked_roles` = ô không bỏ được. `customized` = khác mặc định."
       },
       "PointsAdjustRequest": {
         "properties": {
@@ -10020,6 +10216,31 @@
         "type": "object",
         "title": "UpdateOrderItemRequest",
         "description": "Sửa món chưa gửi bếp. Chỉ gửi field cần đổi; gửi `note: null` để xóa ghi chú."
+      },
+      "UpdatePermissionRolesRequest": {
+        "properties": {
+          "roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "CASHIER",
+                "WAITER",
+                "KITCHEN",
+                "SUPERVISOR"
+              ]
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Roles"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "roles"
+        ],
+        "title": "UpdatePermissionRolesRequest",
+        "description": "Danh sách đầy đủ vai trò được có quyền này sau khi sửa (không phải phần thêm/bớt)."
       },
       "ValidationError": {
         "properties": {

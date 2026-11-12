@@ -14,7 +14,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.core.permissions import PERMISSION_MATRIX, Permission
+from app.core.permissions import Permission
+from app.core.rbac import role_has
 from app.core.security import TokenError, decode_access_token, is_token_current
 from app.db.base import get_session
 from app.db.models import IdempotencyKey, Staff
@@ -63,11 +64,14 @@ def get_current_staff(
 
 def require_permission(permission: Permission):
     """Dependency factory cho RBAC: `Depends(require_permission(Permission.MENU_WRITE))`.
-    Role được phép lấy từ PERMISSION_MATRIX (app/core/permissions.py)."""
-    allowed_roles = PERMISSION_MATRIX[permission].roles
+    Role được phép = mặc định trong PERMISSION_MATRIX + các ô Supervisor đã sửa trên màn Vai trò
+    (app/core/rbac.py), đọc lại ở mỗi request nên sửa quyền có hiệu lực ngay."""
 
-    def _dependency(current: CurrentStaff = Depends(get_current_staff)) -> CurrentStaff:
-        if current.role not in allowed_roles:
+    def _dependency(
+        current: CurrentStaff = Depends(get_current_staff),
+        session: Session = Depends(get_session),
+    ) -> CurrentStaff:
+        if not role_has(session, current.outlet_id, current.role, permission):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{current.role}' không có quyền thực hiện thao tác này",

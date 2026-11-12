@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.auth import NewPassword
 
@@ -43,6 +43,20 @@ class StaffResetPassword(BaseModel):
 
 
 class PermissionRuleOut(BaseModel):
+    """`roles` = vai trò đang có quyền (đã tính các ô Supervisor sửa). `default_roles` = theo
+    mặc định của hệ thống. `locked_roles` = ô không bỏ được. `customized` = khác mặc định."""
+
     permission: str
     description: str
     roles: list[StaffRole]
+    default_roles: list[StaffRole] = []
+    locked_roles: list[StaffRole] = []
+    customized: bool = False
+
+
+class UpdatePermissionRolesRequest(BaseModel):
+    """Danh sách đầy đủ vai trò được có quyền này sau khi sửa (không phải phần thêm/bớt)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    roles: list[StaffRole] = Field(max_length=4)

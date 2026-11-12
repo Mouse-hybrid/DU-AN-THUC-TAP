@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import write_audit_log
 from app.core.config import JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.deps import CurrentStaff, get_current_staff
-from app.core.permissions import permissions_for_role
+from app.core.rbac import permissions_for
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.base import get_session
 from app.db.models import Staff
@@ -68,7 +68,7 @@ def get_me(
     staff = session.get(Staff, current.id)
     return MeOut(
         **StaffOut.model_validate(staff).model_dump(),
-        permissions=permissions_for_role(staff.role),
+        permissions=permissions_for(session, staff.outlet_id, staff.role),
     )
 
 

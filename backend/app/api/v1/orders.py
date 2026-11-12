@@ -60,7 +60,8 @@ from app.core.loyalty import (
 )
 from app.core.modifiers import resolve_modifiers
 from app.core.payments import has_collected_payment, order_payments, payment_totals
-from app.core.permissions import PERMISSION_MATRIX, Permission
+from app.core.permissions import Permission
+from app.core.rbac import role_has
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
@@ -964,9 +965,11 @@ def apply_reward(
         return OrderDetailOut.model_validate_json(existing.response_body)
 
     is_override = payload.override_reason is not None
-    if is_override and current.role not in PERMISSION_MATRIX[Permission.OVERRIDE].roles:
+    if is_override and not role_has(
+        session, current.outlet_id, current.role, Permission.OVERRIDE
+    ):
         raise HTTPException(
-            status.HTTP_403_FORBIDDEN, detail="Chỉ Supervisor được bỏ qua điều kiện"
+            status.HTTP_403_FORBIDDEN, detail="Vai trò này không được bỏ qua điều kiện ưu đãi"
         )
 
     order = _load_order_or_404(session, order_id, current.outlet_id)
