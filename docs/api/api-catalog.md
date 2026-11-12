@@ -341,10 +341,20 @@ Chưa có: bỏ gộp giữa chừng (tách bàn ra lại).
 | 84 | GET | `/api/v1/orders/{id}/payments` | S C | Danh sách lần thanh toán, kèm `summary` (`total`, `paid`, `refunded`, `remaining`) | ✅ |
 | 85 | POST | `/api/v1/payments/{id}/cancel` (cần `Idempotency-Key`) | S | Hủy lần ghi nhầm khi đơn chưa trả xong: body `{"reason"}` | ✅ |
 | 86 | POST | `/api/v1/payments/{id}/refunds` (cần `Idempotency-Key`) | S | 100 Hoàn tiền: body `{"amount"?, "reason"}`, sau khi đơn đã PAID | ✅ |
+| 92 | POST | `/api/v1/payments/{id}/check` (cần `Idempotency-Key`) | S C | VNPay: nút "Kiểm tra lại" — hỏi VNPay, ghi kết quả; VNPay không trả lời thì 502 | ✅ từ 12/11 |
+| 93 | GET | `/api/v1/payments/vnpay/return` | công khai | Trình duyệt khách quay về sau trang VNPay; trả trang HTML | ✅ từ 12/11 |
+| 94 | GET | `/api/v1/payments/vnpay/ipn` | công khai | VNPay báo kết quả; tắt trên staging (cần HTTPS) | ✅ từ 12/11 |
 
 **Quy tắc:**
 - Đơn phải ở `BILLING`. `amount` bỏ trống = trả hết số còn lại. **Không nhận quá số còn phải thu** (409); khách đưa dư tiền mặt thì là tiền thối (`change_due`), không phải trả vượt.
-- Tiền mặt: `cash_received` bỏ trống = đưa vừa đủ; ít hơn `amount` thì 422. Thẻ: không có `cash_received` (422); thu ngân xác nhận máy POS đã quẹt, `provider_ref` là số hóa đơn trên máy. `VNPAY` chưa nhận (422), làm ở R2.
+- Tiền mặt: `cash_received` bỏ trống = đưa vừa đủ; ít hơn `amount` thì 422. Thẻ: không có `cash_received` (422); thu ngân xác nhận máy POS đã quẹt, `provider_ref` là số hóa đơn trên máy.
+- **VNPay (từ 12/11, spec `specs/001-vnpay-sandbox/`):** `method: "VNPAY"` tạo lần `PENDING` kèm `payment_url` (FE vẽ mã QR) và `expires_at` (15 phút). Chưa cấu hình khóa thì 503.
+  - Link còn hạn thì giữ chỗ số tiền (`summary.pending`): tạo lại trả đúng link cũ; tiền mặt/thẻ chỉ thu phần còn lại; `/pay` trả 409.
+  - Kết quả **chỉ** được ghi khi hỏi lại VNPay (QueryDR) hoặc nhận IPN có chữ ký; không tin Return URL một mình. Nguồn nào tới trước cũng chỉ chốt đơn một lần.
+  - Thu ngân hủy được link đang chờ (`cancel`, không cần Supervisor) để thu cách khác.
+  - Script đối soát chạy 10 phút một lần: link quá hạn mà VNPay báo không có giao dịch thì `EXPIRED`; không hỏi được thì `UNKNOWN`, lần sau hỏi lại.
+  - Audit: `PAYMENT_LINK_CREATED`, `PAYMENT_CONFIRMED`, `PAYMENT_AMOUNT_MISMATCH` và `PAYMENT_LATE_SUCCESS` (hai cái sau là ngoại lệ: số tiền lệch, hoặc khách trả sau khi link đã hủy/đơn đã chốt — cần hoàn tay).
+  - Event `ORDER_UPDATED` với `reason`: `PAYMENT_PENDING`, `PAYMENT_RECORDED`, `PAYMENT_FAILED`, `PAYMENT_UNKNOWN`.
 - Lần trả đủ tiền chạy đúng logic `/pay`: chốt ưu đãi, trừ và tích điểm, đóng phiên khi là đơn cuối của bàn, bàn sang `CLEANING`.
 - Đã nhận một phần tiền thì **không áp thêm ưu đãi và không đổi khách** (409), vì số phải trả có thể thấp hơn số đã thu. Gỡ ưu đãi vẫn được (số phải trả tăng).
 - Mọi API ghi khóa dòng đơn: hai thu ngân cùng bấm trả hết thì một bên 201, bên kia 409 (BRD "No duplicate payment").

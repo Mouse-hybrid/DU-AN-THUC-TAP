@@ -4,6 +4,7 @@
 
 | Cột | Kiểu | Null | Ý nghĩa |
 |---|---|---|---|
+| `payment_url` | text | có | Link sang trang VNPay (FE vẽ mã QR); lưu lại để trả đúng link cũ khi thu ngân bấm tạo lần nữa |
 | `expires_at` | timestamptz | có | Hạn của link VNPay; tiền mặt/thẻ để trống |
 | `provider_txn_no` | varchar(50) | có | `vnp_TransactionNo` VNPay trả về |
 | `provider_code` | varchar(10) | có | Mã kết quả gần nhất (`vnp_ResponseCode` / `vnp_TransactionStatus`) |
@@ -29,7 +30,7 @@ SUCCEEDED --hoàn tiền (R1)------------> REFUNDED   (hoàn tay ngoài VNPay)
 ## Quy tắc dữ liệu
 
 - **Số lần chờ:** mỗi đơn có tối đa 1 lần thanh toán VNPay ở trạng thái `PENDING` cùng lúc. Tạo lần mới khi lần cũ chưa hết hạn thì trả lại link cũ.
-- **Cách tính tổng đã thu:** `SUCCEEDED` và `REFUNDED` cộng vào tổng đã thu như R1. `PENDING` và `UNKNOWN` **không** cộng, nhưng vẫn **giữ chỗ** số tiền khi tính số còn được phép thu, để không phát hai link cho cùng một khoản.
+- **Cách tính tổng đã thu:** `SUCCEEDED` và `REFUNDED` cộng vào tổng đã thu như R1. `PENDING` **còn hạn link** không cộng nhưng **giữ chỗ** số tiền (`summary.pending`): không tạo link thứ hai, không thu tiền mặt/thẻ hay `/pay` vượt phần còn lại. `PENDING` quá hạn và `UNKNOWN` không giữ chỗ, để thu ngân thu cách khác; VNPay báo đã trả sau đó thì ghi `PAYMENT_LATE_SUCCESS` để hoàn tay.
 - **Số tiền:** `amount` được chốt lúc tạo link, không đổi sau đó. Đơn thay đổi thì hủy lần cũ, tạo lần mới.
 
 ## Biến môi trường

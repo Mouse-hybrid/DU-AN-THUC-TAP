@@ -811,7 +811,8 @@ export interface paths {
          * Create Payment
          * @description Đơn phải ở BILLING. Không nhận quá số còn phải thu; tiền khách đưa dư thì là tiền thối,
          *     không phải trả vượt. Lần trả đủ tiền chạy đúng logic /pay: chốt ưu đãi, tích điểm, đóng
-         *     phiên bàn khi là đơn cuối.
+         *     phiên bàn khi là đơn cuối. VNPay (R2): tạo lần PENDING kèm link, kết quả xác nhận sau
+         *     (app/api/v1/vnpay.py); link còn hạn thì giữ chỗ số tiền.
          */
         post: operations["create_payment_api_v1_orders__order_id__payments_post"];
         delete?: never;
@@ -831,8 +832,11 @@ export interface paths {
         put?: never;
         /**
          * Cancel Payment
-         * @description Hủy lần thanh toán ghi nhầm khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng
-         *     hoàn tiền, vì phiên bàn đã đóng và điểm đã tích.
+         * @description Hủy lần thanh toán khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng hoàn tiền,
+         *     vì phiên bàn đã đóng và điểm đã tích.
+         *     - Lần đã thu tiền (SUCCEEDED, ghi nhầm): cần quyền PAYMENT_REFUND (mặc định Supervisor).
+         *     - Link VNPay đang chờ (PENDING, UNKNOWN): thu ngân hủy được (chưa có tiền), ví dụ khách
+         *       đổi ý trả tiền mặt. VNPay sau đó vẫn báo đã trả thì ghi audit PAYMENT_LATE_SUCCESS.
          */
         post: operations["cancel_payment_api_v1_payments__payment_id__cancel_post"];
         delete?: never;
@@ -858,6 +862,69 @@ export interface paths {
          *     (specs/002-rewards-dot-3, FR-001..004).
          */
         post: operations["refund_payment_api_v1_payments__payment_id__refunds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{payment_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Vnpay Payment
+         * @description Thu ngân bấm "Kiểm tra lại" cho lần VNPay đang chờ: hỏi VNPay rồi ghi kết quả. Lần đã có
+         *     kết quả cuối thì trả lại kết quả đó. VNPay không trả lời: 502, trạng thái giữ nguyên.
+         */
+        post: operations["check_vnpay_payment_api_v1_payments__payment_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/vnpay/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vnpay Return
+         * @description Trình duyệt khách quay về sau trang VNPay. Kiểm chữ ký, hỏi lại VNPay (QueryDR), ghi kết
+         *     quả, trả trang HTML chỉ có kết quả và số tiền (không lộ đơn, khách).
+         */
+        get: operations["vnpay_return_api_v1_payments_vnpay_return_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/vnpay/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vnpay Ipn
+         * @description VNPay gọi vào báo kết quả. Trả RspCode theo tài liệu VNPay (research.md R-4). Tắt mặc
+         *     định (VNPAY_IPN_ENABLED=false) vì cần HTTPS: khi tắt luôn trả 99 để VNPay gửi lại sau.
+         */
+        get: operations["vnpay_ipn_api_v1_payments_vnpay_ipn_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1708,14 +1775,15 @@ export interface components {
          * CreatePaymentRequest
          * @description Một lần nhận tiền. `amount` bỏ trống = trả hết số còn lại. Tiền mặt: `cash_received` là
          *     số khách đưa (bỏ trống = đưa vừa đủ), server tính tiền thối. Thẻ: thu ngân xác nhận máy
-         *     POS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay làm ở R2.
+         *     POS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay: trả lần
+         *     thanh toán PENDING kèm `payment_url`; đơn đã có link còn hạn thì trả lại link đó.
          */
         CreatePaymentRequest: {
             /**
              * Method
              * @enum {string}
              */
-            method: "CASH" | "CARD";
+            method: "CASH" | "CARD" | "VNPAY";
             /** Amount */
             amount?: number | string | null;
             /** Cash Received */
@@ -2507,6 +2575,16 @@ export interface components {
             cancelled_by_staff_id?: string | null;
             /** Cancel Reason */
             cancel_reason?: string | null;
+            /** Payment Url */
+            payment_url?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Provider Txn No */
+            provider_txn_no?: string | null;
+            /** Provider Code */
+            provider_code?: string | null;
+            /** Provider Paid At */
+            provider_paid_at?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2551,6 +2629,7 @@ export interface components {
          * PaymentSummaryOut
          * @description `total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính
          *     lần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ).
+         *     `pending` = đang chờ khách trả qua VNPay (link còn hạn), đã nằm trong `remaining`.
          */
         PaymentSummaryOut: {
             /** Total */
@@ -2561,6 +2640,11 @@ export interface components {
             refunded: string;
             /** Remaining */
             remaining: string;
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: string;
         };
         /**
          * PendingMemberOut
@@ -4978,6 +5062,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_vnpay_payment_api_v1_payments__payment_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRecordedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    vnpay_return_api_v1_payments_vnpay_return_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+        };
+    };
+    vnpay_ipn_api_v1_payments_vnpay_ipn_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

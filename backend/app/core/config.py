@@ -82,6 +82,23 @@ QR_MAX_PENDING_ITEMS = int(os.getenv("QR_MAX_PENDING_ITEMS", "30"))
 # Rewards đợt 3: số lần khách được gửi số điện thoại trong một phiên QR (chống dò số).
 QR_MEMBER_MAX_ATTEMPTS = int(os.getenv("QR_MEMBER_MAX_ATTEMPTS", "5"))
 
+# --- VNPay (SDD R2, specs/001-vnpay-sandbox) ------------------------------------
+# Mã merchant và khóa ký chỉ đặt trong .env.staging trên server, không vào repo. Thiếu một
+# trong hai thì API VNPay trả 503, các hình thức thanh toán khác vẫn chạy.
+VNPAY_TMN_CODE = os.getenv("VNPAY_TMN_CODE", "").strip()
+VNPAY_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET", "").strip()
+VNPAY_PAY_URL = os.getenv(
+    "VNPAY_PAY_URL", "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+)
+VNPAY_API_URL = os.getenv(
+    "VNPAY_API_URL", "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
+)
+VNPAY_RETURN_URL = os.getenv("VNPAY_RETURN_URL", "").strip()
+VNPAY_LINK_TTL_MINUTES = int(os.getenv("VNPAY_LINK_TTL_MINUTES", "15"))
+VNPAY_TIMEOUT_SECONDS = float(os.getenv("VNPAY_TIMEOUT_SECONDS", "10"))
+# IPN chỉ bật khi server có HTTPS (VNPay gọi vào); staging http thì để false.
+VNPAY_IPN_ENABLED = os.getenv("VNPAY_IPN_ENABLED", "false").lower() == "true"
+
 # --- Bản đang chạy (GET /version) ---------------------------------------------
 # Gắn lúc build image (Dockerfile ARG GIT_COMMIT/BUILT_AT, deploy-staging.sh truyền
 # vào) để QA/mentor biết staging đang chạy đúng commit nào.

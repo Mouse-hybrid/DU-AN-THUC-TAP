@@ -13,9 +13,10 @@ VNPay (R2) sẽ dùng chung bảng payment với trạng thái PENDING.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ from app.api.v1.orders import (
     lock_order_for_payment,
     publish_order_paid,
 )
+from app.core import vnpay
 from app.core.audit import write_audit_log
 from app.core.deps import (
     CurrentStaff,
@@ -35,8 +37,15 @@ from app.core.deps import (
     require_permission,
 )
 from app.core.loyalty import REASONS, price_order, reverse_order_points
-from app.core.payments import order_payments, payment_totals
+from app.core.payments import (
+    WAITING_STATUSES,
+    active_vnpay_link,
+    order_payments,
+    payment_totals,
+    reserved_amount,
+)
 from app.core.permissions import Permission
+from app.core.rbac import role_has
 from app.db.base import get_session
 from app.db.models import IdempotencyKey, Order, Payment, PaymentRefund
 from app.schemas.payments import (
@@ -63,7 +72,16 @@ def _summary(session: Session, order: Order, payments: list[Payment]) -> Payment
         paid=totals.paid,
         refunded=totals.refunded,
         remaining=totals.remaining(total) if unpaid else _ZERO,
+        pending=reserved_amount(payments, datetime.now(timezone.utc)) if unpaid else _ZERO,
     )
+
+
+def client_ip(request: Request) -> str:
+    """IP máy gọi API (sau nginx: X-Forwarded-For), gửi VNPay làm vnp_IpAddr."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:45]
+    return request.client.host if request.client else "127.0.0.1"
 
 
 def _order_payments_out(session: Session, order: Order) -> OrderPaymentsOut:
@@ -127,13 +145,15 @@ def _remember(
 def create_payment(
     order_id: uuid.UUID,
     payload: CreatePaymentRequest,
+    request: Request,
     idempotency_key: str = Depends(require_idempotency_key),
     current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
     session: Session = Depends(get_session),
 ) -> PaymentRecordedOut:
     """Đơn phải ở BILLING. Không nhận quá số còn phải thu; tiền khách đưa dư thì là tiền thối,
     không phải trả vượt. Lần trả đủ tiền chạy đúng logic /pay: chốt ưu đãi, tích điểm, đóng
-    phiên bàn khi là đơn cuối."""
+    phiên bàn khi là đơn cuối. VNPay (R2): tạo lần PENDING kèm link, kết quả xác nhận sau
+    (app/api/v1/vnpay.py); link còn hạn thì giữ chỗ số tiền."""
     endpoint = f"POST /api/v1/orders/{order_id}/payments"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
     replay = _replay(
@@ -142,9 +162,14 @@ def create_payment(
     if replay is not None:
         return PaymentRecordedOut.model_validate_json(replay)
 
-    if payload.method == "CARD" and payload.cash_received is not None:
+    if payload.method != "CASH" and payload.cash_received is not None:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Thanh toán thẻ không có tiền khách đưa"
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Chỉ thanh toán tiền mặt mới có tiền khách đưa",
+        )
+    if payload.method == "VNPAY" and not vnpay.is_configured():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, detail="VNPay chưa được cấu hình"
         )
 
     order = lock_order_for_payment(session, order_id, current.outlet_id)
@@ -160,18 +185,69 @@ def create_payment(
             detail=f"{REASONS[pricing.invalid_reason]}. Hãy gỡ ưu đãi rồi thanh toán lại",
         )
     payments = order_payments(session, order.id, for_update=True)
+    now = datetime.now(timezone.utc)
+    if payload.method == "VNPAY":
+        existing_link = active_vnpay_link(payments, now)
+        if existing_link is not None:
+            return _respond(
+                session, order, existing_link, idempotency_key, endpoint, request_hash
+            )
     remaining = payment_totals(payments).remaining(pricing.total)
+    allowed = remaining - reserved_amount(payments, now)
     if remaining <= 0:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail="Đơn không còn số tiền phải thu, dùng /pay để chốt đơn",
         )
-    amount = payload.amount if payload.amount is not None else remaining
-    if amount > remaining:
+    if allowed <= 0:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"Số tiền vượt quá số còn phải thu ({remaining:,.0f}đ)",
+            detail="Đang chờ khách trả qua VNPay; kiểm tra lại hoặc hủy link trước",
         )
+    amount = payload.amount if payload.amount is not None else allowed
+    if amount > allowed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Số tiền vượt quá số còn phải thu ({allowed:,.0f}đ)",
+        )
+
+    if payload.method == "VNPAY":
+        payment = Payment(
+            order_id=order.id,
+            outlet_id=current.outlet_id,
+            method="VNPAY",
+            amount=amount,
+            status="PENDING",
+            note=payload.note,
+            created_by_staff_id=current.id,
+        )
+        session.add(payment)
+        session.flush()
+        url, create_date, expires_at = vnpay.build_payment_url(
+            payment.id, amount, vnpay_order_info(order), client_ip(request), now
+        )
+        payment.payment_url = url
+        payment.vnp_create_date = create_date
+        payment.expires_at = expires_at
+        payment.provider_ref = vnpay.txn_ref(payment.id)
+        session.flush()
+        write_audit_log(
+            session,
+            outlet_id=current.outlet_id,
+            staff_id=current.id,
+            action="PAYMENT_LINK_CREATED",
+            entity_type="order",
+            entity_id=order.id,
+            payload={
+                "payment_id": str(payment.id),
+                "method": "VNPAY",
+                "amount": amount,
+                "expires_at": expires_at,
+            },
+        )
+        result = _respond(session, order, payment, idempotency_key, endpoint, request_hash)
+        _publish_order_updated(current, order, "PAYMENT_PENDING")
+        return result
 
     cash_received = change_due = None
     if payload.method == "CASH":
@@ -239,6 +315,37 @@ def create_payment(
     return result
 
 
+def vnpay_order_info(order: Order) -> str:
+    """Nội dung hiện trên trang VNPay: không dấu, không lộ thông tin khách."""
+    return f"Thanh toan don {order.id.hex[-6:]}"
+
+
+def _respond(
+    session: Session,
+    order: Order,
+    payment: Payment,
+    idempotency_key: str,
+    endpoint: str,
+    request_hash: str,
+) -> PaymentRecordedOut:
+    session.refresh(payment)
+    result = PaymentRecordedOut(
+        payment=PaymentOut.model_validate(payment),
+        order_status=order.status,
+        summary=_summary(session, order, order_payments(session, order.id)),
+    )
+    _remember(
+        session,
+        idempotency_key,
+        endpoint,
+        request_hash,
+        status.HTTP_201_CREATED,
+        result.model_dump_json(),
+    )
+    session.commit()
+    return result
+
+
 @router.get("/orders/{order_id}/payments", response_model=OrderPaymentsOut)
 def list_order_payments(
     order_id: uuid.UUID,
@@ -254,11 +361,14 @@ def cancel_payment(
     payment_id: uuid.UUID,
     payload: CancelPaymentRequest,
     idempotency_key: str = Depends(require_idempotency_key),
-    current: CurrentStaff = Depends(require_permission(Permission.PAYMENT_REFUND)),
+    current: CurrentStaff = Depends(require_permission(Permission.PROCESS_PAYMENT)),
     session: Session = Depends(get_session),
 ) -> OrderPaymentsOut:
-    """Hủy lần thanh toán ghi nhầm khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng
-    hoàn tiền, vì phiên bàn đã đóng và điểm đã tích."""
+    """Hủy lần thanh toán khi đơn còn BILLING (chưa đủ tiền). Đơn đã PAID thì dùng hoàn tiền,
+    vì phiên bàn đã đóng và điểm đã tích.
+    - Lần đã thu tiền (SUCCEEDED, ghi nhầm): cần quyền PAYMENT_REFUND (mặc định Supervisor).
+    - Link VNPay đang chờ (PENDING, UNKNOWN): thu ngân hủy được (chưa có tiền), ví dụ khách
+      đổi ý trả tiền mặt. VNPay sau đó vẫn báo đã trả thì ghi audit PAYMENT_LATE_SUCCESS."""
     endpoint = f"POST /api/v1/payments/{payment_id}/cancel"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
     replay = _replay(session, idempotency_key, endpoint, request_hash, status.HTTP_200_OK)
@@ -271,7 +381,13 @@ def cancel_payment(
             status.HTTP_409_CONFLICT,
             detail=f"Order đang ở trạng thái '{order.status}', chỉ hủy được khi chưa trả xong",
         )
-    if payment.status != "SUCCEEDED":
+    if payment.status == "SUCCEEDED":
+        if not role_has(session, current.outlet_id, current.role, Permission.PAYMENT_REFUND):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail="Hủy lần đã thu tiền cần quyền hủy/hoàn thanh toán",
+            )
+    elif payment.status not in WAITING_STATUSES:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail=f"Lần thanh toán đang ở trạng thái '{payment.status}', không hủy được",

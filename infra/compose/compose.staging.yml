@@ -18,6 +18,10 @@ services:
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
       SEED_PASSWORD: ${SEED_PASSWORD:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-}
+      VNPAY_IPN_ENABLED: ${VNPAY_IPN_ENABLED:-false}
     depends_on:
       db:
         condition: service_healthy

@@ -1,0 +1,30 @@
+name: Reconcile VNPay
+# Doi soat VNPay (SDD R2, specs/001-vnpay-sandbox US2): 10 phut mot lan hoi VNPay cho cac lan
+# thanh toan VNPay dang cho da qua han link hoac chua ro ket qua. VNPay chua cau hinh trong
+# .env.staging thi script tu bo qua. Bam tay: Actions -> Reconcile VNPay -> Run workflow.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dung chung nhom voi deploy, backup, reset: khong chay giua luc dang deploy/reset.
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: [self-hosted, staging]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Khoi phuc .env.staging (khong nam trong git, luu ben ngoai checkout)
+        run: cp ~/secrets/pos-staging/.env.staging .env.staging
+      - name: Doi soat
+        run: |
+          docker compose --env-file .env.staging -f infra/compose/compose.staging.yml \
+            exec -T api python scripts/reconcile_vnpay.py

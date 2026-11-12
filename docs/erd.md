@@ -260,6 +260,13 @@ erDiagram
         uuid created_by_staff_id FK
         uuid cancelled_by_staff_id FK
         str cancel_reason
+        str payment_url
+        datetime expires_at
+        str vnp_create_date
+        str provider_txn_no
+        str provider_code
+        datetime provider_paid_at
+        datetime last_checked_at
         datetime created_at
         datetime updated_at
     }

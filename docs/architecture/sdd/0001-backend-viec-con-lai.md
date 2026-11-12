@@ -57,7 +57,7 @@ Liệt kê phần BRD mà backend chưa làm, thiết kế cho từng phần, v�
 | # | Hạng mục | Pha | Ưu tiên | Ước lượng | Trạng thái |
 |---|---|---|---|---|---|
 | R1 | Thanh toán v2: trả nhiều lần, tiền mặt/thẻ, hủy, hoàn | 2 | P0 | 2 ngày | **Xong** (#63) |
-| R2 | VNPay sandbox: tạo link, Return URL + QueryDR, IPN viết sẵn | 2 | P0 | 2 ngày | Chờ tài khoản sandbox (mốc 13/11) |
+| R2 | VNPay sandbox: tạo link, Return URL + QueryDR, IPN viết sẵn | 2 | P0 | 2 ngày | **Xong phần code** (PR `feat/vnpay-sandbox`), chờ tài khoản sandbox để chạy thử |
 | R3 | Giám sát: Sentry, log JSON, số đo, cảnh báo | 2 | P0 | 1 ngày | **Xong** (#64), còn đặt DSN |
 | R4 | Chịu tải 200 người dùng, khóa đồng thời trên Postgres | 2 | P0 | 1 ngày | **Xong phần code** (#65), còn chạy trên staging |
 | R5 | Rewards đợt 3: số điện thoại trên QR, hoàn điểm, hết hạn điểm | 2 | P0 | 1,5 ngày | **Xong** (PR `feat/rewards-dot-3`), còn đo hiệu năng job |

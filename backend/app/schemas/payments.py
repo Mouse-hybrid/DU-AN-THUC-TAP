@@ -13,11 +13,12 @@ Money = Decimal
 class CreatePaymentRequest(BaseModel):
     """Một lần nhận tiền. `amount` bỏ trống = trả hết số còn lại. Tiền mặt: `cash_received` là
     số khách đưa (bỏ trống = đưa vừa đủ), server tính tiền thối. Thẻ: thu ngân xác nhận máy
-    POS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay làm ở R2."""
+    POS đã quẹt thành công, `provider_ref` là số hóa đơn trên máy (nếu có). VNPay: trả lần
+    thanh toán PENDING kèm `payment_url`; đơn đã có link còn hạn thì trả lại link đó."""
 
     model_config = ConfigDict(extra="forbid")
 
-    method: Literal["CASH", "CARD"]
+    method: Literal["CASH", "CARD", "VNPAY"]
     amount: Money | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     cash_received: Money | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     provider_ref: str | None = Field(default=None, min_length=1, max_length=100)
@@ -65,18 +66,26 @@ class PaymentOut(BaseModel):
     created_by_staff_id: uuid.UUID | None = None
     cancelled_by_staff_id: uuid.UUID | None = None
     cancel_reason: str | None = None
+    # VNPay: link cho khách mở (hiện thành mã QR), hạn link, kết quả phía VNPay.
+    payment_url: str | None = None
+    expires_at: datetime | None = None
+    provider_txn_no: str | None = None
+    provider_code: str | None = None
+    provider_paid_at: datetime | None = None
     created_at: datetime
     refunds: list[PaymentRefundOut] = []
 
 
 class PaymentSummaryOut(BaseModel):
     """`total` = số phải trả của đơn (đã trừ ưu đãi). `paid` = tổng các lần đã nhận (không tính
-    lần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ)."""
+    lần đã hủy). `refunded` = đã hoàn lại cho khách. `remaining` = còn phải thu (0 khi đã đủ).
+    `pending` = đang chờ khách trả qua VNPay (link còn hạn), đã nằm trong `remaining`."""
 
     total: Money
     paid: Money
     refunded: Money
     remaining: Money
+    pending: Money = Decimal("0")
 
 
 class OrderPaymentsOut(BaseModel):
