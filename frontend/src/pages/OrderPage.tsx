@@ -12,9 +12,8 @@ import {
 } from "../api/orders";
 import type { components } from "../api/schema";
 import { getTable, type TableDetailResponse } from "../api/tables";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -24,6 +23,8 @@ import { OrderLineItem } from "../components/OrderLineItem";
 import { OrderSummary } from "../components/OrderSummary";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
+import { QrPendingBanner } from "../components/QrPendingBanner";
+import { ModifierDialog } from "../components/ModifierDialog";
 import { Toast } from "../components/Toast";
 import { orderErrorMessage } from "../utils/errorMessages";
 import { createIdempotencyKey } from "../utils/idempotency";
@@ -32,16 +33,15 @@ import { isClosedOrderStatus } from "../utils/orders";
 
 type MenuItem = components["schemas"]["MenuItemOut"];
 
-const ORDER_WRITE_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 function shortOrderCode(tableCode: string, orderId: string): string {
   return `${tableCode}-${orderId.replaceAll("-", "").slice(-4).toUpperCase()}`;
 }
 
 export function OrderPage() {
   const { id: tableId } = useParams<{ id: string }>();
-  const role = getAuth()?.staff.role;
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [pickingItem, setPickingItem] = useState<MenuItem | null>(null);
   const [categories, setCategories] = useState<MenuCategoryListResponse>([]);
   const [menuItems, setMenuItems] = useState<MenuListResponse>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function OrderPage() {
   const mutationInFlight = useRef(new Set<string>());
   const sendInFlight = useRef(false);
 
-  const canWrite = hasRole(role, ORDER_WRITE_ROLES);
+  const canWrite = usePermissions().can("ORDER_WRITE");
   const readOnlyOrder = closedOnlyMode || Boolean(order && isClosedOrderStatus(order.status));
   const canAdd = canWrite && !readOnlyOrder;
 
@@ -173,10 +173,18 @@ export function OrderPage() {
   }
 
   function addMenuItem(item: MenuItem) {
+    if (item.has_modifiers) {
+      setPickingItem(item);
+      return;
+    }
+    submitMenuItem(item, []);
+  }
+
+  function submitMenuItem(item: MenuItem, modifierOptionIds: string[]) {
     const actionKey = `add:${item.id}`;
     void runItemMutation(actionKey, async () => {
       if (!table) throw new ApiError("Bàn chưa được tải xong.", 409);
-      const updated = await addMenuItemToOrder({ table, order, item, onOrderCreated: setOrder });
+      const updated = await addMenuItemToOrder({ table, order, item, modifierOptionIds, onOrderCreated: setOrder });
       setOrder(updated);
       setToast({ message: `Đã thêm ${item.name}.`, type: "success" });
     }, "Không thể thêm món vì trạng thái bàn hoặc đơn đã thay đổi. Đã tải lại dữ liệu.");
@@ -276,6 +284,8 @@ export function OrderPage() {
               </div>
             </header>
 
+            {order ? <QrPendingBanner orders={[order]} /> : null}
+
             {stale ? (
               <section className="nova-stale-notice" role="alert">
                 <div><strong>Dữ liệu có thể đã cũ</strong><p>{pageError || "Không thể tải dữ liệu mới nhất."}</p></div>
@@ -366,6 +376,17 @@ export function OrderPage() {
           </>
         ) : null}
       </main>
+      {pickingItem ? (
+        <ModifierDialog
+          item={pickingItem}
+          onCancel={() => setPickingItem(null)}
+          onConfirm={(ids) => {
+            const item = pickingItem;
+            setPickingItem(null);
+            submitMenuItem(item, ids);
+          }}
+        />
+      ) : null}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );

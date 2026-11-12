@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { getAuth, getHomePath } from "./auth/storage";
 import { OfflineBanner } from "./components/OfflineBanner";
+import { PermissionsSync } from "./components/PermissionsSync";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminMenuItemPage } from "./pages/AdminMenuItemPage";
 import { AdminAuditLogPage } from "./pages/AdminAuditLogPage";
@@ -15,6 +16,7 @@ import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { OpenTablePage } from "./pages/OpenTablePage";
 import { OrderPage } from "./pages/OrderPage";
 import { OrderSummaryPage } from "./pages/OrderSummaryPage";
+import { QrOrderPage } from "./pages/QrOrderPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { TablesPage } from "./pages/TablesPage";
 import { TableDetailPage } from "./pages/TableDetailPage";
@@ -28,9 +30,11 @@ export default function App() {
   return (
     <>
       <OfflineBanner />
+      <PermissionsSync />
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/qr/:token" element={<QrOrderPage />} />
         <Route
           path="/tables"
           element={<ProtectedRoute area="pos"><TablesPage /></ProtectedRoute>}
@@ -69,27 +73,27 @@ export default function App() {
         />
         <Route
           path="/admin/menu/categories"
-          element={<ProtectedRoute area="admin"><AdminMenuPage /></ProtectedRoute>}
+          element={<ProtectedRoute area="admin" permission="MENU_WRITE"><AdminMenuPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/menu/new"
-          element={<ProtectedRoute area="admin"><AdminMenuItemPage /></ProtectedRoute>}
+          element={<ProtectedRoute area="admin" permission="MENU_WRITE"><AdminMenuItemPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/menu/:id/edit"
-          element={<ProtectedRoute area="admin"><AdminMenuItemPage /></ProtectedRoute>}
+          element={<ProtectedRoute area="admin" permission="MENU_WRITE"><AdminMenuItemPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/audit-logs"
-          element={<ProtectedRoute area="admin"><AdminAuditLogPage /></ProtectedRoute>}
+          element={<ProtectedRoute area="admin" permission="AUDIT_READ"><AdminAuditLogPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/staff"
-          element={<ProtectedRoute area="admin"><AdminStaffPage /></ProtectedRoute>}
+          element={<ProtectedRoute area="admin" permission="STAFF_MANAGE"><AdminStaffPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/roles"
-          element={<ProtectedRoute area="admin"><AdminRolesPage /></ProtectedRoute>}
+          element={<ProtectedRoute area="admin" permission="STAFF_MANAGE"><AdminRolesPage /></ProtectedRoute>}
         />
         <Route
           path="/profile"

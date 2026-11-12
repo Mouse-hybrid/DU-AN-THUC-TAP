@@ -1,16 +1,12 @@
 import { type MutableRefObject, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/client";
 import { refireItem, voidItem, type OrderItemDetail } from "../api/orders";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { createIdempotencyKey } from "../utils/idempotency";
 import { orderErrorMessage } from "../utils/errorMessages";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
-
-/** Backend: hủy/làm lại món là thao tác "Override" của quản lý. */
-export const OVERRIDE_ROLES = ["SUPERVISOR"] as const satisfies readonly StaffRole[];
 
 const VOIDABLE_ITEM_STATUSES = new Set(["CREATED", "SENT", "ACCEPTED", "PREPARING"]);
 const REFIRABLE_ITEM_STATUSES = new Set(["SERVED", "PICKED_UP"]);
@@ -132,8 +128,8 @@ export function useItemOverrides({ reload, notify, inFlight }: Options): ItemOve
     }
   }
 
-  const role = getAuth()?.staff.role;
-  const allowed = hasRole(role, OVERRIDE_ROLES);
+  // Hủy/làm lại món là quyền OVERRIDE của backend; vai trò nào đang có quyền này do quản lý chỉnh ở màn 94.
+  const allowed = usePermissions().can("OVERRIDE");
 
   const actionsFor = (orderId: string, orderStatus: string, item: OrderItemDetail): ReactNode => {
     if (!allowed) return null;

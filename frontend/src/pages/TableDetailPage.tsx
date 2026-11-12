@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, getErrorMessage } from "../api/client";
 import { pickupItem, serveItem, type OrderItemDetail } from "../api/orders";
-import { getTable, type TableDetailResponse } from "../api/tables";
-import type { FlashMessage } from "../auth/storage";
+import { getTable, mergeTables, transferTable, type TableDetailResponse } from "../api/tables";
+import { consumeFlash, setFlash, type FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { OrderLineItem } from "../components/OrderLineItem";
-import { RoleGuard } from "../components/RoleGuard";
+import { PermissionGuard } from "../components/PermissionGuard";
+import { QrPendingBanner } from "../components/QrPendingBanner";
+import { QrSessionDialog } from "../components/QrSessionDialog";
+import { TableMoveDialog } from "../components/TableMoveDialog";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
@@ -16,6 +19,7 @@ import { useItemOverrides } from "../components/useItemOverrides";
 import { formatOpenDuration, formatVnd } from "../utils/format";
 import { useRealtime } from "../realtime/useRealtime";
 import { createIdempotencyKey } from "../utils/idempotency";
+import { moveErrorMessage } from "../utils/errorMessages";
 
 type ItemAction = "pickup" | "served";
 
@@ -43,13 +47,16 @@ function noopItemRemove() {
 
 export function TableDetailPage() {
   const { id: tableId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [qrOpen, setQrOpen] = useState(false);
+  const [moveMode, setMoveMode] = useState<"transfer" | "merge" | null>(null);
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [busyItemIds, setBusyItemIds] = useState<Set<string>>(() => new Set());
-  const [toast, setToast] = useState<FlashMessage | null>(null);
+  const [toast, setToast] = useState<FlashMessage | null>(() => consumeFlash());
   const hasLoaded = useRef(false);
   const loadInFlight = useRef(false);
   const mutationInFlight = useRef(new Set<string>());
@@ -82,6 +89,9 @@ export function TableDetailPage() {
 
   useEffect(() => {
     document.title = "Chi tiết bàn · NOVA POS";
+    // Chuyển bàn đổi tham số đường dẫn nhưng giữ nguyên trang: đọc lại thông báo vừa lưu.
+    const flash = consumeFlash();
+    if (flash) setToast(flash);
     void loadTable();
   }, [loadTable]);
 
@@ -148,6 +158,30 @@ export function TableDetailPage() {
     }
   }
 
+  async function submitMove(targetIds: string[]): Promise<string | null> {
+    if (!table || !moveMode) return null;
+    try {
+      const key = createIdempotencyKey();
+      if (moveMode === "transfer") {
+        const first = targetIds[0];
+        if (!first) return "Hãy chọn bàn đích.";
+        const result = await transferTable(table.id, first, key);
+        setMoveMode(null);
+        setFlash(`Đã chuyển bàn ${result.from_table.code} sang bàn ${result.to_table.code}.`, "success");
+        navigate(`/tables/${encodeURIComponent(result.to_table.id)}`);
+        return null;
+      }
+      const result = await mergeTables(table.id, targetIds, key);
+      setMoveMode(null);
+      await loadTable(true);
+      setToast({ message: `Đã gộp ${result.merged_tables.length} bàn vào bàn ${result.table.code}.`, type: "success" });
+      return null;
+    } catch (moveError) {
+      if (moveError instanceof ApiError && (moveError.status === 409 || moveError.status === 404)) void loadTable(true);
+      return moveErrorMessage(moveError, moveMode);
+    }
+  }
+
   return (
     <AppShell>
       <main className="nova-content">
@@ -181,6 +215,17 @@ export function TableDetailPage() {
                 {table.current_session && table.orders.length > 0 ? (
                   <Link className="nova-button nova-button--secondary" to={`/tables/${encodeURIComponent(table.id)}/summary`} aria-label={`Tóm tắt đơn bàn ${table.code}`}>Tóm tắt đơn</Link>
                 ) : null}
+                {table.status === "OCCUPIED" || table.status === "BILLING" ? (
+                  <PermissionGuard permission="QR_SESSION_MANAGE">
+                    <Button variant="secondary" type="button" accessibleLabel={`Mã QR gọi món bàn ${table.code}`} onClick={() => setQrOpen(true)}>Mã QR</Button>
+                  </PermissionGuard>
+                ) : null}
+                {table.status === "OCCUPIED" ? (
+                  <PermissionGuard permission="TABLE_TRANSFER">
+                    <Button variant="secondary" type="button" accessibleLabel={`Chuyển bàn ${table.code}`} onClick={() => setMoveMode("transfer")}>Chuyển bàn</Button>
+                    <Button variant="secondary" type="button" accessibleLabel={`Gộp bàn vào bàn ${table.code}`} onClick={() => setMoveMode("merge")}>Gộp bàn</Button>
+                  </PermissionGuard>
+                ) : null}
                 <Button variant="secondary" type="button" accessibleLabel="Làm mới chi tiết bàn" busy={refreshing} onClick={() => void loadTable(true)}><Icon name="refresh-cw" />Làm mới</Button>
               </div>
             </header>
@@ -194,6 +239,9 @@ export function TableDetailPage() {
             ) : (
               <>
                 {table.status === "BILLING" ? <p className="nova-table-billing-note" role="status">Bàn đang chờ thanh toán</p> : null}
+                <QrPendingBanner orders={table.orders}>
+                  <Link className="nova-button nova-button--primary" to={`/tables/${encodeURIComponent(table.id)}/order`}>Xem và xác nhận</Link>
+                </QrPendingBanner>
                 {readyCount > 0 ? (
                   <section className="nova-ready-banner" role="status">
                     <strong>Có {readyCount} món đã xong, ra bếp lấy</strong>
@@ -224,7 +272,7 @@ export function TableDetailPage() {
                                   <>
                                     {overrides.actionsFor(order.id, order.status, item)}
                                     {item.status === "READY" || item.status === "PICKED_UP" ? (
-                                      <RoleGuard allow={["WAITER", "SUPERVISOR"]}>
+                                      <PermissionGuard permission="SERVE_FOOD">
                                         <Button
                                           variant="primary"
                                           type="button"
@@ -237,7 +285,7 @@ export function TableDetailPage() {
                                         >
                                           {item.status === "READY" ? "Lấy món" : "Đã mang ra"}
                                         </Button>
-                                      </RoleGuard>
+                                      </PermissionGuard>
                                     ) : null}
                                   </>
                                 )}
@@ -255,6 +303,10 @@ export function TableDetailPage() {
         ) : null}
       </main>
       {overrides.dialog}
+      {qrOpen && table ? <QrSessionDialog tableId={table.id} tableCode={table.code} onClose={() => setQrOpen(false)} /> : null}
+      {moveMode && table ? (
+        <TableMoveDialog mode={moveMode} tableId={table.id} tableCode={table.code} onSubmit={submitMove} onCancel={() => setMoveMode(null)} />
+      ) : null}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
   );

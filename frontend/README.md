@@ -41,7 +41,7 @@ npm run gen:api
 
 ## Route và phân quyền
 
-| Route | Màn | Vai trò được vào |
+| Route | Màn | Ai được vào (mặc định; quản lý chỉnh được ở màn 94) |
 |---|---|---|
 | `/login` | Đăng nhập (`/login?area=kitchen` dùng lời dẫn của màn bếp) | Chưa đăng nhập |
 | `/tables` | Sơ đồ bàn | CASHIER, WAITER, SUPERVISOR |
@@ -51,38 +51,46 @@ npm run gen:api
 | `/tables/:id/search` | Tìm món nhanh (màn 12) | CASHIER, WAITER, SUPERVISOR |
 | `/tables/:id/summary` | Tóm tắt đơn, yêu cầu thanh toán, xác nhận thanh toán, đóng đơn | CASHIER, WAITER, SUPERVISOR |
 | `/history` | Lịch sử đơn (màn 25) | CASHIER, WAITER, SUPERVISOR |
-| `/kitchen` | Màn bếp, gồm tab Món trễ (màn 33) | KITCHEN, SUPERVISOR |
-| `/kitchen/orders/:orderId/items/:itemId` | Chi tiết món bếp (màn 35): tiến trình, nấu/sẵn sàng; giám sát hủy món hoặc làm lại món | KITCHEN, SUPERVISOR (hủy/làm lại: chỉ SUPERVISOR) |
-| `/admin/menu/categories` | Nhóm món và danh sách món (màn 102) | SUPERVISOR |
-| `/admin/menu/new` | Thêm món (màn 103) | SUPERVISOR |
-| `/admin/menu/:id/edit` | Sửa món (màn 103) | SUPERVISOR |
-| `/admin/audit-logs` | Nhật ký hệ thống (màn 97); `?order=<id>` lọc theo một đơn | SUPERVISOR |
-| `/admin/staff` | Quản trị nhân viên (màn 93): thêm, sửa họ tên/vai trò, khóa/mở khóa, đặt lại mật khẩu | SUPERVISOR |
-| `/admin/roles` | Vai trò & quyền (màn 94), chỉ xem | SUPERVISOR |
+| `/kitchen` | Màn bếp, gồm tab Món trễ (màn 33) | Quyền `VIEW_KDS`: KITCHEN, SUPERVISOR |
+| `/kitchen/orders/:orderId/items/:itemId` | Chi tiết món bếp (màn 35): tiến trình, nấu/sẵn sàng; giám sát hủy món hoặc làm lại món | `VIEW_KDS` (nấu/sẵn sàng cần `KITCHEN_ACTION`; hủy/làm lại cần `OVERRIDE`: mặc định chỉ SUPERVISOR) |
+| `/admin/menu/categories` | Nhóm món và danh sách món (màn 102) | Quyền `MENU_WRITE`: SUPERVISOR |
+| `/admin/menu/new` | Thêm món (màn 103) | `MENU_WRITE` |
+| `/admin/menu/:id/edit` | Sửa món (màn 103) | `MENU_WRITE` |
+| `/admin/audit-logs` | Nhật ký hệ thống (màn 97); `?order=<id>` lọc theo một đơn | Quyền `AUDIT_READ`: SUPERVISOR |
+| `/admin/staff` | Quản trị nhân viên (màn 93): thêm, sửa họ tên/vai trò, khóa/mở khóa, đặt lại mật khẩu | Quyền `STAFF_MANAGE`: SUPERVISOR |
+| `/admin/roles` | Vai trò & quyền (màn 94): quản lý tick sửa quyền từng vai trò, khôi phục mặc định | `STAFF_MANAGE` |
 | `/profile` | Hồ sơ của tôi (màn 98): thông tin tài khoản, đổi mật khẩu | Mọi vai trò đã đăng nhập (kể cả KITCHEN) |
 
-- `KITCHEN` bị chuyển về `/kitchen` nếu mở route POS hoặc `/admin`. CASHIER/WAITER mở `/kitchen` hoặc `/admin` thì quay về `/tables`.
+- `KITCHEN` bị chuyển về `/kitchen` nếu mở route POS. Ai chưa có quyền của một trang (theo bảng trên) thì quay về trang chủ của vai trò đó (`/tables`, hoặc `/kitchen` cho KITCHEN). Riêng KITCHEN bị gỡ `VIEW_KDS` thì ở lại `/kitchen` với thông báo “Chưa được cấp quyền” (chuyển hướng sẽ bị lặp).
 - Chưa đăng nhập mà mở `/kitchen` thì chuyển tới `/login?area=kitchen`; sau khi đăng nhập, mọi role đều về trang chủ của role đó.
 - Phân quyền ở FE chỉ để ẩn nút và chặn route. Backend vẫn là nơi quyết định (lỗi 403 được hiển thị bằng tiếng Việt).
+- Màn hình không còn ẩn/hiện nút theo tên vai trò. Quản lý có thể chỉnh quyền từng vai trò ở màn 94 nên FE đọc danh sách `permissions` từ `GET /auth/me` (`src/auth/permissions.ts`, hook `usePermissions().can("MÃ_QUYỀN")`). Danh sách này được gọi lại mỗi lần mở một trang (đổi route) và mỗi khi backend trả 403; sửa quyền xong nhân viên không cần đăng nhập lại.
+- Bản sao quyền lưu ở `localStorage` key `pos_permissions`, gắn với access token của phiên (đăng xuất hoặc đổi tài khoản thì không dùng lại) để màn hình không nhấp nháy khi mở trang. Chưa biết quyền (lần vào đầu tiên) thì trang được bảo vệ hiện “Đang kiểm tra quyền”; `/auth/me` lỗi thì hiện “Không thể kiểm tra quyền” kèm nút Thử lại.
 
-Quyền theo hành động (theo code hiện tại):
+Quyền theo hành động (mã quyền của backend; vai trò là mặc định, quản lý chỉnh ở màn 94):
 
-| Hành động | Role |
-|---|---|
-| Mở bàn, thêm/sửa/xóa món, gửi bếp | CASHIER, WAITER, SUPERVISOR |
-| Dọn xong bàn, Lấy món, Đã mang ra | WAITER, SUPERVISOR |
-| Yêu cầu thanh toán | CASHIER, WAITER, SUPERVISOR |
-| Xác nhận đã thanh toán, Đóng đơn (PAID → CLOSED) | CASHIER, SUPERVISOR |
-| Hủy món (món chưa phục vụ, bắt buộc nhập lý do), Làm lại món (món đã phục vụ/đã lấy) | SUPERVISOR |
-| Bắt đầu nấu, Món xong | KITCHEN, SUPERVISOR |
-| Tạo/sửa nhóm món, tạo/sửa món | SUPERVISOR |
+| Hành động | Mã quyền | Mặc định |
+|---|---|---|
+| Thêm/sửa/xóa món trong đơn (màn 09, 12) | `ORDER_WRITE` | CASHIER, WAITER, SUPERVISOR |
+| Dọn xong bàn | `TABLE_MARK_CLEAN` | WAITER, SUPERVISOR |
+| Lấy món, Đã mang ra | `SERVE_FOOD` | WAITER, SUPERVISOR |
+| Yêu cầu thanh toán | `REQUEST_BILLING` | CASHIER, WAITER, SUPERVISOR |
+| Xác nhận đã thanh toán, Đóng đơn (PAID → CLOSED) | `PROCESS_PAYMENT` | CASHIER, SUPERVISOR |
+| Thu tiền nhiều lần (tiền mặt/thẻ) | `PROCESS_PAYMENT` | CASHIER, SUPERVISOR |
+| Hủy lần thu (đơn còn Chờ thanh toán), hoàn tiền (đơn đã thanh toán) | `PAYMENT_REFUND` | SUPERVISOR |
+| Hủy món (bắt buộc nhập lý do), Làm lại món | `OVERRIDE` | SUPERVISOR |
+| Bắt đầu nấu, Món xong | `KITCHEN_ACTION` | KITCHEN, SUPERVISOR |
+| Xem màn bếp | `VIEW_KDS` | KITCHEN, SUPERVISOR |
+| Tạo/sửa nhóm món, tạo/sửa món | `MENU_WRITE` | SUPERVISOR |
+| Xem nhật ký, nút “Nhật ký” ở Lịch sử | `AUDIT_READ` | SUPERVISOR |
+| Quản trị nhân viên và phân quyền | `STAFF_MANAGE` | SUPERVISOR |
 
 Token được lưu trong `localStorage` với key `pos_auth` cùng thời điểm hết hạn. Không lưu mật khẩu.
 
 ## Cách gọi API
 
 - Mọi request đi qua `src/api/client.ts`: timeout 12 giây, thử lại 1 lần cho lỗi mạng/timeout, lỗi trả về là `ApiError` có `status`. `status = 0` nghĩa là offline hoặc timeout.
-- Mọi `POST`, `PATCH`, `DELETE` bắt buộc có `Idempotency-Key`. Handler tạo khóa bằng `createIdempotencyKey()` (UUID v4, có phương án dự phòng khi trình duyệt không có `crypto.randomUUID`) và dùng đúng một khóa cho mọi lần thử lại của cùng thao tác. Hai thao tác khác nhau luôn dùng hai khóa khác nhau.
+- Mọi `POST`, `PUT`, `PATCH`, `DELETE` bắt buộc có `Idempotency-Key`. Handler tạo khóa bằng `createIdempotencyKey()` (UUID v4, có phương án dự phòng khi trình duyệt không có `crypto.randomUUID`) và dùng đúng một khóa cho mọi lần thử lại của cùng thao tác. Hai thao tác khác nhau luôn dùng hai khóa khác nhau.
 - Mọi nút ghi dữ liệu có trạng thái bận, chặn bấm đúp bằng `useRef`, dùng `try/finally`, không gửi request khi đang offline và giữ nguyên dữ liệu đang hiển thị khi lỗi.
 - Lỗi 401 chuyển về `/login`; 403, 404, 409, 422 (kể cả `detail` dạng mảng), timeout, offline và 5xx đều có câu tiếng Việt. Không bao giờ hiện `[object Object]`.
 - Tiền hiển thị bằng `Intl.NumberFormat("vi-VN")`. Giá gửi lên API là chuỗi thập phân (ví dụ `"52000"`), tối đa 2 chữ số thập phân, lớn hơn 0.
@@ -112,7 +120,7 @@ Các màn thuộc Pha 2 chưa được code; xem `PHASE2-READINESS.md`.
 2. Tắt mạng, thử đăng nhập và xác nhận banner “Đang ngoại tuyến” cùng thông báo lỗi.
 3. CASHIER/WAITER: vào `/tables`; mở thẳng `/kitchen` hoặc `/admin/menu/categories` phải quay về `/tables`.
 4. KITCHEN: vào `/kitchen`; mở `/tables` hoặc `/admin/menu/categories` phải quay về `/kitchen`. Chưa đăng nhập mà mở `/kitchen` phải tới `/login?area=kitchen` (“Sẵn sàng cho ca bếp”).
-5. SUPERVISOR: vào được `/tables`, `/history`, `/kitchen`, `/admin/menu/categories` và `/admin/audit-logs`; menu có các mục “Lịch sử”, “Bếp”, “Thực đơn”, “Nhân viên”, “Vai trò”, “Nhật ký”. CASHIER/WAITER có “Bàn” và “Lịch sử”. Thanh trên cùng của mọi màn không còn dòng “Chi nhánh” (dự án chưa có chi nhánh), chỉ còn chip người dùng và nút đăng xuất.
+5. SUPERVISOR: vào được `/tables`, `/history`, `/kitchen`, `/admin/menu/categories` và `/admin/audit-logs`; menu có các mục “Lịch sử”, “Bếp”, “Thực đơn”, “Nhân viên”, “Vai trò”, “Nhật ký” (mỗi mục hiện theo quyền của tài khoản, không theo tên vai trò). CASHIER/WAITER có “Bàn” và “Lịch sử”. Thanh trên cùng của mọi màn không còn dòng “Chi nhánh” (dự án chưa có chi nhánh), chỉ còn chip người dùng và nút đăng xuất.
 6. Xóa hoặc làm hết hạn `pos_auth`, mở route bảo vệ và xác nhận quay về `/login`.
 
 Sơ đồ bàn, mở bàn, chi tiết bàn
@@ -153,8 +161,20 @@ Pha 2: nhân viên, phân quyền, hồ sơ
 31. `/admin/staff` (SUPERVISOR; CASHIER/WAITER quay về `/tables`, KITCHEN về `/kitchen`): 4 thẻ thống kê (Tổng, Đang hoạt động, Đã khóa, Quản lý), chip vai trò có số đếm, lọc Tất cả/Đang hoạt động/Đã khóa, tìm theo tên hoặc tên đăng nhập (gõ không dấu vẫn ra), 10 dòng mỗi trang, “Xuất danh sách” tải CSV. Dòng của chính mình có nhãn “Bạn”, không có nút Khóa/Đặt lại, chỉ có “Sửa” và liên kết “Đổi mật khẩu” sang `/profile`.
 32. “Thêm nhân viên”: bắt buộc họ tên, tên đăng nhập (3–100 ký tự chữ không dấu, số, `.`, `_`, `-`) và mật khẩu ≥ 8 ký tự; sai thì báo ngay, không gửi request. Trùng tên đăng nhập thì báo “Tên đăng nhập này đã tồn tại” và giữ hộp thoại. Bấm đúp “Tạo nhân viên” chỉ gửi một request.
 33. “Sửa”: chỉ gửi trường đã đổi; đổi vai trò có cảnh báo người đó bị đăng xuất. Tự sửa mình thì ô Vai trò bị khóa (backend chặn tự đổi vai trò). “Khóa”/“Mở khóa”/“Đặt lại mật khẩu” đều có hộp xác nhận, chống bấm đúp, nêu rõ người đó bị đăng xuất khỏi mọi thiết bị. Tài khoản không có nút Xóa (backend không có API xóa).
-34. `/admin/roles`: bảng quyền theo 4 vai trò lấy từ `GET /staff/permissions`, thẻ đếm số quyền mỗi vai trò, không có nút sửa (backend chưa có API sửa quyền).
+34. `/admin/roles` (quyền `STAFF_MANAGE`): bảng 20 quyền × 4 vai trò, mỗi ô là một ô tick. Tick/bỏ tick gửi `PUT /staff/permissions/{permission}` với danh sách vai trò đầy đủ của dòng đó (ô hiện ngay, lỗi thì trả về như cũ và có thông báo); nhãn “Đã sửa” + dòng “Mặc định: …” hiện ở dòng khác mặc định; ô có biểu tượng khóa (`locked_roles`) bị vô hiệu và có giải thích, không gửi request. “Khôi phục mặc định” (chỉ bật khi có dòng đã sửa) hỏi xác nhận rồi gọi `POST /staff/permissions/reset`. Mọi lần ghi có `Idempotency-Key`, chống bấm đúp, có thông báo riêng cho 403/404/409/500/offline. Sau khi ghi, FE gọi lại `/auth/me` nên nếu quản lý tự gỡ quyền của mình thì menu/nút đổi ngay.
+34b. Kiểm tra quyền có hiệu lực ngay: dùng một trình duyệt khác đăng nhập WAITER, giữ trang Tìm món mở; ở trình duyệt quản lý bỏ tick “Tạo và sửa đơn” của Phục vụ; ở trình duyệt WAITER chuyển sang trang khác rồi quay lại (hoặc bấm một nút bị từ chối) và xác nhận các nút gọi món biến mất, không cần đăng nhập lại.
 35. Bấm chip tên ở góc trên phải (mọi vai trò, kể cả trên điện thoại) để vào `/profile`: xem họ tên, tên đăng nhập, vai trò, số quyền. “Đổi mật khẩu” cần mật khẩu hiện tại, mật khẩu mới ≥ 8 ký tự và nhập lại khớp; sai mật khẩu hiện tại thì hiện lời backend trả về và không bị đăng xuất; thành công thì lưu token mới (không bị đẩy ra màn đăng nhập).
+
+Thanh toán (màn 20, 21, 100)
+36. `/tables/:id/summary` khi đơn Chờ thanh toán có khung “Thanh toán”: Phải trả / Đã thu / Còn lại. Chọn Tiền mặt hoặc Thẻ, để trống số tiền = thu hết, nhập số nhỏ hơn để thu nhiều lần. Tiền mặt có ô “Khách đưa” và tự hiện tiền thối (để trống = đưa vừa đủ); thẻ có ô số hóa đơn máy POS và không có “Khách đưa”. Thu quá số còn lại hoặc khách đưa thiếu thì báo ngay, không gửi request. Lần thu cuối đủ tiền thì đơn chuyển Đã thanh toán. Nút “Xác nhận đã thanh toán” cũ vẫn dùng được (thu nốt bằng tiền mặt).
+37. Quản lý (`PAYMENT_REFUND`) thấy “Hủy” ở từng lần thu khi đơn còn Chờ thanh toán, và “Hoàn tiền” khi đơn đã thanh toán (hoàn một phần hoặc hết). Cả hai bắt buộc lý do (≥ 3 ký tự), có chống bấm đúp và Idempotency-Key. Điểm đã tích không tự trừ lại khi hoàn (backend làm ở đợt Rewards). VNPay chưa có.
+38. `/tables/:id` (bàn Đang phục vụ): người có quyền `TABLE_TRANSFER` (Phục vụ, Quản lý) thấy “Chuyển bàn” và “Gộp bàn”. Chuyển bàn chỉ liệt kê bàn Trống/Đã đặt; gộp bàn cho tick nhiều bàn (tối đa 10) và loại bàn đang chờ thanh toán/dọn. Lỗi 409/422 hiện ngay trong hộp thoại. Bàn đã gộp hiện “Đã gộp vào bàn X” ở sơ đồ và bấm vào sẽ mở bàn chính. Backend không có “hoàn tác gộp”.
+39. `/tables/:id/summary`: nút “Tách bill” (quyền `TABLE_TRANSFER`) chọn món chuyển sang hóa đơn mới của cùng bàn. Món chưa gửi bếp hoặc đã phục vụ tách được theo số lượng; món đã vào bếp chỉ tách cả dòng; luôn phải để lại ít nhất 1 món. Khi bàn có nhiều hóa đơn, thanh “Hóa đơn 1/2…” để chuyển qua lại.
+40. Gọi món (`/tables/:id/order`, `/tables/:id/search`): món có `has_modifiers` mở hộp thoại size/topping. Nhóm bắt buộc/tối đa kiểm tra ngay trên máy; cùng món nhưng khác tùy chọn là dòng riêng; giá tạm tính cộng thêm; dòng món hiện tùy chọn đã chọn.
+41. `/tables`: bàn nhóm theo khu vực (thứ tự theo `sort_order` của `GET /areas`, bàn chưa gán khu xếp cuối) kèm lọc theo khu; nếu chưa có khu nào thì giữ lưới phẳng như trước.
+42. `/tables/:id/summary`: khung “Khách hàng & ưu đãi”. Thu ngân/Quản lý (`CUSTOMER_ACCESS`) tra khách theo số điện thoại (chuẩn hóa `0xxxxxxxxx`), tạo mới khi có tick đồng ý, gắn/bỏ khách. Người có `REWARD_APPLY` áp/gỡ ưu đãi (đổi điểm nhập số điểm ≤ mức tối đa); Quản lý có thêm “Áp ngoại lệ” với lý do (bỏ qua hạn, đơn tối thiểu, số lượt). Tóm tắt đơn hiện Giảm giá và Phải trả. Đơn đã thanh toán một phần thì không đổi khách/ưu đãi.
+43. QR gọi món: nút “Mã QR” ở chi tiết bàn (`QR_SESSION_MANAGE`) cấp, xem, cấp lại, thu hồi mã; mã vẽ ngay trên máy bằng thư viện `qrcode-generator` (thêm mới vào dependencies). Khách quét mở `/qr/:token` (không đăng nhập): xem thực đơn, chọn size/topping, gửi món, xem trạng thái (tự hỏi lại mỗi 10 giây). Món khách gọi có nhãn “Khách gọi QR” và banner chờ xác nhận; phục vụ bấm “Gửi bếp” để xác nhận hoặc “Xóa” để từ chối.
+44. `/admin/audit-logs`: khung báo cáo tổng hợp (`GET /audit-logs/summary`: tổng, ngoại lệ, theo ngày/hành động/nhân viên) và nút “Tải báo cáo Excel” (`GET /audit-logs/export`, CSV UTF-8 có BOM mở bằng Excel, tối đa 10.000 dòng, báo khi bị cắt). Nút “Xuất nhật ký” cũ vẫn xuất phần đang hiển thị.
 
 Thời gian thực và mất mạng
 26. Mở `/tables` ở hai trình duyệt, đổi trạng thái bàn ở một bên: bên kia tự cập nhật trong vài giây mà không cần bấm “Làm mới”.
@@ -184,7 +204,8 @@ Khác Figma có chủ đích (API chưa hỗ trợ, không giả dữ liệu):
 | Màn 35: chỉ có “Đánh dấu sẵn sàng” | Thêm “Bắt đầu nấu” khi món còn chờ, và khối “Thao tác quản lý” (Hủy món có lý do bắt buộc, Làm lại món) cho SUPERVISOR | Theo yêu cầu nhóm; dùng `start-cooking`, `mark-ready`, `void`, `refire` đã có |
 | Mã phiếu “#N1043” (màn 35) | Mã tạm `#<bàn>-<4 ký tự cuối mã đơn>`, giống phiếu bếp | Backend chưa có mã phiếu riêng |
 | Màn 93: ảnh đại diện, số điện thoại, email, ca, “Lần đăng nhập cuối”, nút Xóa, chọn nhiều dòng | Chỉ họ tên, tên đăng nhập, vai trò, trạng thái, ngày tạo; Khóa thay cho Xóa | `StaffDetailOut` chưa có các trường này; backend không có API xóa |
-| Màn 94: tạo vai trò, bật/tắt quyền từng vai trò | Ma trận quyền chỉ xem + thẻ đếm | Chỉ có `GET /staff/permissions` với 4 vai trò cố định |
+| Màn 94: tạo vai trò mới | Chỉ bật/tắt quyền của 4 vai trò có sẵn (ô tick), khôi phục mặc định, thẻ đếm | Backend chưa có API tạo vai trò mới; sửa quyền dùng `PUT /staff/permissions/{permission}` và `POST /staff/permissions/reset` |
+| Kiểu dữ liệu `PermissionRule` (`default_roles`, `locked_roles`, `customized`) | Khai báo tay trong `src/api/staff.ts` | `src/api/schema.d.ts` trên main chưa có các trường này và chưa có hai endpoint sửa quyền; khi backend cập nhật openapi, chạy `npm run gen:api` rồi đổi về type sinh ra |
 | Màn 98: sửa họ tên, ảnh, liên hệ, danh sách phiên, 2FA | Chỉ xem thông tin và đổi mật khẩu (không hiện mã cơ sở) | Chưa có API tự sửa hồ sơ, phiên, 2FA |
 | Màn 93/94/98: khung Backoffice 1440 riêng | Dùng khung chung của ứng dụng (sidebar + topbar) | Giữ một khung duy nhất cho mọi màn; sidebar thêm “Nhân viên”, “Vai trò” (trang có tiêu đề “Vai trò & quyền”, tên ngắn để vừa sidebar) cho SUPERVISOR |
 | Màu chính | #008573 (theo Figma) | Trước đây #147d6f; cần anh Thanh/Linh xác nhận lần cuối |

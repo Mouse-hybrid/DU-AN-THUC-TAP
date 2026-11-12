@@ -6,28 +6,29 @@ import {
   getOrder,
   payOrder,
   requestBilling,
+  splitOrder,
   type OrderDetail,
   type OrderItemDetail,
 } from "../api/orders";
 import { getTable, type TableDetailResponse } from "../api/tables";
-import type { StaffRole } from "../auth/roles";
-import { hasRole } from "../auth/roles";
-import { getAuth, type FlashMessage } from "../auth/storage";
+import { usePermissions } from "../auth/permissions";
+import type { FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Icon } from "../components/Icon";
 import { OrderLineItem } from "../components/OrderLineItem";
 import { OrderSummary } from "../components/OrderSummary";
+import { PaymentPanel } from "../components/PaymentPanel";
+import { SplitBillDialog } from "../components/SplitBillDialog";
+import { RewardsPanel } from "../components/RewardsPanel";
 import { StateCard } from "../components/StateCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { Toast } from "../components/Toast";
 import { useItemOverrides } from "../components/useItemOverrides";
 import { createIdempotencyKey } from "../utils/idempotency";
+import { moveErrorMessage } from "../utils/errorMessages";
 import { selectCurrentOrder } from "../utils/orders";
-
-const BILLING_ROLES = ["CASHIER", "WAITER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
-const PAY_ROLES = ["CASHIER", "SUPERVISOR"] as const satisfies readonly StaffRole[];
 
 type Confirmation = "billing" | "pay" | "close" | null;
 
@@ -55,7 +56,7 @@ function noopItemRemove() {
 
 export function OrderSummaryPage() {
   const { id: tableId } = useParams<{ id: string }>();
-  const role = getAuth()?.staff.role;
+  const { can } = usePermissions();
   const [table, setTable] = useState<TableDetailResponse | null>(null);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -65,6 +66,7 @@ export function OrderSummaryPage() {
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [mutation, setMutation] = useState<Confirmation>(null);
   const [paid, setPaid] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
   const [toast, setToast] = useState<FlashMessage | null>(null);
   const hasLoaded = useRef(false);
   const mutationInFlight = useRef(false);
@@ -139,6 +141,20 @@ export function OrderSummaryPage() {
     }
   }
 
+  async function submitSplit(items: { order_item_id: string; quantity: number }[]): Promise<string | null> {
+    if (!order) return null;
+    try {
+      const result = await splitOrder(order.id, items, createIdempotencyKey());
+      setSplitOpen(false);
+      await loadData(true, result.new_order.id);
+      setToast({ message: "Đã tách bill. Đang xem hóa đơn mới.", type: "success" });
+      return null;
+    } catch (splitError) {
+      if (splitError instanceof ApiError && (splitError.status === 409 || splitError.status === 404)) void loadData(true, order.id);
+      return moveErrorMessage(splitError, "split");
+    }
+  }
+
   const overrides = useItemOverrides({
     reload: () => loadData(true, order?.id),
     notify: setToast,
@@ -146,10 +162,15 @@ export function OrderSummaryPage() {
 
   const activeItems = order?.items.filter((item) => item.status !== "VOIDED") ?? [];
   const canRequestBilling = Boolean(
-    order && (order.status === "SENT" || order.status === "SERVED") && hasRole(role, BILLING_ROLES),
+    order && (order.status === "SENT" || order.status === "SERVED") && can("REQUEST_BILLING"),
   );
-  const canPay = Boolean(order?.status === "BILLING" && hasRole(role, PAY_ROLES));
-  const canClose = Boolean(order?.status === "PAID" && hasRole(role, PAY_ROLES));
+  const canPay = Boolean(order?.status === "BILLING" && can("PROCESS_PAYMENT"));
+  const canSplit = Boolean(
+    order && can("TABLE_TRANSFER") && ["CREATED", "SENT", "SERVED"].includes(order.status)
+    && activeItems.reduce((sum, item) => sum + item.quantity, 0) > 1,
+  );
+  const openOrders = table?.orders.filter((candidate) => candidate.status !== "CLOSED") ?? [];
+  const canClose = Boolean(order?.status === "PAID" && can("PROCESS_PAYMENT"));
 
   return (
     <AppShell
@@ -184,6 +205,23 @@ export function OrderSummaryPage() {
               </div>
             </header>
 
+            {openOrders.length > 1 ? (
+              <nav className="nova-bill-tabs" aria-label="Hóa đơn của bàn">
+                {openOrders.map((candidate, index) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    className={`nova-bill-tab${candidate.id === order?.id ? " nova-bill-tab--active" : ""}`}
+                    aria-current={candidate.id === order?.id ? "true" : undefined}
+                    disabled={mutation !== null}
+                    onClick={() => void loadData(true, candidate.id)}
+                  >
+                    Hóa đơn {index + 1}
+                  </button>
+                ))}
+              </nav>
+            ) : null}
+
             {!order ? <StateCard kind="empty" title="Bàn chưa có đơn phù hợp" message="Không tìm thấy đơn đang mở hoặc đang chờ thanh toán." /> : (
               <div className="nova-summary-layout">
                 <section className="nova-summary-card" aria-labelledby="nova-summary-items-title">
@@ -207,7 +245,30 @@ export function OrderSummaryPage() {
                 </section>
                 <aside className="nova-summary-side" aria-label="Tổng tiền">
                   <OrderSummary order={order} />
+                  <RewardsPanel
+                    order={order}
+                    canCustomer={can("CUSTOMER_ACCESS")}
+                    canReward={can("REWARD_APPLY")}
+                    canOverride={can("OVERRIDE")}
+                    locked={mutation !== null}
+                    notify={setToast}
+                    onChanged={() => loadData(true, order.id)}
+                  />
+                  {order.status === "BILLING" || order.status === "PAID" || order.status === "CLOSED" ? (
+                    <PaymentPanel
+                      orderId={order.id}
+                      orderStatus={order.status}
+                      canRecord={can("PROCESS_PAYMENT")}
+                      canRefund={can("PAYMENT_REFUND")}
+                      locked={mutation !== null}
+                      notify={setToast}
+                      onChanged={() => loadData(true, order.id)}
+                    />
+                  ) : null}
                   <div className="nova-summary-actions">
+                    {canSplit ? (
+                      <Button variant="secondary" type="button" accessibleLabel="Tách bill" disabled={mutation !== null} onClick={() => setSplitOpen(true)}>Tách bill</Button>
+                    ) : null}
                     {canRequestBilling ? (
                       <Button variant="primary" type="button" accessibleLabel="Yêu cầu thanh toán đơn" disabled={mutation !== null} onClick={() => setConfirmation("billing")}>Yêu cầu thanh toán</Button>
                     ) : null}
@@ -242,6 +303,7 @@ export function OrderSummaryPage() {
           <p>Đơn đã thanh toán sẽ được chốt sổ và không thể chỉnh sửa nữa.</p>
         </ConfirmDialog>
       ) : null}
+      {splitOpen && order ? <SplitBillDialog order={order} onSubmit={submitSplit} onCancel={() => setSplitOpen(false)} /> : null}
       {overrides.dialog}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>
