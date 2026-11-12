@@ -512,3 +512,87 @@ def test_querydr_missing_status_is_not_paid(vnp, monkeypatch):
 
     monkeypatch.setattr(vnpay, "HTTP_TRANSPORT", httpx.MockTransport(handler))
     assert vnpay.query_transaction(pid, "20261112111342", "x").status == vnpay.FAILED
+
+
+def _querydr_99(monkeypatch):
+    """Như sandbox thật 12/11: mọi QueryDR nhận {"vnp_ResponseCode": "99", ...}, không chữ ký."""
+    monkeypatch.setattr(
+        vnpay,
+        "HTTP_TRANSPORT",
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"vnp_ResponseCode": "99", "vnp_Message": "Unexpected error"}
+            )
+        ),
+    )
+
+
+def test_querydr_error_without_hash_is_logged_as_vnpay_error(vnp, monkeypatch, caplog):
+    _querydr_99(monkeypatch)
+    with caplog.at_level("WARNING", logger="app.vnpay"):
+        result = vnpay.query_transaction(uuid.uuid4(), "20261112111342", "x")
+    assert result.status == vnpay.ERROR and result.code == "99"
+    messages = [r.getMessage() for r in caplog.records]
+    assert "QueryDR: VNPay trả mã lỗi" in messages
+    assert not any("không khớp" in m for m in messages)
+
+
+def test_return_uses_signed_params_when_querydr_fails(
+    client, seed, ctx, vnp, monkeypatch, db_session_factory
+):
+    order_id = _billing_order(client, seed, ctx)
+    payment = _link(client, ctx, order_id)["payment"]
+    _querydr_99(monkeypatch)
+
+    resp = client.get(
+        "/api/v1/payments/vnpay/return", params=_return_params(payment["id"], 200000)
+    )
+    assert "Thanh toán thành công" in resp.text
+    assert _order_status(client, ctx, order_id) == "PAID"
+    session = db_session_factory()
+    confirmed = session.query(AuditLog).filter_by(action="PAYMENT_CONFIRMED").one()
+    assert '"source": "return_signed"' in confirmed.payload
+    session.close()
+
+    # Mở lại đúng link đó: không chốt đơn lần nữa.
+    client.get("/api/v1/payments/vnpay/return", params=_return_params(payment["id"], 200000))
+    session = db_session_factory()
+    assert session.query(AuditLog).filter_by(action="ORDER_PAID").count() == 1
+    session.close()
+
+
+def test_signed_fallback_still_checks_amount_and_failure(
+    client, seed, ctx, vnp, monkeypatch, db_session_factory
+):
+    _querydr_99(monkeypatch)
+    order_id = _billing_order(client, seed, ctx)
+    payment = _link(client, ctx, order_id)["payment"]
+    # Chữ ký đúng nhưng số tiền khác lần thanh toán (link của khoản khác): không chốt.
+    client.get("/api/v1/payments/vnpay/return", params=_return_params(payment["id"], 100000))
+    assert _order_status(client, ctx, order_id) == "BILLING"
+    session = db_session_factory()
+    assert session.get(Payment, uuid.UUID(payment["id"])).status == "UNKNOWN"
+    session.close()
+
+    other_order = _billing_order_on_new_table(client, seed, ctx, db_session_factory)
+    other = _link(client, ctx, other_order)["payment"]
+    resp = client.get(
+        "/api/v1/payments/vnpay/return",
+        params=_return_params(other["id"], 200000, response_code="24", txn_status="02"),
+    )
+    assert "chưa hoàn tất" in resp.text
+    session = db_session_factory()
+    assert session.get(Payment, uuid.UUID(other["id"])).status == "FAILED"
+    session.close()
+
+
+def _billing_order_on_new_table(client, seed, ctx, db_session_factory):
+    from app.db.models import RestaurantTable
+
+    session = db_session_factory()
+    table = RestaurantTable(outlet_id=seed["outlet_id"], code="T2", seats=4)
+    session.add(table)
+    session.commit()
+    table_id = table.id
+    session.close()
+    return _billing_order(client, {**seed, "table_id": table_id}, ctx)

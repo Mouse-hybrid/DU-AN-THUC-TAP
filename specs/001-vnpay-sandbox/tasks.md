@@ -43,7 +43,10 @@
 - [x] T017 Thêm `PAYMENT_AMOUNT_MISMATCH`, `PAYMENT_LATE_SUCCESS` vào `EXCEPTION_ACTIONS` (`backend/app/api/v1/audit.py`)
 - [x] T018 Sinh lại `docs/api/openapi.json`, `frontend/src/api/schema.d.ts`, `docs/erd.md`; cập nhật `docs/api/api-catalog.md` mục A17
 - [x] T019 Cập nhật trạng thái R2 trong `docs/architecture/sdd/0001-backend-viec-con-lai.md`
-- [ ] T020 Chạy quickstart trên staging với tài khoản sandbox; ghi kết quả vào PR. **Chờ tài khoản sandbox**; lúc đó đối chiếu luôn chuỗi ký QueryDR (research R-3)
+- [ ] T020 Chạy quickstart trên staging với tài khoản sandbox; ghi kết quả vào PR.
+  - **12/11:** tạo link, trang VNPay, trả bằng thẻ NCB và Return URL có chữ ký đều chạy.
+  - **QueryDR của sandbox trả `99` cho mọi yêu cầu** → thêm phương án dự phòng: dùng Return URL đã ký (research R-1).
+  - Còn chạy lại sau khi deploy bản dự phòng, và hỏi VNPay về QueryDR.
 
 ## Thứ tự và phụ thuộc
 

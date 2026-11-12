@@ -14,6 +14,16 @@ Ghi lại các lựa chọn đã cân nhắc. Tham số VNPay dưới đây theo
   - Chỉ dùng Return URL: không an toàn, và mất kết quả nếu khách tắt trình duyệt.
   - Bật HTTPS ngay bằng `sslip.io` + Let's Encrypt: làm được nhưng thuộc R13. Chỉ dùng nếu VNPay bắt khai báo IPN URL.
 
+**Cập nhật 12/11 (chạy thử sandbox thật):** QueryDR của sandbox trả `{"vnp_ResponseCode": "99", "vnp_Message": "Unexpected error"}`, không kèm chữ ký, cho **mọi** yêu cầu. Đã thử 4 biến thể (IP `127.0.0.1`, IP server, IP máy khách, `vnp_RequestId` ngắn) đều ra `99`. Yêu cầu khớp tài liệu và code mẫu của VNPay.
+
+- **Decision (đổi so với bản đầu):** Return URL hỏi QueryDR trước; QueryDR trả lời được thì nghe QueryDR. QueryDR **lỗi** thì dùng kết quả trong Return URL (nguồn ghi audit `return_signed`).
+- **Rationale:**
+  - Dữ liệu Return URL đã kiểm chữ ký HMAC-SHA512 bằng `vnp_HashSecret`, nên không giả được.
+  - Mở lại cùng link không chốt đơn lần hai, vì hàm xác nhận idempotent.
+  - Vẫn so số tiền và mã tham chiếu.
+  - Rủi ro còn lại là khách đóng trình duyệt trước khi quay về. Trường hợp này xử lý bằng IPN (khi có HTTPS) hoặc nút "Kiểm tra lại" (khi QueryDR chạy lại được).
+- **Còn mở:** hỏi hỗ trợ VNPay sandbox vì sao QueryDR trả `99` cho mã merchant này. Nếu do tài khoản chưa bật QueryDR thì nút "Kiểm tra lại" và script đối soát chưa dùng được trên sandbox.
+
 ## R-2. Tham số tạo link (`vpcpay.html`, phương thức GET)
 
 | Tham số | Giá trị |

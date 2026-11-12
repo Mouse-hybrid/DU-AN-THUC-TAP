@@ -192,6 +192,19 @@ def query_transaction(
         return VnpayResult(ERROR)
 
     response_code = str(data.get("vnp_ResponseCode") or "")
+    if response_code and "vnp_SecureHash" not in data:
+        # VNPay từ chối yêu cầu: phản hồi lỗi không có chữ ký (vd sandbox 12/11: "99 Unexpected
+        # error" cho mọi QueryDR). Không phải lệch chữ ký.
+        logger.warning(
+            "QueryDR: VNPay trả mã lỗi",
+            extra={
+                "fields": {
+                    "vnp_response_code": response_code,
+                    "vnp_message": str(data.get("vnp_Message") or "")[:200],
+                }
+            },
+        )
+        return VnpayResult(ERROR, code=response_code)
     if not _querydr_response_valid(data):
         # Không ghi giá trị (có số tiền, mã giao dịch); chỉ tên trường và kiểu để đối chiếu.
         logger.warning(

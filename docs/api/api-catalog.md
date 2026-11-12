@@ -350,7 +350,7 @@ Chưa có: bỏ gộp giữa chừng (tách bàn ra lại).
 - Tiền mặt: `cash_received` bỏ trống = đưa vừa đủ; ít hơn `amount` thì 422. Thẻ: không có `cash_received` (422); thu ngân xác nhận máy POS đã quẹt, `provider_ref` là số hóa đơn trên máy.
 - **VNPay (từ 12/11, spec `specs/001-vnpay-sandbox/`):** `method: "VNPAY"` tạo lần `PENDING` kèm `payment_url` (FE vẽ mã QR) và `expires_at` (15 phút). Chưa cấu hình khóa thì 503.
   - Link còn hạn thì giữ chỗ số tiền (`summary.pending`): tạo lại trả đúng link cũ; tiền mặt/thẻ chỉ thu phần còn lại; `/pay` trả 409.
-  - Kết quả **chỉ** được ghi khi hỏi lại VNPay (QueryDR) hoặc nhận IPN có chữ ký; không tin Return URL một mình. Nguồn nào tới trước cũng chỉ chốt đơn một lần.
+  - Kết quả ghi theo dữ liệu có chữ ký VNPay: ưu tiên QueryDR (server hỏi VNPay) hoặc IPN; QueryDR lỗi thì dùng Return URL đã kiểm chữ ký (sandbox hiện trả `99` cho mọi QueryDR). Nguồn nào tới trước cũng chỉ chốt đơn một lần.
   - Thu ngân hủy được link đang chờ (`cancel`, không cần Supervisor) để thu cách khác.
   - Script đối soát chạy 10 phút một lần: link quá hạn mà VNPay báo không có giao dịch thì `EXPIRED`; không hỏi được thì `UNKNOWN`, lần sau hỏi lại.
   - Audit: `PAYMENT_LINK_CREATED`, `PAYMENT_CONFIRMED`, `PAYMENT_AMOUNT_MISMATCH` và `PAYMENT_LATE_SUCCESS` (hai cái sau là ngoại lệ: số tiền lệch, hoặc khách trả sau khi link đã hủy/đơn đã chốt — cần hoàn tay).

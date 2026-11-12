@@ -70,7 +70,7 @@ Khi production có domain HTTPS, VNPay gọi thẳng vào hệ thống báo kế
 - **FR-001**: Hệ thống MUST tạo được lần thanh toán VNPay ở trạng thái PENDING cho đơn BILLING, với số tiền mặc định là số còn phải thu và không vượt quá số đó.
 - **FR-002**: Hệ thống MUST tạo link thanh toán VNPay có chữ ký HMAC-SHA512, mã tham chiếu duy nhất theo lần thanh toán, thời hạn 15 phút (cấu hình được).
 - **FR-003**: Hệ thống MUST kiểm tra chữ ký của mọi dữ liệu VNPay gửi về; chữ ký sai thì bỏ qua và ghi log cảnh báo.
-- **FR-004**: Hệ thống MUST chỉ đổi lần thanh toán sang thành công khi kết quả được xác nhận qua QueryDR hoặc IPN, không chỉ dựa vào Return URL.
+- **FR-004**: Hệ thống MUST chỉ đổi lần thanh toán sang thành công khi kết quả có chữ ký VNPay hợp lệ: QueryDR hoặc IPN; hoặc Return URL đã kiểm chữ ký khi QueryDR không trả lời được (cập nhật 12/11, research R-1).
 - **FR-005**: Việc xác nhận MUST idempotent: lần thanh toán đóng đơn đúng một lần dù nhận nhiều kết quả.
 - **FR-006**: Khi thành công, hệ thống MUST đóng đơn bằng đúng logic chốt đơn hiện có (ưu đãi, tích điểm, đóng phiên bàn, audit).
 - **FR-007**: Hệ thống MUST cho thu ngân kiểm tra lại một lần thanh toán đang chờ.
