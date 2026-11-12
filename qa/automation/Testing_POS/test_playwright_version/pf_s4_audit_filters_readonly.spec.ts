@@ -68,6 +68,7 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
     observations.push({range,status:response.status(),createdFrom:query.get('created_from'),
       filterKeys,rows,visibleTotal:await card.innerText(),responsesSeen:responses.length});
   }
+  console.log('PF_S4_AUDIT_FILTERS_DIAGNOSTICS='+JSON.stringify(observations));
   const byRange=Object.fromEntries(observations.map(x=>[x.range,x.createdFrom]));
   expect(Date.parse(byRange['Hôm nay']!), 'Today must start later than 7 days').toBeGreaterThan(Date.parse(byRange['7 ngày']!));
   expect(Date.parse(byRange['7 ngày']!), '7 days must start later than 30 days').toBeGreaterThan(Date.parse(byRange['30 ngày']!));
@@ -75,7 +76,6 @@ test('PF-S4-AUDIT-FILTERS | supervisor switches audit time ranges', async ({page
   const after=await request.get(base+'/version',{timeout:20_000});
   expect(after.status()).toBe(200);
   expect((await after.json()).commit).toBe(build);
-  console.log('PF_S4_AUDIT_FILTERS_DIAGNOSTICS='+JSON.stringify(observations));
   await testInfo.attach('PF_S4_AUDIT_filters_readonly',{
     body:JSON.stringify({build,observations,writes,
       scope:'UI time filters and audit GET only; totals observed, export and immutability not tested'},null,2),
