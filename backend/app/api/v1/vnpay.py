@@ -4,11 +4,13 @@ POST /api/v1/payments/{payment_id}/check — thu ngân bấm "Kiểm tra lại" 
 GET  /api/v1/payments/vnpay/return       — trình duyệt khách quay về sau khi trả (công khai)
 GET  /api/v1/payments/vnpay/ipn          — VNPay báo kết quả (công khai, chỉ bật khi có HTTPS)
 
-Không tin Return URL một mình: kết quả "đã trả" chỉ được ghi khi QueryDR hoặc IPN (có chữ ký
-VNPay) xác nhận. Mọi nguồn kết quả, kể cả script đối soát, đi qua `confirm_vnpay_payment`: khóa
-phiên bàn → đơn → thanh toán, lần đã có kết quả cuối thì không làm lại, so số tiền, rồi chốt đơn
-bằng đúng `finalize_paid_order` như tiền mặt. Gọi VNPay TRƯỚC khi khóa để không giữ khóa lúc
-chờ mạng.
+Ưu tiên kết quả QueryDR (server mình hỏi VNPay). Return URL: nếu QueryDR trả lời được thì nghe
+QueryDR; nếu QueryDR lỗi (sandbox 12/11 trả "99" cho mọi yêu cầu) thì dùng kết quả trong Return
+URL, vì dữ liệu này đã kiểm chữ ký VNPay (khóa bí mật, không giả được) — research.md R-1.
+
+Mọi nguồn kết quả, kể cả script đối soát, đi qua `confirm_vnpay_payment`: khóa phiên bàn → đơn
+→ thanh toán, lần đã có kết quả cuối thì không làm lại, so số tiền, rồi chốt đơn bằng đúng
+`finalize_paid_order` như tiền mặt. Gọi VNPay TRƯỚC khi khóa để không giữ khóa lúc chờ mạng.
 """
 
 from __future__ import annotations
@@ -272,14 +274,12 @@ def vnpay_return(request: Request, session: Session = Depends(get_session)) -> H
     if payment is None:
         return _page("Liên kết không hợp lệ", "Vui lòng báo nhân viên thu ngân.", 400)
 
-    result = query_payment(payment)
+    result, source = query_payment(payment), "return"
     if result.status == vnpay.ERROR:
-        return _page(
-            "Chưa xác nhận được kết quả",
-            "Hệ thống chưa liên lạc được VNPay. Vui lòng báo thu ngân bấm “Kiểm tra lại”.",
-        )
+        # QueryDR không dùng được: dùng kết quả trong Return URL (đã kiểm chữ ký ở trên).
+        result, source = vnpay.result_from_params(params), "return_signed"
     actor = system_actor(payment)
-    outcome = confirm_vnpay_payment(session, payment.id, result, "return", actor)
+    outcome = confirm_vnpay_payment(session, payment.id, result, source, actor)
     session.commit()
     publish_confirmation(actor, outcome)
     amount = f"{Decimal(outcome.payment.amount):,.0f}đ".replace(",", ".")
