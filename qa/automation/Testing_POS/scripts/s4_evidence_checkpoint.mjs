@@ -43,12 +43,15 @@ for(const file of files){
   for(const [id,result] of raw){
     if(id.startsWith('PF-')){preflight.push({ref:id,result,source});continue;}
     if(!ids.has(id))continue;
-    const limited=String(data.business_case||data.business_cases||'').includes('NOT_EXECUTED')||
+    const staffRolePartial=id==='P2-USR-003'&&data.create_http===201&&data.patch_http===200&&
+      data.assertions_passed===true&&!data.audit;
+    const limited=staffRolePartial||String(data.business_case||data.business_cases||'').includes('NOT_EXECUTED')||
       /(?:ONLY|UI_NOT_TESTED)/.test(String(data.case_coverage||'')+' '+String(data.full_case_status||''));
     const executed=data.business_execution==='EXECUTED';
     const readOnlyAudit=id.startsWith('P2-AUD-')&&data.mutations===0;
     const cleanupOk=readOnlyAudit||data.cleanup_pass===true||
-      data.cleanup?.inactive===true;
+      data.cleanup?.inactive===true||
+      id.startsWith('P2-USR-')&&data.cleanup?.locked===true;
     const stable=data.build_stable===true||data.build_before===sha&&data.build_after===sha;
     const pass=result==='PASSED'&&!limited&&(executed||readOnlyAudit)&&cleanupOk&&stable&&
       data.secrets_recorded!==true;
@@ -56,6 +59,7 @@ for(const file of files){
     evidence.push({ref:id,result,review:pass?'BUSINESS_PASS_EVIDENCE':'REVIEW_REQUIRED',
       source,run_id:data.run_id||null,checked_at:time,
       reason:pass?null:result!=='PASSED'?'Outcome '+String(result):
+        staffRolePartial?'Role change API checks only; audit/sensitive action not asserted':
         limited?'Partial/not executed scope':
         !stable?'Build not proven stable':!cleanupOk?'Cleanup not proven':
         !(executed||readOnlyAudit)?'Business execution not proven':'Outcome requires review'});
