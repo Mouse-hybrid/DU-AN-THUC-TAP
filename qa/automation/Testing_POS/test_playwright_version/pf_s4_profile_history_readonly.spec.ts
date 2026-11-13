@@ -86,3 +86,44 @@ test('PF-S4-HISTORY-READONLY | supervisor views order history', async ({ page, r
     body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
   });
 });
+
+test('PF-S4-HISTORY-RANGES | supervisor switches order history dates', async ({ page, request }, testInfo) => {
+  test.setTimeout(60_000);
+  const { build, writes } = await prepare(page, request);
+  const ranges: Array<{ label: string; createdFrom: string; status: number }> = [];
+  const first = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.pathname === '/api/v1/orders' && response.request().method() === 'GET' &&
+      url.searchParams.get('offset') === '0';
+  }, { timeout: 20_000 });
+  await page.goto('/history', { waitUntil: 'domcontentloaded' });
+  const today = await first;
+  await expect(page.getByRole('searchbox', { name: 'Tìm theo mã đơn hoặc bàn' })).toBeVisible();
+  ranges.push({ label: 'Hôm nay', createdFrom: new URL(today.url()).searchParams.get('created_from') || '',
+    status: today.status() });
+  for (const label of ['7 ngày', '30 ngày']) {
+    const next = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === '/api/v1/orders' && response.request().method() === 'GET' &&
+        url.searchParams.get('offset') === '0';
+    }, { timeout: 20_000 });
+    const button = page.getByRole('button', { name: label, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    const response = await next;
+    ranges.push({ label, createdFrom: new URL(response.url()).searchParams.get('created_from') || '',
+      status: response.status() });
+  }
+  expect(ranges.every(row => row.status === 200 && !Number.isNaN(Date.parse(row.createdFrom)))).toBe(true);
+  expect(Date.parse(ranges[0]!.createdFrom)).toBeGreaterThan(Date.parse(ranges[1]!.createdFrom));
+  expect(Date.parse(ranges[1]!.createdFrom)).toBeGreaterThan(Date.parse(ranges[2]!.createdFrom));
+  await finish(request, build, writes);
+  await testInfo.attach('PF_S4_HISTORY_ranges', {
+    body: JSON.stringify({ build, ranges, writes,
+      scope: 'Order history time filter only; bill close/export not tested' }, null, 2),
+    contentType: 'application/json',
+  });
+  await testInfo.attach('PF_S4_HISTORY_ranges_screen', {
+    body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+  });
+});
