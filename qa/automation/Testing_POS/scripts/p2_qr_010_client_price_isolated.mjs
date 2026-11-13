@@ -106,7 +106,7 @@ function finish() {
 }
 
 const report={run_id:'RUN-'+new Date().toISOString().replace(/\D/g,'')+'-P2QR010',
- test_ref:'P2-QR-010',checked_at:new Date().toISOString(),scope:'QA3 public QR API ignores client price fields and persists menu price; customer UI not tested',
+ test_ref:'P2-QR-010',checked_at:new Date().toISOString(),scope:'QA3 public QR API ignores client price and discount fields and persists menu price; customer UI not tested',
  token_recorded:false,secrets_recorded:false,result:'INCONCLUSIVE'};
 let buildBefore,buildAfter,asserted=false,cleanupPass=false,failure,executed=false;
 const cents=value=>Math.round(Number(value)*100);
@@ -148,10 +148,13 @@ try{
  if(!qrTarget||cents(qrTarget.price)!==cents(target.price))throw new Error('PENDING_FIXTURE: staff/public menu price mismatch');
  const before=order();
  executed=true;
- const malicious='0.01';
+ const malicious='0.01',maliciousDiscount='1.00';
+ if(cents(before.discount_total)!==0)throw new Error('PENDING_FIXTURE: pre-existing discount on own order');
  const submitted=must(post(`/api/v1/public/qr/${owned.qrToken}/orders`,null,
-  {items:[{menu_item_id:target.id,quantity:1,note:'QA P2QR010 client price tamper',
-   price:malicious,unit_price:malicious,line_total:malicious}],total:malicious}),201,'QR submit');
+  {items:[{menu_item_id:target.id,quantity:1,note:'QA P2QR010 client price and discount tamper',
+   price:malicious,unit_price:malicious,line_total:malicious,discount:maliciousDiscount,
+   discount_total:maliciousDiscount}],total:malicious,
+   discount:maliciousDiscount,discount_total:maliciousDiscount}),201,'QR submit');
  const qrLine=submitted.items?.find(x=>x.source==='QR'&&x.menu_item_name===target.name);
  const after=order();
  const persisted=after.items?.find(x=>x.source==='QR'&&x.menu_item_id===target.id);
@@ -166,12 +169,16 @@ try{
   public_item_price:cents(qrLine?.unit_price)===cents(target.price)&&cents(publicLine?.unit_price)===cents(target.price),
   server_subtotal:cents(after.subtotal)===expectedSubtotal,
   public_subtotal:cents(publicOrder.subtotal)===expectedSubtotal&&cents(submitted.subtotal)===expectedSubtotal,
+  client_discount_ignored:cents(after.discount_total)===0&&
+   cents(publicOrder.discount_total)===0&&cents(submitted.discount_total)===0&&
+   cents(after.total)===expectedSubtotal&&
+   cents(publicOrder.total)===expectedSubtotal&&cents(submitted.total)===expectedSubtotal,
  };
  report.table_code=owned.tableCode;report.order_id=owned.orderId;report.qr_item_id=owned.qrItemId;
  report.menu_price=target.price;report.expected_subtotal=(expectedSubtotal/100).toFixed(2);
- report.client_price=malicious;
+ report.client_price=malicious;report.client_discount=maliciousDiscount;
  asserted=Object.values(report.checks).every(Boolean);
- if(!asserted)throw new Error('Server accepted client price or order totals changed unexpectedly');
+ if(!asserted)throw new Error('Server accepted client price/discount or order totals changed unexpectedly');
 }catch(e){failure=redact(e.message||e);}
 finally{
  if(owned.sessionId)try{cleanupPass=finish();}catch(e){failure=`${failure||'Runner error'}; ${redact(e.message||e)}`;}
