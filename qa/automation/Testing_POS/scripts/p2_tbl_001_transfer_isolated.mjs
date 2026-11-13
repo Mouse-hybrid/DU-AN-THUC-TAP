@@ -14,6 +14,7 @@ if (!expected) { console.error('PENDING_BUILD: POS_EXPECTED_COMMIT missing; no r
 if (!password) { console.error('PENDING_FIXTURE: P2_QA_SEED_PASSWORD missing; no request sent'); process.exit(2); }
 
 const roles = {};
+const staffByRole = {};
 const owned = { source: null, target: null, sessionId: null, orderId: null, itemId: null, menuId: null, transferred: false };
 function redact(value) {
   let safe = String(value).replaceAll(password, '<REDACTED>');
@@ -108,7 +109,7 @@ function cleanup() {
 
 const report = { run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2TBL001',
   test_ref: 'P2-TBL-001', checked_at: new Date().toISOString(),
-  scope: 'QA3 API transfer preserves session, order and kitchen ticket; UI not tested',
+  scope: 'QA3 API transfer preserves session, order and kitchen ticket; source CLEANING and one actor/time audit; UI not tested',
   secrets_recorded: false, result: 'INCONCLUSIVE' };
 let buildBefore, buildAfter, asserted = false, cleanupPass = false, executed = false, failure;
 try {
@@ -117,11 +118,19 @@ try {
   const spec = must(get('/openapi.json'), 200, 'OpenAPI');
   if (!spec.paths?.['/api/v1/tables/{table_id}/transfer']?.post)
     throw new Error('PENDING_CONTRACT: transfer absent');
-  for (const [name, role] of [['qa3_waiter', 'WAITER'], ['qa3_cashier', 'CASHIER'], ['qa3_kitchen', 'KITCHEN']]) {
+  if (!spec.paths?.['/api/v1/audit-logs']?.get)
+    throw new Error('PENDING_CONTRACT: audit read absent');
+  for (const [name, role] of [['qa3_admin', 'SUPERVISOR'], ['qa3_waiter', 'WAITER'],
+    ['qa3_cashier', 'CASHIER'], ['qa3_kitchen', 'KITCHEN']]) {
     const login = must(post('/api/v1/auth/login', null, { username: name, password }), 200, `${name} login`);
-    if (login.staff?.role !== role || !login.access_token) throw new Error('PENDING_FIXTURE: QA3 role mismatch');
+    if (login.staff?.role !== role || !login.staff?.id || !login.staff?.outlet_id || !login.access_token)
+      throw new Error('PENDING_FIXTURE: QA3 role or identity mismatch');
     roles[name.slice(4)] = login.access_token;
+    staffByRole[name.slice(4)] = login.staff;
   }
+  if (!['waiter', 'cashier', 'kitchen'].every(role =>
+    staffByRole[role].outlet_id === staffByRole.admin.outlet_id))
+    throw new Error('PENDING_FIXTURE: QA3 roles belong to different outlets');
   const tables = must(get('/api/v1/tables', 'waiter'), 200, 'tables');
   const candidates = tables.filter(x => /^Q3-[12]$/.test(x.code) && x.status === 'AVAILABLE');
   const menu = must(get('/api/v1/menu?available_only=true', 'cashier'), 200, 'menu');
@@ -152,6 +161,10 @@ try {
   owned.transferred = true;
   const afterSource = table(owned.source.id), afterTarget = table(owned.target.id);
   const after = order(), afterQueue = queue();
+  const transferAudit = must(get(`/api/v1/audit-logs?entity_id=${owned.sessionId}` +
+    '&entity_type=table_session&action=TABLE_TRANSFERRED&limit=100', 'admin'), 200, 'transfer audit');
+  const auditRows = Array.isArray(transferAudit) ? transferAudit.filter(x =>
+    x.entity_id === owned.sessionId && x.action === 'TABLE_TRANSFERRED') : [];
   report.checks = {
     transfer_http_200: true,
     same_session: response.table_session_id === owned.sessionId &&
@@ -163,11 +176,18 @@ try {
       afterQueue[0].order_id === owned.orderId,
     table_states: afterSource.status === 'CLEANING' && afterTarget.status === 'OCCUPIED' &&
       response.from_table?.id === owned.source.id && response.to_table?.id === owned.target.id,
+    audit_once: auditRows.length === 1,
+    audit_actor_time_entity: auditRows.length === 1 &&
+      auditRows[0].staff_id === staffByRole.waiter.id && auditRows[0].staff_role === 'WAITER' &&
+      auditRows[0].entity_type === 'table_session' && auditRows[0].entity_id === owned.sessionId &&
+      Number.isFinite(Date.parse(auditRows[0].created_at)),
   };
+  report.audit = { action: 'TABLE_TRANSFERRED', count: auditRows.length,
+    actor: auditRows[0]?.staff_username ?? null, entity_type: 'table_session' };
   report.source_table = owned.source.code; report.target_table = owned.target.code;
   report.session_id = owned.sessionId; report.order_id = owned.orderId;
   asserted = Object.values(report.checks).every(Boolean);
-  if (!asserted) throw new Error('Transfer changed session/order/ticket or table state');
+  if (!asserted) throw new Error('Transfer session/order/ticket/table state or audit mismatch');
 } catch (error) { failure = redact(error.message || error); }
 finally {
   if (owned.sessionId) try { cleanupPass = cleanup(); }
