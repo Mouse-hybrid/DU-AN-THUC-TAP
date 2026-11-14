@@ -1,4 +1,4 @@
-// P2-TBL-001: isolated QA3 transfer preserves the session, order and kitchen ticket.
+// P2-TBL-001: isolated QA3 transfer against BR-TT-010 (source AVAILABLE).
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -109,7 +109,8 @@ function cleanup() {
 
 const report = { run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2TBL001',
   test_ref: 'P2-TBL-001', checked_at: new Date().toISOString(),
-  scope: 'QA3 API transfer preserves session, order and kitchen ticket; source CLEANING and one actor/time audit; UI not tested',
+  scope: 'QA3 API transfer preserves session/order/ticket; BR-TT-010 source AVAILABLE, target OCCUPIED and one actor/time audit; UI not tested',
+  requirement_ref: 'BR-TT-010',
   secrets_recorded: false, result: 'INCONCLUSIVE' };
 let buildBefore, buildAfter, asserted = false, cleanupPass = false, executed = false, failure;
 try {
@@ -174,7 +175,7 @@ try {
       after.subtotal === before.subtotal,
     same_ticket: afterQueue.length === 1 && afterQueue[0].id === ticketBefore.id &&
       afterQueue[0].order_id === owned.orderId,
-    table_states: afterSource.status === 'CLEANING' && afterTarget.status === 'OCCUPIED' &&
+    table_states: afterSource.status === 'AVAILABLE' && afterTarget.status === 'OCCUPIED' &&
       response.from_table?.id === owned.source.id && response.to_table?.id === owned.target.id,
     audit_once: auditRows.length === 1,
     audit_actor_time_entity: auditRows.length === 1 &&
@@ -186,8 +187,9 @@ try {
     actor: auditRows[0]?.staff_username ?? null, entity_type: 'table_session' };
   report.source_table = owned.source.code; report.target_table = owned.target.code;
   report.session_id = owned.sessionId; report.order_id = owned.orderId;
+  report.observed_table_states = { source: afterSource.status, target: afterTarget.status };
   asserted = Object.values(report.checks).every(Boolean);
-  if (!asserted) throw new Error('Transfer session/order/ticket/table state or audit mismatch');
+  if (!asserted) throw new Error('Transfer differs from BR-TT-010 source AVAILABLE or another asserted state');
 } catch (error) { failure = redact(error.message || error); }
 finally {
   if (owned.sessionId) try { cleanupPass = cleanup(); }
