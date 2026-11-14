@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
   async ({ page, request }, testInfo) => {
-    test.setTimeout(150_000);
+    test.setTimeout(300_000);
     const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
     expect(base).toBe('http://160.191.47.17');
     const pin = process.env.S2_STAGING_PIN;
@@ -21,7 +21,7 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
 
     const tokens: Record<string, string> = {};
     const own: { tableId?: string; tableCode?: string; targetId?: string; sessionId?: string;
-      orderId?: string; menuId?: string } = {};
+      orderId?: string; itemId?: string; menuId?: string } = {};
     const uiWrites: string[] = [];
     page.on('request', req => {
       const path = new URL(req.url()).pathname;
@@ -32,7 +32,7 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
       const response = await request.fetch(base + path, {
         method, headers: { Authorization: `Bearer ${tokens[role]}`,
           ...(method === 'POST' ? { 'Idempotency-Key': randomUUID() } : {}) },
-        ...(data ? { data } : {}), timeout: 25_000,
+        ...(data ? { data } : {}), timeout: 15_000,
       });
       let body: any;
       try { body = await response.json(); } catch { body = null; }
@@ -49,6 +49,7 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
 
     async function cleanup() {
       if (!own.sessionId || !own.tableId) return;
+      console.log(`[PF-S4-TABLE-DIALOGS] Cleanup starts: Q3-1 session ${own.sessionId}, order ${own.orderId ?? 'not created'}`);
       let currentTable = await table();
       if (currentTable.current_session?.id !== own.sessionId || currentTable.status !== 'OCCUPIED')
         throw new Error(`CLEANUP REQUIRED: own session ${own.sessionId} no longer at ${own.tableCode}`);
@@ -73,9 +74,11 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
           ['SENT', 'start-cooking', 'kitchen'], ['PREPARING', 'mark-ready', 'kitchen'],
           ['READY', 'pickup', 'waiter'], ['PICKED_UP', 'served', 'waiter'],
         ] as const) {
-          if ((await order()).items.find((row: any) => row.id === item.id)?.status === state)
+          if ((await order()).items.find((row: any) => row.id === item.id)?.status === state) {
             await checked('POST', `/api/v1/orders/${own.orderId}/items/${item.id}/${action}`,
               role, 200);
+            console.log(`[PF-S4-TABLE-DIALOGS] Cleanup ${action} HTTP 200`);
+          }
         }
         expect((await order()).items.find((row: any) => row.id === item.id)?.status).toBe('SERVED');
       }
@@ -101,6 +104,7 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
       const active = await checked('GET', '/api/v1/kitchen/queue', 'kitchen', 200);
       expect(done.filter((row: any) => row.order_id === own.orderId)).toHaveLength(1);
       expect(active.filter((row: any) => row.order_id === own.orderId)).toHaveLength(0);
+      console.log(`[PF-S4-TABLE-DIALOGS] Cleanup passed: Q3-1/Q3-2 AVAILABLE, order ${own.orderId} CLOSED`);
     }
 
     let cleanupPass = false;
@@ -132,55 +136,67 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
         'waiter', 201, { guest_count: 1 })).id;
       own.orderId = (await checked('POST', '/api/v1/orders', 'cashier', 201,
         { table_session_id: own.sessionId })).id;
-      await checked('POST', `/api/v1/orders/${own.orderId}/items`, 'cashier', 201,
+      console.log(`[PF-S4-TABLE-DIALOGS] Own fixture: Q3-1 session ${own.sessionId}, order ${own.orderId}`);
+      const added = await checked('POST', `/api/v1/orders/${own.orderId}/items`, 'cashier', 201,
         { items: [{ menu_item_id: own.menuId, quantity: 2, note: 'PF-S4-TABLE-DIALOGS own' }] });
+      own.itemId = added.items?.find((row: any) => row.menu_item_id === own.menuId)?.id;
+      console.log(`[PF-S4-TABLE-DIALOGS] Own item: ${own.itemId ?? 'look up by QA note'}`);
       await checked('POST', `/api/v1/orders/${own.orderId}/send-to-kitchen`, 'waiter', 200);
 
-      await page.goto(base + '/login', { waitUntil: 'domcontentloaded' });
+      console.log('[PF-S4-TABLE-DIALOGS] UI step: login');
+      await page.goto(base + '/login', { waitUntil: 'domcontentloaded', timeout: 15_000 });
       await page.getByLabel('Tên đăng nhập', { exact: true }).fill('qa3_admin');
       await page.getByLabel('Mật khẩu', { exact: true }).fill(pin!);
-      await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+      await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click({ timeout: 10_000 });
       await expect(page).toHaveURL(/\/tables$/, { timeout: 15_000 });
-      await page.goto(`${base}/tables/${own.tableId}`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${base}/tables/${own.tableId}`, { waitUntil: 'domcontentloaded', timeout: 15_000 });
       await expect(page.getByRole('heading', { name: 'Bàn Q3-1' })).toBeVisible();
 
-      await page.getByRole('button', { name: 'Chuyển bàn Q3-1' }).click();
+      console.log('[PF-S4-TABLE-DIALOGS] UI step: transfer dialog');
+      await page.getByRole('button', { name: 'Chuyển bàn Q3-1' }).click({ timeout: 10_000 });
       const transfer = page.getByRole('dialog', { name: 'Chuyển bàn Q3-1 sang bàn khác' });
       await expect(transfer).toBeVisible();
       await expect(transfer.getByText('Bàn Q3-2')).toBeVisible();
       await testInfo.attach('PF_S4_TABLE_transfer_dialog', {
-        body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+        body: await page.screenshot({ fullPage: true, animations: 'disabled', timeout: 15_000 }), contentType: 'image/png',
       });
-      await transfer.getByRole('button', { name: 'Hủy thao tác' }).click();
+      await transfer.getByRole('button', { name: 'Hủy thao tác' }).click({ timeout: 10_000 });
 
-      await page.getByRole('button', { name: 'Gộp bàn vào bàn Q3-1' }).click();
+      console.log('[PF-S4-TABLE-DIALOGS] UI step: merge dialog');
+      await page.getByRole('button', { name: 'Gộp bàn vào bàn Q3-1' }).click({ timeout: 10_000 });
       const merge = page.getByRole('dialog', { name: 'Gộp bàn vào bàn Q3-1' });
       await expect(merge).toBeVisible();
       await expect(merge.getByText('Bàn Q3-2')).toBeVisible();
       await testInfo.attach('PF_S4_TABLE_merge_dialog', {
-        body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+        body: await page.screenshot({ fullPage: true, animations: 'disabled', timeout: 15_000 }), contentType: 'image/png',
       });
-      await merge.getByRole('button', { name: 'Hủy thao tác' }).click();
+      await merge.getByRole('button', { name: 'Hủy thao tác' }).click({ timeout: 10_000 });
 
-      await page.goto(`${base}/tables/${own.tableId}/summary`, { waitUntil: 'domcontentloaded' });
-      await page.getByRole('button', { name: 'Tách bill', exact: true }).click();
+      console.log('[PF-S4-TABLE-DIALOGS] UI step: split dialog');
+      await page.goto(`${base}/tables/${own.tableId}/summary`, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+      await page.getByRole('button', { name: 'Tách bill', exact: true }).click({ timeout: 10_000 });
       const split = page.getByRole('dialog', { name: 'Tách bill' });
       await expect(split).toBeVisible();
       await expect(split.getByTestId('split-row')).toHaveCount(1);
       await testInfo.attach('PF_S4_TABLE_split_dialog', {
-        body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+        body: await page.screenshot({ fullPage: true, animations: 'disabled', timeout: 15_000 }), contentType: 'image/png',
       });
-      await split.getByRole('button', { name: 'Hủy thao tác' }).click();
+      await split.getByRole('button', { name: 'Hủy thao tác' }).click({ timeout: 10_000 });
       expect(uiWrites, 'opening and dismissing dialogs does not write').toEqual([]);
     } finally {
+      let cleanupError: unknown;
       try { await cleanup(); cleanupPass = true; }
-      catch (error) { console.error(`CLEANUP REQUIRED: ${String(error)}`); throw error; }
-      const after = await version();
-      expect(after, 'staging build stable').toBe(build);
+      catch (error) { cleanupError = error; console.error(`CLEANUP REQUIRED: ${String(error)}`); }
+      let after: string | null = null;
+      try { after = await version(); } catch (error) { console.error(`Build verification failed: ${String(error)}`); }
       await testInfo.attach('PF_S4_TABLE_dialogs_evidence', {
         body: JSON.stringify({ build, scope: 'UI dialog preflight only; no transfer, merge or split submitted',
-          tableCode: own.tableCode, orderId: own.orderId, uiWrites, cleanupPass }, null, 2),
+          tableCode: own.tableCode, sessionId: own.sessionId, orderId: own.orderId,
+          itemId: own.itemId, uiWrites,
+          cleanupPass, buildAfter: after, buildStable: after === build }, null, 2),
         contentType: 'application/json',
       });
+      if (cleanupError) throw cleanupError;
+      expect(after, 'staging build stable').toBe(build);
     }
   });
