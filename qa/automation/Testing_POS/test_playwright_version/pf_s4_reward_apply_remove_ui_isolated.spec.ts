@@ -266,7 +266,7 @@ test('PF-S4-REWARD-APPLY-REMOVE-UI | apply and remove own eligible reward',
       const rewardRow = page.getByTestId('reward-row').filter({ hasText: own.rewardName! });
       await expect(rewardRow).toBeVisible({ timeout: 15_000 });
       const applyButton = rewardRow.getByRole('button',
-        { name: /^(Áp dụng(?: ưu đãi)?|Áp ưu đãi|Sử dụng)$/i });
+        { name: /^(Áp dụng(?: ưu đãi)?|Áp ưu đãi|Sử dụng)(?:\s|$)/i });
       if (!await applyButton.count()) throw new Error(
         'PENDING_UI_SELECTOR: eligible reward apply control; visible buttons ' +
         JSON.stringify(await buttonNames()));
@@ -289,7 +289,7 @@ test('PF-S4-REWARD-APPLY-REMOVE-UI | apply and remove own eligible reward',
         contentType: 'image/png',
       });
       const removeButton = page.getByRole('button',
-        { name: /^(Gỡ(?: ưu đãi| khỏi đơn)?|Bỏ(?: ưu đãi| áp dụng)|Xóa ưu đãi|Hủy ưu đãi)$/i });
+        { name: /^(Gỡ|Bỏ ưu đãi|Bỏ áp dụng|Xóa ưu đãi|Hủy ưu đãi)(?:\s|$)/i });
       if (!await removeButton.count()) throw new Error(
         'PENDING_UI_SELECTOR: applied reward remove control; visible buttons ' +
         JSON.stringify(await buttonNames()));
