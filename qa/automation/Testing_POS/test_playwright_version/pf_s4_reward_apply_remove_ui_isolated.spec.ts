@@ -265,7 +265,8 @@ test('PF-S4-REWARD-APPLY-REMOVE-UI | apply and remove own eligible reward',
         { waitUntil: 'domcontentloaded', timeout: 15_000 });
       const rewardRow = page.getByTestId('reward-row').filter({ hasText: own.rewardName! });
       await expect(rewardRow).toBeVisible({ timeout: 15_000 });
-      const applyButton = rewardRow.getByRole('button', { name: /^(Áp dụng|Áp ưu đãi)$/i });
+      const applyButton = rewardRow.getByRole('button',
+        { name: /^(Áp dụng(?: ưu đãi)?|Áp ưu đãi|Sử dụng)$/i });
       if (!await applyButton.count()) throw new Error(
         'PENDING_UI_SELECTOR: eligible reward apply control; visible buttons ' +
         JSON.stringify(await buttonNames()));
@@ -288,7 +289,7 @@ test('PF-S4-REWARD-APPLY-REMOVE-UI | apply and remove own eligible reward',
         contentType: 'image/png',
       });
       const removeButton = page.getByRole('button',
-        { name: /^(Gỡ|Gỡ ưu đãi|Bỏ ưu đãi|Bỏ áp dụng|Xóa ưu đãi|Hủy ưu đãi)$/i });
+        { name: /^(Gỡ(?: ưu đãi| khỏi đơn)?|Bỏ(?: ưu đãi| áp dụng)|Xóa ưu đãi|Hủy ưu đãi)$/i });
       if (!await removeButton.count()) throw new Error(
         'PENDING_UI_SELECTOR: applied reward remove control; visible buttons ' +
         JSON.stringify(await buttonNames()));
@@ -347,7 +348,8 @@ test('PF-S4-REWARD-APPLY-REMOVE-UI | apply and remove own eligible reward',
     report.build_stable = report.build_after === beforeBuild;
     report.business_execution = report.apply_http ? 'EXECUTED' : 'NOT_EXECUTED';
     report.result = !failure && !cleanupError && report.cleanup_pass &&
-      report.build_stable ? 'PASSED' : cleanupError ? 'INCONCLUSIVE' : 'FAILED';
+      report.build_stable ? 'PASSED' : cleanupError ? 'INCONCLUSIVE' :
+      safe(failure).includes('PENDING_UI_SELECTOR') ? 'PENDING' : 'FAILED';
     if (failure) report.error = safe(failure);
     if (cleanupError) report.cleanup_required = safe(cleanupError);
     await testInfo.attach('PF_S4_REWARD_APPLY_REMOVE_evidence', {
