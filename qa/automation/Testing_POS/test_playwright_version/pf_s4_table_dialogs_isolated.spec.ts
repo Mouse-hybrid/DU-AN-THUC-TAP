@@ -107,6 +107,26 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
       console.log(`[PF-S4-TABLE-DIALOGS] Cleanup passed: Q3-1/Q3-2 AVAILABLE, order ${own.orderId} CLOSED`);
     }
 
+    async function recordDialogControls(dialog: ReturnType<typeof page.getByRole>, label: string) {
+      const controls = await dialog.locator(
+        'button, input, select, textarea, [role="button"], [role="checkbox"], [role="radio"]',
+      ).evaluateAll(elements => elements.map(element => ({
+        tag: element.tagName.toLowerCase(),
+        type: element.getAttribute('type'),
+        role: element.getAttribute('role'),
+        ariaLabel: element.getAttribute('aria-label'),
+        testId: element.getAttribute('data-testid'),
+        name: element.getAttribute('name'),
+        text: (element.textContent || '').trim().slice(0, 80),
+        disabled: element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true',
+      })));
+      console.log(`[PF-S4-TABLE-DIALOGS] ${label} controls: ${JSON.stringify(controls)}`);
+      await testInfo.attach(`PF_S4_TABLE_${label}_controls`, {
+        body: JSON.stringify({ controls, ariaSnapshot: await dialog.ariaSnapshot() }, null, 2),
+        contentType: 'application/json',
+      });
+    }
+
     let cleanupPass = false;
     try {
       for (const role of ['admin', 'waiter', 'cashier', 'kitchen']) {
@@ -157,6 +177,7 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
       const transfer = page.getByRole('dialog', { name: 'Chuyển bàn Q3-1 sang bàn khác' });
       await expect(transfer).toBeVisible();
       await expect(transfer.getByText('Bàn Q3-2')).toBeVisible();
+      await recordDialogControls(transfer, 'transfer');
       await testInfo.attach('PF_S4_TABLE_transfer_dialog', {
         body: await page.screenshot({ fullPage: true, animations: 'disabled', timeout: 15_000 }), contentType: 'image/png',
       });
@@ -167,6 +188,7 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
       const merge = page.getByRole('dialog', { name: 'Gộp bàn vào bàn Q3-1' });
       await expect(merge).toBeVisible();
       await expect(merge.getByText('Bàn Q3-2')).toBeVisible();
+      await recordDialogControls(merge, 'merge');
       await testInfo.attach('PF_S4_TABLE_merge_dialog', {
         body: await page.screenshot({ fullPage: true, animations: 'disabled', timeout: 15_000 }), contentType: 'image/png',
       });
