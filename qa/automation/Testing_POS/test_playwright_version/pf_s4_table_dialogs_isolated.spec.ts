@@ -178,6 +178,24 @@ test('PF-S4-TABLE-DIALOGS | isolated QA3 transfer, merge and split dialogs',
       const split = page.getByRole('dialog', { name: 'Tách bill' });
       await expect(split).toBeVisible();
       await expect(split.getByTestId('split-row')).toHaveCount(1);
+      const splitControls = await split.locator(
+        'button, input, select, textarea, [role="button"], [role="checkbox"], [role="spinbutton"], [role="radio"]',
+      ).evaluateAll(elements => elements.map(element => ({
+        tag: element.tagName.toLowerCase(),
+        type: element.getAttribute('type'),
+        role: element.getAttribute('role'),
+        label: element.getAttribute('aria-label'),
+        testId: element.getAttribute('data-testid'),
+        name: element.getAttribute('name'),
+        text: (element.textContent || '').trim().slice(0, 80),
+        disabled: element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true',
+      })));
+      const splitSnapshot = await split.ariaSnapshot();
+      console.log('[PF-S4-TABLE-DIALOGS] Split controls: ' + JSON.stringify(splitControls));
+      await testInfo.attach('PF_S4_TABLE_split_controls', {
+        body: JSON.stringify({ controls: splitControls, ariaSnapshot: splitSnapshot }, null, 2),
+        contentType: 'application/json',
+      });
       await testInfo.attach('PF_S4_TABLE_split_dialog', {
         body: await page.screenshot({ fullPage: true, animations: 'disabled', timeout: 15_000 }), contentType: 'image/png',
       });
