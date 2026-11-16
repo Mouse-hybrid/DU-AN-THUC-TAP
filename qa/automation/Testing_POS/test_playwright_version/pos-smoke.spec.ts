@@ -97,3 +97,77 @@ test.describe('POS System | authenticated role navigation (read-only)', () => {
     });
   }
 });
+
+
+// S4-UX-001: unauthenticated navigation stability beyond the one-shot PF route checks.
+// One test, read-only, with no credentials or owned fixture required.
+test('S4-UX-001 | anonymous tables remain protected after refresh and history', async ({ page, request }, testInfo) => {
+  test.setTimeout(60_000);
+  const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
+  expect(base, 'approved staging origin').toBe('http://160.191.47.17');
+  const before = await request.get(base + '/version', { timeout: 20_000 });
+  expect(before.status(), 'version before UI test').toBe(200);
+  const build = (await before.json()).commit as string;
+  expect(build).toMatch(/^[0-9a-f]{40}$/);
+  if (process.env.POS_EXPECTED_COMMIT) {
+    expect(build, 'pinned staging build').toBe(process.env.POS_EXPECTED_COMMIT);
+  }
+
+  const tableReads: Array<{ status: number }> = [];
+  const businessWrites: string[] = [];
+  page.on('response', response => {
+    const u = new URL(response.url());
+    if (u.origin === base && u.pathname === '/api/v1/tables' &&
+        response.request().method() === 'GET') {
+      tableReads.push({ status: response.status() });
+    }
+  });
+  page.on('request', req => {
+    const u = new URL(req.url());
+    if (u.origin === base && u.pathname.startsWith('/api/v1/') &&
+        !['GET', 'HEAD'].includes(req.method())) {
+      businessWrites.push(req.method() + ' ' + u.pathname);
+    }
+  });
+
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByLabel('Mật khẩu', { exact: true })).toBeVisible();
+  await page.goto('/tables', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/login(?:[?#].*)?$/);
+  await expect(page.getByLabel('Mật khẩu', { exact: true })).toBeVisible();
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/login(?:[?#].*)?$/);
+  await page.goBack({ waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/login(?:[?#].*)?$/);
+  await page.goForward({ waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/login(?:[?#].*)?$/);
+  await expect(page.getByLabel('Mật khẩu', { exact: true })).toBeVisible();
+
+  expect(tableReads.filter(x => x.status === 200), 'no table list was exposed').toEqual([]);
+  expect(businessWrites, 'no API mutation').toEqual([]);
+  const after = await request.get(base + '/version', { timeout: 20_000 });
+  expect(after.status(), 'version after UI test').toBe(200);
+  expect((await after.json()).commit, 'stable staging build').toBe(build);
+
+  const evidence = {
+    test_ref: 'S4-UX-001',
+    result: 'PASSED',
+    build,
+    project: testInfo.project.name,
+    scope: 'anonymous /tables redirect, refresh and Back/Forward; API reads and no writes',
+    final_path: new URL(page.url()).pathname,
+    table_get_statuses: tableReads.map(x => x.status),
+    business_writes: businessWrites,
+    secrets_recorded: false
+  };
+  await testInfo.attach('S4_UX_001_evidence', {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json'
+  });
+  await testInfo.attach('S4_UX_001_login_screen', {
+    body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
+    contentType: 'image/png'
+  });
+  console.log('S4_UX_001_EVIDENCE=' + JSON.stringify(evidence));
+});
