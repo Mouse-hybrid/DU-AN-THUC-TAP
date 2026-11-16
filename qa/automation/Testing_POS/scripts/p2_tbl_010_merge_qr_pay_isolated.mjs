@@ -134,7 +134,7 @@ function cleanup() {
 
 const report = { run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2TBL010',
   test_ref: 'P2-TBL-010', checked_at: new Date().toISOString(),
-  scope: 'QA3 API QR item survives table merge; paying master bill releases both tables to CLEANING; UI not tested',
+  scope: 'QA3 API QR item survives table merge; simulated payment releases both tables to CLEANING; UI and gateway not tested',
   secrets_recorded: false, result: 'INCONCLUSIVE' };
 let buildBefore, buildAfter, asserted = false, executed = false, cleanupPass = false, failure;
 try {
@@ -200,6 +200,10 @@ try {
     { table_ids: [owned.secondary.tableId] }), 200, 'merge occupied tables');
   const masterTable = table(owned.primary), mergedTable = table(owned.secondary);
   const master = order(owned.primary), sourceOrder = order(owned.secondary), tickets = queue();
+  const mergeAudit = must(get(`/api/v1/audit-logs?action=TABLE_MERGED&entity_id=${owned.primary.sessionId}`,
+    'admin'), 200, 'merge audit');
+  const sourceAudit = must(get(`/api/v1/audit-logs?action=ORDER_MERGED&entity_id=${owned.secondary.orderId}`,
+    'admin'), 200, 'source order audit');
   const revoked = get(`/api/v1/public/qr/${owned.qrToken}`);
   if (revoked.http === 401) owned.qrIssued = false;
   report.checks = {
@@ -220,6 +224,12 @@ try {
       [owned.primary.ticketId, owned.secondary.ticketId].every(id => tickets.some(t => t.id === id)) &&
       tickets.every(t => t.order_id === owned.primary.orderId && t.table_code === owned.primary.code),
     secondary_qr_revoked: revoked.http === 401,
+    merge_audit_once: mergeAudit.filter(a => a.action === 'TABLE_MERGED' &&
+      a.entity_id === owned.primary.sessionId && a.staff_role === 'WAITER' &&
+      Number.isFinite(Date.parse(a.created_at))).length === 1 &&
+      sourceAudit.filter(a => a.action === 'ORDER_MERGED' &&
+        a.entity_id === owned.secondary.orderId &&
+        a.payload?.into_order_id === owned.primary.orderId).length === 1,
   };
   report.primary_table = owned.primary.code; report.secondary_table = owned.secondary.code;
   report.master_session_id = owned.primary.sessionId;
@@ -239,6 +249,8 @@ try {
   // /pay returns OrderOut, which has no subtotal. Read OrderDetailOut for totals.
   const paidDetail = order(owned.primary);
   const paidPrimary = table(owned.primary), paidSecondary = table(owned.secondary);
+  const paidAudit = must(get(`/api/v1/audit-logs?action=ORDER_PAID&entity_id=${owned.primary.orderId}`,
+    'admin'), 200, 'paid order audit');
   report.checks.paid_master_bill = paid.status === 'PAID' && paidDetail.status === 'PAID' &&
     Math.round(Number(paidDetail.subtotal) * 100) === expectedSubtotal &&
     Number(paidDetail.amount_due) === 0 &&
@@ -246,6 +258,9 @@ try {
   report.checks.both_tables_cleaning = paidPrimary.status === 'CLEANING' &&
     paidSecondary.status === 'CLEANING' && !paidPrimary.current_session &&
     !paidSecondary.current_session && !paidSecondary.merged_into_table_id;
+  report.checks.payment_audit_once = paidAudit.filter(a => a.action === 'ORDER_PAID' &&
+    a.entity_id === owned.primary.orderId && a.staff_role === 'CASHIER' &&
+    Number.isFinite(Date.parse(a.created_at))).length === 1;
   asserted = Object.values(report.checks).every(Boolean);
   if (!asserted) throw new Error('Paid bill or both CLEANING table states mismatch');
 } catch (error) { failure = redact(error.message || error); }
