@@ -215,7 +215,9 @@ test('PF-P2-PAY-010-SERVED-UI | QA3 double taps split of served items',
       await expect(dialog.getByTestId('split-row')).toHaveCount(2);
       const moveRow = dialog.getByTestId('split-row').filter({ hasText: moveMenu.name });
       await expect(moveRow, 'select only the owned move item').toHaveCount(1);
-      await moveRow.locator('input[type="checkbox"]').check({ timeout: 10_000 });
+      const quantityButtons = moveRow.locator('button');
+      await expect(quantityButtons, 'served item uses decrement/increment controls').toHaveCount(2);
+      await quantityButtons.nth(1).click({ timeout: 10_000 });
       const submit = dialog.getByRole('button', { name: 'Tách bill', exact: true });
       await expect(submit).toBeEnabled();
       const [response] = await Promise.all([
