@@ -52,6 +52,12 @@ function queue(status) {
   if (!Array.isArray(rows)) throw new Error('Kitchen queue is not an array');
   return rows.filter(x => [owned.primary.orderId, owned.secondary.orderId].includes(x.order_id));
 }
+function ticketSnapshot() {
+  return [...queue(), ...queue('DONE')].map(x => ({
+    id: x.id, order_id: x.order_id, order_item_id: x.order_item_id,
+    table_code: x.table_code, status: x.status,
+  })).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+}
 function finishOrder(x) {
   if (!x.sessionId) return;
   if (!x.orderId) {
@@ -152,6 +158,7 @@ try {
   const path = `/api/v1/tables/${owned.primary.tableId}/merge`;
   const body = { table_ids: [owned.secondary.tableId] };
   const primaryBefore = order(owned.primary), secondaryBefore = order(owned.secondary);
+  const ticketsBeforeBilling = ticketSnapshot();
   if (table(owned.secondary).status !== 'BILLING' || table(owned.primary).status !== 'OCCUPIED')
     throw new Error('PENDING_FIXTURE: BILLING secondary state unavailable');
   executed = true;
@@ -161,7 +168,10 @@ try {
     table(owned.secondary).current_session?.id === owned.secondary.sessionId &&
     table(owned.secondary).status === 'BILLING' &&
     order(owned.primary).items[0]?.id === primaryBefore.items[0]?.id &&
-    order(owned.secondary).items[0]?.id === secondaryBefore.items[0]?.id;
+    order(owned.secondary).items[0]?.id === secondaryBefore.items[0]?.id &&
+    order(owned.primary).subtotal === primaryBefore.subtotal &&
+    order(owned.secondary).subtotal === secondaryBefore.subtotal &&
+    JSON.stringify(ticketSnapshot()) === JSON.stringify(ticketsBeforeBilling);
   report.http = { billing_merge: billingAttempt.http };
   report.checks = { billing_rejected_without_mutation: billingCheck };
   if (!billingCheck) throw new Error('Merge with BILLING table accepted or changed fixture');
@@ -169,11 +179,14 @@ try {
   const paid = order(owned.secondary);
   if (table(owned.secondary).status !== 'CLEANING' || paid.status !== 'PAID')
     throw new Error('PENDING_FIXTURE: CLEANING secondary state unavailable');
+  const ticketsBeforeCleaning = ticketSnapshot();
   const cleaningAttempt = post(path, 'waiter', body);
   const cleaningCheck = cleaningAttempt.http === 409 &&
     table(owned.primary).current_session?.id === owned.primary.sessionId &&
     !table(owned.secondary).current_session && table(owned.secondary).status === 'CLEANING' &&
-    order(owned.secondary).id === paid.id && order(owned.secondary).status === 'PAID';
+    order(owned.primary).items[0]?.id === primaryBefore.items[0]?.id &&
+    order(owned.secondary).id === paid.id && order(owned.secondary).status === 'PAID' &&
+    JSON.stringify(ticketSnapshot()) === JSON.stringify(ticketsBeforeCleaning);
   report.http.cleaning_merge = cleaningAttempt.http;
   report.checks.cleaning_rejected_without_mutation = cleaningCheck;
   report.primary_table = owned.primary.code; report.secondary_table = owned.secondary.code;
