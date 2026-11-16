@@ -114,7 +114,7 @@ function cleanup() {
 
 const report = { run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2TBL004',
   test_ref: 'P2-TBL-004', checked_at: new Date().toISOString(),
-  scope: 'QA3 API transfer updates QR public table and KDS ticket table code; customer and kitchen UI not tested',
+  scope: 'QA3 API transfer updates QR public table and KDS ticket table code; BR-TT-010 source AVAILABLE; customer and kitchen UI not tested',
   token_recorded: false, secrets_recorded: false, result: 'INCONCLUSIVE' };
 let buildBefore, buildAfter, asserted = false, cleanupPass = false, executed = false, failure;
 try {
@@ -186,13 +186,13 @@ try {
       publicAfter.items?.length === publicBefore.items?.length &&
       publicAfter.items?.[0]?.id === publicBefore.items?.[0]?.id &&
       publicAfter.subtotal === publicBefore.subtotal,
-    table_states: afterSource.status === 'CLEANING' && afterTarget.status === 'OCCUPIED' &&
+    table_states: afterSource.status === 'AVAILABLE' && afterTarget.status === 'OCCUPIED' &&
       response.from_table?.id === owned.source.id && response.to_table?.id === owned.target.id,
   };
   report.source_table = owned.source.code; report.target_table = owned.target.code;
   report.session_id = owned.sessionId; report.order_id = owned.orderId;
   asserted = Object.values(report.checks).every(Boolean);
-  if (!asserted) throw new Error('Transfer failed to synchronize QR or KDS table identity');
+  if (!asserted) throw new Error('Transfer QR/KDS or BR-TT-010 source AVAILABLE assertion failed');
 } catch (error) { failure = redact(error.message || error); }
 finally {
   if (owned.sessionId) try { cleanupPass = cleanup(); }
