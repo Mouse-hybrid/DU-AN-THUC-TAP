@@ -1,5 +1,5 @@
 // P2-TBL-009: same-key replay and concurrent distinct-key merge on isolated QA3 fixtures.
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -14,13 +14,18 @@ if (!expected) { console.error('PENDING_BUILD: POS_EXPECTED_COMMIT missing; no r
 if (!password) { console.error('PENDING_FIXTURE: P2_QA_SEED_PASSWORD missing; no request sent'); process.exit(2); }
 
 const roles = {};
+const secondWaiter = {
+  username: 'qa_p2tbl009_' + Date.now() + '_' + randomBytes(3).toString('hex'),
+  password: randomBytes(24).toString('hex'), id: null, createAttempted: false,
+};
 const owned = {
   primary: { code: 'Q3-1', tableId: null, sessionId: null, orderId: null, itemId: null, ticketId: null },
   secondary: { code: 'Q3-2', tableId: null, sessionId: null, orderId: null, itemId: null, ticketId: null },
   menuId: null,
 };
 function redact(value) {
-  let safe = String(value).replaceAll(password, '<REDACTED>');
+  let safe = String(value).replaceAll(password, '<REDACTED>')
+    .replaceAll(secondWaiter.password, '<REDACTED>');
   for (const jwt of Object.values(roles)) safe = safe.replaceAll(jwt, '<REDACTED>');
   return safe;
 }
@@ -157,7 +162,7 @@ function cleanup() {
 
 const report = { run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2TBL009',
   test_ref: 'P2-TBL-009', checked_at: new Date().toISOString(),
-  scope: 'QA3 API same-key merge replay and simultaneous distinct-key merge; UI not tested',
+  scope: 'QA3 API same-key merge replay and simultaneous distinct-key merge by two distinct WAITER staff; UI not tested',
   secrets_recorded: false, result: 'INCONCLUSIVE', scenarios: [] };
 let buildBefore, buildAfter, executed = false, failure, cleanupPass = true;
 function resetOwned() {
@@ -222,12 +227,41 @@ try {
   const spec = must(get('/openapi.json'), 200, 'OpenAPI');
   if (!spec.paths?.['/api/v1/tables/{table_id}/merge']?.post)
     throw new Error('PENDING_CONTRACT: table merge absent');
+  if (!spec.paths?.['/api/v1/staff']?.post ||
+      !spec.paths?.['/api/v1/staff/{staff_id}/lock']?.post)
+    throw new Error('PENDING_CONTRACT: isolated second waiter lifecycle absent');
   for (const [name, role] of [['qa3_waiter', 'WAITER'], ['qa3_cashier', 'CASHIER'],
     ['qa3_kitchen', 'KITCHEN'], ['qa3_admin', 'SUPERVISOR']]) {
     const login = must(post('/api/v1/auth/login', null, { username: name, password }), 200, `${name} login`);
     if (login.staff?.role !== role || !login.access_token) throw new Error('PENDING_FIXTURE: QA3 role mismatch');
     roles[name.slice(4)] = login.access_token;
   }
+  const admin = must(get('/api/v1/auth/me', 'admin'), 200, 'QA3 admin identity');
+  if (!admin.outlet_id || admin.role !== 'SUPERVISOR')
+    throw new Error('PENDING_FIXTURE: QA3 supervisor outlet unavailable');
+  secondWaiter.createAttempted = true;
+  const staff = post('/api/v1/staff', 'admin', {
+    username: secondWaiter.username, password: secondWaiter.password,
+    full_name: 'QA P2TBL009 waiter', role: 'WAITER',
+  });
+  secondWaiter.id = staff.data?.id;
+  must(staff, 201, 'create second QA3 waiter');
+  if (!secondWaiter.id || staff.data?.outlet_id !== admin.outlet_id)
+    throw new Error('CLEANUP REQUIRED: second waiter identity unavailable');
+  const secondLogin = must(post('/api/v1/auth/login', null,
+    { username: secondWaiter.username, password: secondWaiter.password }),
+    200, 'second waiter login');
+  roles.waiter2 = secondLogin.access_token;
+  const secondIdentity = must(get('/api/v1/auth/me', 'waiter2'), 200,
+    'second waiter identity');
+  const firstIdentity = must(get('/api/v1/auth/me', 'waiter'), 200,
+    'first waiter identity');
+  if (!roles.waiter2 || secondIdentity.id !== secondWaiter.id ||
+    secondIdentity.role !== 'WAITER' || secondIdentity.outlet_id !== admin.outlet_id ||
+    firstIdentity.role !== 'WAITER' || firstIdentity.outlet_id !== admin.outlet_id ||
+    secondIdentity.id === firstIdentity.id)
+    throw new Error('PENDING_FIXTURE: distinct QA3 waiter identity mismatch');
+  report.waiters_distinct = true;
   const menu = must(get('/api/v1/menu?available_only=true', 'cashier'), 200, 'menu');
   owned.menuId = menu.find(x => x.is_available && x.station_id && !x.has_modifiers)?.id;
   if (!owned.menuId) throw new Error('PENDING_FIXTURE: mapped starter item unavailable');
@@ -249,7 +283,7 @@ try {
       } else {
         const responses = await Promise.allSettled([
           callAsync('POST', path, 'waiter', body, randomUUID()),
-          callAsync('POST', path, 'waiter', body, randomUUID()),
+          callAsync('POST', path, 'waiter2', body, randomUUID()),
         ]);
         if (responses.some(x => x.status === 'rejected'))
           throw new Error(`Concurrent HTTP client error: ${responses.filter(x => x.status === 'rejected')
@@ -281,10 +315,34 @@ try {
   }
 } catch (error) { failure = redact(error.message || error); }
 finally {
+  let staffCleanupPass = !secondWaiter.createAttempted;
+  if (secondWaiter.createAttempted) try {
+    if (!secondWaiter.id) {
+      const rows = must(get('/api/v1/staff', 'admin'), 200, 'discover own second waiter');
+      const matches = rows.filter(x => x.username === secondWaiter.username);
+      if (matches.length !== 1) throw new Error('CLEANUP REQUIRED: second waiter ambiguous');
+      secondWaiter.id = matches[0].id;
+    }
+    must(post(`/api/v1/staff/${secondWaiter.id}/lock`, 'admin'), 200,
+      'lock own second waiter');
+    const locked = must(get(`/api/v1/staff/${secondWaiter.id}`, 'admin'), 200,
+      'verify own second waiter lock');
+    staffCleanupPass = locked.is_active === false &&
+      (!roles.waiter2 || get('/api/v1/auth/me', 'waiter2').http === 401);
+    if (!staffCleanupPass) throw new Error('CLEANUP REQUIRED: second waiter remains active');
+  } catch (error) {
+    staffCleanupPass = false;
+    failure = `${failure ? `${failure}; ` : ''}${redact(error.message || error)}`;
+    report.cleanup_required = [report.cleanup_required,
+      `Inspect only QA3 staff ${secondWaiter.id || secondWaiter.username}; no global reset`]
+      .filter(Boolean).join('; ');
+  }
+  report.second_waiter_locked = staffCleanupPass && secondWaiter.createAttempted;
   try { buildAfter = version(); } catch {}
   report.build_after = buildAfter || null; report.build_stable = !!buildBefore && buildBefore === buildAfter;
   report.business_execution = executed ? 'EXECUTED' : 'NOT_EXECUTED';
-  report.cleanup_pass = report.scenarios.length > 0 && cleanupPass && report.scenarios.every(x => x.cleanup_pass);
+  report.cleanup_pass = report.scenarios.length > 0 && cleanupPass && staffCleanupPass &&
+    report.scenarios.every(x => x.cleanup_pass);
   report.orders_closed = report.cleanup_pass; report.tables_available = report.cleanup_pass;
   report.result = report.scenarios.length === 2 && report.scenarios.every(x => x.result === 'PASSED') &&
     report.cleanup_pass && report.build_stable ? 'PASSED' :
