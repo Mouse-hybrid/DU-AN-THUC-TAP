@@ -1,0 +1,31 @@
+{
+  "test_ref": "S4-UX-001",
+  "run_id": "GHA-43888824727",
+  "checked_at": "2026-11-16T14:44:57Z",
+  "environment": "staging QA3",
+  "project": "chromium",
+  "result": "PASSED",
+  "scope": "Anonymous UI /tables redirect, refresh and Back/Forward; four existing PF-UI-ROUTE-001..004 redirects also passed in same UI Smoke run. No authenticated business UI tested.",
+  "source_commit": "ff92a0c5fc8a3dd3c2209301c734c49e0a419308",
+  "staging_commit": "c7e9b0d60c569f6870cfd5da073747cc6d9a8e77",
+  "checks": {
+    "version_before_http_200": true,
+    "version_after_http_200": true,
+    "build_stable": true,
+    "anonymous_tables_redirect_to_login": true,
+    "refresh_stays_login": true,
+    "history_stays_login": true,
+    "protected_table_get_200_count": 0,
+    "business_writes": 0
+  },
+  "final_path": "/login",
+  "table_get_statuses": [],
+  "secrets_recorded": false,
+  "mutations": 0,
+  "workflow": "https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/43888824727",
+  "job_id": 133374178486,
+  "artifact": "playwright-report",
+  "artifact_id": 14235323093,
+  "artifact_expires_at": "2026-11-30T14:44:59Z",
+  "note": "CI job success; UI Smoke 5 passed including S4-UX-001. Result applies only to anonymous route guard. Screenshot and JSON attached to Playwright HTML report."
+}
