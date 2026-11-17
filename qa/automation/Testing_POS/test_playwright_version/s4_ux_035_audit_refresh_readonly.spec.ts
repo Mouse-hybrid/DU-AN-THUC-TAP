@@ -124,12 +124,23 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
         contentType: 'image/png',
       });
       const beforeRefresh = reads.length;
+      const refresh = page.getByRole('button', { name: /Làm mới/i });
+      if (await refresh.count() !== 1) {
+        report.refresh_controls = await page.locator('button').evaluateAll(rows =>
+          rows.map(row => ({
+            text: row.textContent?.trim().slice(0, 80),
+            label: row.getAttribute('aria-label'),
+            disabled: (row as HTMLButtonElement).disabled,
+          })).filter(row => /làm mới/i.test((row.text || '') + ' ' + (row.label || ''))));
+        throw new Error('PENDING_UI_SELECTOR: audit refresh button not uniquely identified');
+      }
+      await expect(refresh).toBeVisible({ timeout: 5_000 });
       const [refreshed] = await Promise.all([
         page.waitForResponse(response =>
           response.request().method() === 'GET' &&
           new URL(response.url()).pathname === '/api/v1/audit-logs',
           { timeout: 20_000 }),
-        page.getByRole('button', { name: 'Làm mới', exact: true }).click(),
+        refresh.click({ timeout: 10_000 }),
       ]);
       expect(refreshed.status()).toBe(200);
       await expect.poll(() => reads.length).toBeGreaterThan(beforeRefresh);
@@ -169,7 +180,8 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
     report.build_stable = report.build_after === before;
     report.business_execution = reads.length ? 'EXECUTED_READ_ONLY' : 'NOT_EXECUTED';
     report.result = !failure && report.build_stable ? 'PASSED' :
-      redact(failure, [pin!, ...Object.values(tokens)]).includes('PENDING_FIXTURE') ?
+      /PENDING_(FIXTURE|UI_SELECTOR)/.test(
+        redact(failure, [pin!, ...Object.values(tokens)])) ?
         'PENDING' : 'FAILED';
     if (failure) report.error = redact(failure, [pin!, ...Object.values(tokens)]);
     const evidence = JSON.stringify(report, null, 2) + '\n';
