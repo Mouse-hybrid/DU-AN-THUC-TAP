@@ -452,7 +452,10 @@ def test_existing_customer_on_order_is_not_replaced(client, seed, ctx):
     detail = client.get(f"/api/v1/orders/{order_id}", headers=ctx["cashier"]).json()
     assert detail["customer_id"] == first["id"]
     pending = client.get(f"/api/v1/orders/{order_id}/pending-member", headers=ctx["cashier"]).json()
-    assert pending == {"phone": "0902222222", "member_customer_id": other["id"]}
+    # Số đã là thành viên: thu ngân chỉ thấy dạng che, Supervisor thấy đủ (ADR 0004).
+    assert pending == {"phone": "090****222", "member_customer_id": other["id"]}
+    full = client.get(f"/api/v1/orders/{order_id}/pending-member", headers=ctx["supervisor"])
+    assert full.json()["phone"] == "0902222222"
 
 
 def test_locked_customer_is_not_linked(client, seed, ctx, db_session_factory):

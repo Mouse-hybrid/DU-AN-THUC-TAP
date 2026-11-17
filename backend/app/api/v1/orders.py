@@ -66,6 +66,7 @@ from app.core.payments import (
     reserved_amount,
 )
 from app.core.permissions import Permission
+from app.core.pii import can_see_full_phone, mask_phone
 from app.core.rbac import role_has
 from app.core.realtime import manager
 from app.db.base import get_session
@@ -919,7 +920,11 @@ def get_pending_member(
     session: Session = Depends(get_session),
 ) -> PendingMemberOut:
     """Số điện thoại khách nhập trên QR cho bàn của đơn này (specs/002-rewards-dot-3, FR-010).
-    Thu ngân xác nhận đồng ý rồi đăng ký bằng POST /customers, gắn bằng POST .../customer."""
+    Thu ngân xác nhận đồng ý rồi đăng ký bằng POST /customers, gắn bằng POST .../customer.
+
+    Che số (ADR 0004): số đã là thành viên thì vai trò không có `LOYALTY_MANAGE` chỉ thấy dạng
+    che, vì chỉ cần `member_customer_id` để gắn. Số chưa là thành viên thì trả đủ, vì thu ngân
+    cần đúng số đó để đăng ký."""
     order = _load_order_or_404(session, order_id, current.outlet_id, for_update=False)
     phone = order.table_session.pending_member_phone
     if phone is None:
@@ -931,6 +936,8 @@ def get_pending_member(
             Customer.is_active.is_(True),
         )
     ).scalar_one_or_none()
+    if member is not None and not can_see_full_phone(session, current.outlet_id, current.role):
+        phone = mask_phone(phone)
     return PendingMemberOut(phone=phone, member_customer_id=member)
 
 

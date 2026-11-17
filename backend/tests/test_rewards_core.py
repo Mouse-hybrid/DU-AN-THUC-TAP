@@ -101,7 +101,8 @@ def _pay(client, order_id, headers, key=None):
 def test_phone_is_normalized(client, seed, raw):
     resp = _create_customer(client, login(client, "cashier_test"), phone=raw)
     assert resp.status_code == 201, resp.text
-    assert resp.json()["phone"] == PHONE
+    # Thu ngân chỉ thấy số đã che (ADR 0004); số lưu đúng dạng chuẩn.
+    assert resp.json()["phone"] == "090****567"
     assert resp.json()["points_balance"] == 0
     assert resp.json()["member_code"].startswith("M")
 

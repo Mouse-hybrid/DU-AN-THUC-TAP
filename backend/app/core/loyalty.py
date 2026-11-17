@@ -108,6 +108,15 @@ def order_payable_amount(order: Order) -> Decimal:
     )
 
 
+# Nghị định 81/2018: giá trị khuyến mại không quá 50% giá hàng (ADR 0004, P2-RFI-RWD).
+# Mỗi đơn chỉ có 1 ưu đãi, nên chặn ở từng ưu đãi cũng là chặn tổng giảm giá của đơn.
+LEGAL_MAX_DISCOUNT_PERCENT = 50
+
+
+def legal_discount_cap(subtotal: Decimal) -> Decimal:
+    return _floor(subtotal * LEGAL_MAX_DISCOUNT_PERCENT / 100)
+
+
 @dataclass(frozen=True)
 class RewardEvaluation:
     reason_code: str | None = None
@@ -130,7 +139,7 @@ def evaluate_reward(
     override: bool = False,
 ) -> RewardEvaluation:
     """`override`: Supervisor bỏ qua thời hạn, đơn tối thiểu, số lượt. Không bỏ qua được số
-    dư điểm hay trần đổi điểm vì đó là tiền thật của khách và của nhà hàng."""
+    dư điểm, trần đổi điểm hay trần 50% theo luật vì đó là tiền thật và là quy định."""
     if not reward.is_active:
         return RewardEvaluation("INACTIVE")
     if not override:
@@ -152,7 +161,7 @@ def evaluate_reward(
         if rule is None:
             return RewardEvaluation("NO_RULE")
         value = Decimal(rule.redeem_value_per_point)
-        cap = subtotal * rule.max_redeem_percent / 100
+        cap = min(subtotal * rule.max_redeem_percent / 100, legal_discount_cap(subtotal))
         if reward.max_discount is not None:
             cap = min(cap, Decimal(reward.max_discount))
         max_points = int(_floor(cap / value))
@@ -173,7 +182,7 @@ def evaluate_reward(
     )
     if reward.max_discount is not None:
         amount = min(amount, Decimal(reward.max_discount))
-    amount = min(amount, subtotal)
+    amount = min(amount, legal_discount_cap(subtotal))
     if amount <= 0:
         return RewardEvaluation("ZERO_DISCOUNT")
     return RewardEvaluation(discount=amount)

@@ -39,6 +39,7 @@ from app.core.deps import (
 )
 from app.core.loyalty import add_points, current_rule, lock_customer
 from app.core.permissions import Permission
+from app.core.pii import can_see_full_phone, mask_phone
 from app.core.rbac import role_has
 from app.db.base import get_session
 from app.db.models import (
@@ -88,6 +89,13 @@ def _remember(session: Session, key: str, endpoint: str, request_hash: str, body
     )
 
 
+def _customer_out(session: Session, current: CurrentStaff, customer: CustomerOut) -> CustomerOut:
+    """Che số điện thoại nếu vai trò không có quyền xem đủ (ADR 0004)."""
+    if can_see_full_phone(session, current.outlet_id, current.role):
+        return customer
+    return customer.model_copy(update={"phone": mask_phone(customer.phone)})
+
+
 @customers_router.get("", response_model=list[CustomerOut])
 def list_customers(
     phone: str | None = Query(default=None, max_length=20),
@@ -109,7 +117,10 @@ def list_customers(
         except ValueError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     stmt = stmt.order_by(Customer.created_at.desc(), Customer.id).limit(limit).offset(offset)
-    return [CustomerOut.model_validate(c) for c in session.scalars(stmt).all()]
+    return [
+        _customer_out(session, current, CustomerOut.model_validate(c))
+        for c in session.scalars(stmt).all()
+    ]
 
 
 @customers_router.post("", response_model=CustomerOut, status_code=status.HTTP_201_CREATED)
@@ -125,7 +136,9 @@ def create_customer(
         session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
     )
     if existing is not None:
-        return CustomerOut.model_validate_json(existing.response_body)
+        return _customer_out(
+            session, current, CustomerOut.model_validate_json(existing.response_body)
+        )
 
     phone_taken = HTTPException(status.HTTP_409_CONFLICT, detail="Số điện thoại đã có khách hàng")
     duplicate = session.execute(
@@ -161,9 +174,10 @@ def create_customer(
         entity_id=customer.id,
     )
     result = CustomerOut.model_validate(customer)
+    # Lưu bản đủ, che lúc trả về: gửi lại cùng key vẫn che đúng theo vai trò người gọi.
     _remember(session, idempotency_key, endpoint, request_hash, result.model_dump_json())
     session.commit()
-    return result
+    return _customer_out(session, current, result)
 
 
 @customers_router.get("/{customer_id}", response_model=CustomerOut)
@@ -172,7 +186,8 @@ def get_customer(
     current: CurrentStaff = Depends(require_permission(Permission.CUSTOMER_ACCESS)),
     session: Session = Depends(get_session),
 ) -> CustomerOut:
-    return CustomerOut.model_validate(_customer_or_404(session, customer_id, current.outlet_id))
+    customer = _customer_or_404(session, customer_id, current.outlet_id)
+    return _customer_out(session, current, CustomerOut.model_validate(customer))
 
 
 @customers_router.patch("/{customer_id}", response_model=CustomerOut)
@@ -204,7 +219,7 @@ def update_customer(
     )
     session.commit()
     session.refresh(customer)
-    return CustomerOut.model_validate(customer)
+    return _customer_out(session, current, CustomerOut.model_validate(customer))
 
 
 @customers_router.get("/{customer_id}/points", response_model=list[PointsEntryOut])
@@ -378,9 +393,9 @@ def update_reward(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Ưu đãi đổi điểm không có value"
         )
-    if "value" in changes and reward.reward_type == "PERCENT" and changes["value"] > 100:
+    if "value" in changes and reward.reward_type == "PERCENT" and changes["value"] > 50:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phần trăm không được quá 100"
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Theo Nghị định 81, giảm tối đa 50%"
         )
     valid_from = changes.get("valid_from", reward.valid_from)
     valid_to = changes.get("valid_to", reward.valid_to)

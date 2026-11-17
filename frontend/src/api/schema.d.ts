@@ -531,6 +531,10 @@ export interface paths {
          * Get Pending Member
          * @description Số điện thoại khách nhập trên QR cho bàn của đơn này (specs/002-rewards-dot-3, FR-010).
          *     Thu ngân xác nhận đồng ý rồi đăng ký bằng POST /customers, gắn bằng POST .../customer.
+         *
+         *     Che số (ADR 0004): số đã là thành viên thì vai trò không có `LOYALTY_MANAGE` chỉ thấy dạng
+         *     che, vì chỉ cần `member_customer_id` để gắn. Số chưa là thành viên thì trả đủ, vì thu ngân
+         *     cần đúng số đó để đăng ký.
          */
         get: operations["get_pending_member_api_v1_orders__order_id__pending_member_get"];
         put?: never;
