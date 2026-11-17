@@ -3,6 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
+// Sandbox card/OTP and signed URLs must not enter automatic video/trace artifacts.
+test.use({ video: 'off', trace: 'off', screenshot: 'off' });
+
 test('P2-PAY-003 | QA3 VNPay sandbox succeeds and settles one bill',
   async ({ browser, request }, testInfo) => {
     test.setTimeout(21 * 60_000);
@@ -313,7 +316,7 @@ test('P2-PAY-003 | QA3 VNPay sandbox succeeds and settles one bill',
     });
     console.log(`[P2-PAY-003] Evidence: .\\evidence\\${name}`);
     console.log('[P2-PAY-003] Result: ' + JSON.stringify(report));
-    if (cleanupError) throw cleanupError;
-    if (failure) throw failure;
+    if (cleanupError) throw new Error(redact(cleanupError));
+    if (failure) throw new Error(redact(failure));
     expect(report.build_stable).toBe(true);
   });
