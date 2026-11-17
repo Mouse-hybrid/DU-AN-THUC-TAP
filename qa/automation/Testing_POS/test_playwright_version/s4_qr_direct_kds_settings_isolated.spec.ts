@@ -93,6 +93,10 @@ test('S4-QR-DIRECT-KDS-SETTINGS | QA3 QR sends a noted item and records mode cha
     const order = () => checked('GET', `/api/v1/orders/${own.orderId}`, 'cashier', 200);
     const table = () => checked('GET', `/api/v1/tables/${own.tableId}`, 'waiter', 200);
     const audit = (path: string) => checked('GET', path, 'admin', 200) as Promise<any[]>;
+    const settingsAudit = () => audit('/api/v1/audit-logs?' + new URLSearchParams({
+      action: 'OUTLET_SETTINGS_UPDATED', entity_type: 'outlet',
+      entity_id: report.qa3_outlet_id, sort: 'desc', limit: '100',
+    }).toString());
     async function cleanup() {
       if (!own.sessionId) { report.cleanup_pass = true; return; }
       const observed = await table();
@@ -237,14 +241,14 @@ test('S4-QR-DIRECT-KDS-SETTINGS | QA3 QR sends a noted item and records mode cha
       await expect(noteOnTicket).toHaveCount(1, { timeout: 12_000 });
       await expect(noteOnTicket).toBeVisible();
       report.checks.kds_note_visible = true;
-      const beforeAudit = await audit('/api/v1/audit-logs?limit=100');
+      const beforeAudit = await settingsAudit();
       const auditIds = new Set(beforeAudit.map(row => row.id));
       const changed = await checked('PATCH', '/api/v1/outlet/settings',
         'admin', 200, { qr_send_mode: 'CONFIRM' });
       report.settings_confirm_http = 200;
       report.checks.confirm_mode = changed.qr_send_mode === 'CONFIRM' &&
         (await settings()).qr_send_mode === 'CONFIRM';
-      const changedAudit = await audit('/api/v1/audit-logs?limit=100');
+      const changedAudit = await settingsAudit();
       const transition = changedAudit.filter(row => !auditIds.has(row.id) &&
         row.action === 'OUTLET_SETTINGS_UPDATED' &&
         row.payload?.qr_send_mode?.before === 'DIRECT' &&
@@ -255,12 +259,17 @@ test('S4-QR-DIRECT-KDS-SETTINGS | QA3 QR sends a noted item and records mode cha
       report.settings_restore_http = 200;
       report.checks.direct_restored = restored.qr_send_mode === originalMode &&
         (await settings()).qr_send_mode === originalMode;
-      const finalAudit = await audit('/api/v1/audit-logs?limit=100');
+      const finalAudit = await settingsAudit();
       const restoreRows = finalAudit.filter(row => !auditIds.has(row.id) &&
         row.action === 'OUTLET_SETTINGS_UPDATED' &&
         row.payload?.qr_send_mode?.before === 'CONFIRM' &&
         row.payload?.qr_send_mode?.after === 'DIRECT');
       report.checks.restore_audit_once = restoreRows.length === 1;
+      report.settings_audit_counts = {
+        before: beforeAudit.length, after_confirm: changedAudit.length,
+        after_restore: finalAudit.length,
+        confirm_transition: transition.length, restore_transition: restoreRows.length,
+      };
       if (!Object.values(report.checks).every(Boolean))
         throw new Error('QR DIRECT/KDS/settings mismatch: ' +
           JSON.stringify(report.checks));
