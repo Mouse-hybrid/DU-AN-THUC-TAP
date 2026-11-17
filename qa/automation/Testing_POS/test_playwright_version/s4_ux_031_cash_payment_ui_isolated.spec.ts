@@ -242,14 +242,14 @@ test('S4-UX-031 | CASHIER records full CASH payment in the UI',
       await expect(openForm).toBeVisible();
       await openForm.click();
       const dialog = cashier.getByRole('dialog').filter({ hasText: /thanh toán/i });
-      if (!await dialog.count()) {
+      try { await dialog.waitFor({ state: 'visible', timeout: 5_000 }); }
+      catch {
         await testInfo.attach('S4_UX_031_payment_form_diagnostic', {
           body: await cashier.screenshot({ fullPage: true, animations: 'disabled' }),
           contentType: 'image/png',
         });
         throw new Error('PENDING_UI_SELECTOR: payment dialog absent after Ghi nhận thanh toán');
       }
-      await expect(dialog).toBeVisible();
       report.form_controls = await dialog.locator('input,select,button').evaluateAll(rows =>
         rows.map(row => ({ tag: row.tagName.toLowerCase(),
           type: row.getAttribute('type'), name: row.getAttribute('name'),
