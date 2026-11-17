@@ -16,6 +16,16 @@ interface RequestOptions<TBody> {
   body?: TBody;
   auth?: boolean;
   idempotencyKey?: string;
+  /** Hủy request khi màn hình không cần kết quả nữa (vd người dùng vừa đổi bộ lọc). */
+  signal?: AbortSignal | undefined;
+}
+
+/** Request bị hủy chủ động (đổi bộ lọc, rời màn hình): người gọi bỏ qua, không báo lỗi. */
+export class RequestCancelled extends Error {
+  constructor() {
+    super("Request cancelled");
+    this.name = "RequestCancelled";
+  }
 }
 
 export class ApiError extends Error {
@@ -133,6 +143,8 @@ async function fetchOnce<TResponse, TBody>(path: string, options: RequestOptions
 
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const cancel = () => controller.abort();
+  options.signal?.addEventListener("abort", cancel);
   try {
     const requestInit: RequestInit = {
       method,
@@ -151,6 +163,7 @@ async function fetchOnce<TResponse, TBody>(path: string, options: RequestOptions
     return payload as TResponse;
   } finally {
     window.clearTimeout(timer);
+    options.signal?.removeEventListener("abort", cancel);
   }
 }
 
@@ -160,9 +173,11 @@ export async function apiRequest<TResponse, TBody = never>(
 ): Promise<TResponse> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (options.signal?.aborted) throw new RequestCancelled();
     try {
       return await fetchOnce<TResponse, TBody>(path, options);
     } catch (error) {
+      if (options.signal?.aborted) throw new RequestCancelled();
       lastError = error;
       const retryable = !(error instanceof ApiError) || error.status === 0;
       if (!retryable || attempt === 1 || !navigator.onLine) break;
