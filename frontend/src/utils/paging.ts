@@ -1,15 +1,20 @@
+import { RequestCancelled } from "../api/client";
+
 /**
  * Backend chỉ trả từng trang (limit/offset) và không có tổng số. Màn tra cứu cần tổng,
  * đếm theo trạng thái và phân trang, nên gom các trang liên tiếp tới khi hết dữ liệu
- * hoặc chạm giới hạn an toàn `maxPages`.
+ * hoặc chạm giới hạn an toàn `maxPages`. Có `signal` thì dừng ngay khi bị hủy (người dùng đổi
+ * bộ lọc), không tải tiếp các trang của bộ lọc cũ.
  */
 export async function fetchAllPages<T>(
   fetchPage: (offset: number, limit: number) => Promise<T[]>,
   pageSize: number,
   maxPages: number,
+  signal?: AbortSignal,
 ): Promise<{ rows: T[]; truncated: boolean }> {
   const rows: T[] = [];
   for (let page = 0; page < maxPages; page += 1) {
+    if (signal?.aborted) throw new RequestCancelled();
     const chunk = await fetchPage(page * pageSize, pageSize);
     rows.push(...chunk);
     if (chunk.length < pageSize) return { rows, truncated: false };
