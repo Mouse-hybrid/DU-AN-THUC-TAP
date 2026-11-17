@@ -674,6 +674,41 @@ def remove_order_item(
     return result
 
 
+def enqueue_for_kitchen(
+    session: Session, order: Order, items: list[OrderItem], *, staff_id: uuid.UUID | None
+) -> int:
+    """Đưa các món CREATED vào hàng đợi bếp: phiếu bếp theo trạm, món sang SENT, đơn sang
+    SENT, tăng version và lưu snapshot. Dùng cho nút "Gửi bếp" và cho món QR gửi thẳng
+    (`staff_id` None). Không commit, không publish event."""
+    for item in items:
+        menu_item = session.get(MenuItem, item.menu_item_id)
+        if menu_item.station_id is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Món '{menu_item.name}' chưa được gán kitchen_station — không thể gửi bếp",
+            )
+        session.add(
+            KitchenQueue(order_item_id=item.id, station_id=menu_item.station_id, status="QUEUED")
+        )
+        item.status = "SENT"
+
+    # Món gọi thêm sau khi order đã SERVED: order lại có món đang nấu → về SENT,
+    # phục vụ xong món cuối thì _maybe_mark_order_served đưa lại SERVED.
+    order.status = "SENT"
+    order.current_version += 1
+    session.flush()
+    session.refresh(order)
+    session.add(
+        OrderVersion(
+            order_id=order.id,
+            version_number=order.current_version,
+            snapshot=_snapshot_order(order),
+            created_by_staff_id=staff_id,
+        )
+    )
+    return len(items)
+
+
 @router.post("/{order_id}/send-to-kitchen", response_model=SendToKitchenResponse)
 def send_order_to_kitchen(
     order_id: uuid.UUID,
@@ -707,35 +742,7 @@ def send_order_to_kitchen(
             status.HTTP_409_CONFLICT, detail="Không có món nào ở trạng thái CREATED để gửi bếp"
         )
 
-    created_count = 0
-    for item in pending_items:
-        menu_item = session.get(MenuItem, item.menu_item_id)
-        if menu_item.station_id is None:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Món '{menu_item.name}' chưa được gán kitchen_station — không thể gửi bếp",
-            )
-        session.add(
-            KitchenQueue(order_item_id=item.id, station_id=menu_item.station_id, status="QUEUED")
-        )
-        item.status = "SENT"
-        created_count += 1
-
-    # Món gọi thêm sau khi order đã SERVED: order lại có món đang nấu → về SENT,
-    # phục vụ xong món cuối thì _maybe_mark_order_served đưa lại SERVED.
-    order.status = "SENT"
-    order.current_version += 1
-    session.flush()
-    session.refresh(order)
-
-    session.add(
-        OrderVersion(
-            order_id=order.id,
-            version_number=order.current_version,
-            snapshot=_snapshot_order(order),
-            created_by_staff_id=current.id,
-        )
-    )
+    created_count = enqueue_for_kitchen(session, order, pending_items, staff_id=current.id)
 
     write_audit_log(
         session,

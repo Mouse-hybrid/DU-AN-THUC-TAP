@@ -12,6 +12,7 @@ import {
   type QrTableInfo,
 } from "../api/qr";
 import { Button } from "../components/Button";
+import { MenuThumb } from "../components/MenuThumb";
 import { ModifierDialog } from "../components/ModifierDialog";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatVnd } from "../utils/format";
@@ -29,6 +30,8 @@ interface CartLine {
 
 const MAX_LINES = 20;
 const MAX_QTY = 20;
+// Khớp giới hạn `note` của API (QrOrderLine.note, tối đa 200 ký tự).
+const MAX_NOTE = 200;
 
 function fatalMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -43,7 +46,7 @@ function fatalMessage(error: unknown): string {
 function submitMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401 || error.status === 410) return fatalMessage(error);
-    if (error.status === 409) return "Không gửi được: có món hết hàng, bàn đang chờ thanh toán hoặc đã có quá nhiều món chờ xác nhận. Vui lòng kiểm tra lại hoặc gọi nhân viên.";
+    if (error.status === 409) return error.message || "Không gửi được: có món hết hàng hoặc bàn đang chờ thanh toán. Vui lòng kiểm tra lại hoặc gọi nhân viên.";
     if (error.status === 422) return error.message || "Món hoặc tùy chọn chưa hợp lệ.";
     if (error.status === 429) return "Quá nhiều lượt truy cập. Vui lòng thử lại sau vài giây.";
     if (error.status === 0) return navigator.onLine ? "Không thể kết nối. Giỏ hàng vẫn được giữ, vui lòng thử lại." : "Bạn đang ngoại tuyến. Giỏ hàng vẫn được giữ.";
@@ -106,6 +109,8 @@ export function QrOrderPage() {
   const total = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const count = cart.reduce((sum, line) => sum + line.quantity, 0);
   const locked = info?.ordering_locked ?? false;
+  // DIRECT: món vào bếp ngay; CONFIRM: chờ nhân viên xác nhận (cài đặt của cửa hàng).
+  const direct = (info?.send_mode ?? "DIRECT") === "DIRECT";
 
   function addLine(item: QrMenuItem, optionIds: string[]) {
     setMessage(null);
@@ -126,6 +131,10 @@ export function QrOrderPage() {
     if (!item.is_available) return;
     if (item.modifier_groups.some((group) => group.is_active)) setPicking(item);
     else addLine(item, []);
+  }
+
+  function changeNote(key: string, note: string) {
+    setCart((current) => current.map((line) => line.key === key ? { ...line, note: note.slice(0, MAX_NOTE) } : line));
   }
 
   function changeQty(key: string, delta: number) {
@@ -152,7 +161,7 @@ export function QrOrderPage() {
       await submitQrOrder(token, lines, key);
       pendingKey.current = null;
       setCart([]);
-      setMessage({ text: "Đã gửi món. Nhân viên sẽ xác nhận trong giây lát.", type: "ok" });
+      setMessage({ text: direct ? "Đã gửi món vào bếp. Món sẽ được phục vụ trong ít phút." : "Đã gửi món. Nhân viên sẽ xác nhận trong giây lát.", type: "ok" });
       await loadPlaced();
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 410)) setFatal(fatalMessage(error));
@@ -201,7 +210,8 @@ export function QrOrderPage() {
       <ul className="nova-qr-menu" aria-label="Thực đơn">
         {items.map((item) => (
           <li key={item.id} className="nova-qr-item" data-testid="qr-menu-item">
-            <div><strong>{item.name}</strong><small>{formatVnd(item.price)}{item.is_available ? "" : " · Hết món"}</small></div>
+            <MenuThumb name={item.name} className="nova-qr-thumb" />
+            <div className="nova-qr-item-text"><strong>{item.name}</strong><small>{formatVnd(item.price)}{item.is_available ? "" : " · Hết món"}</small></div>
             <Button variant="primary" type="button" accessibleLabel={`Thêm ${item.name}`} disabled={!item.is_available || locked} onClick={() => onAdd(item)}>Thêm</Button>
           </li>
         ))}
@@ -212,23 +222,31 @@ export function QrOrderPage() {
         {cart.length === 0 ? <p className="nova-readonly-note">Chưa chọn món nào.</p> : (
           <ul>
             {cart.map((line) => (
-              <li key={line.key} className="nova-qr-line">
-                <div>
-                  <strong>{line.item.name}</strong>
-                  {line.optionLabel ? <small>{line.optionLabel}</small> : null}
-                  <small>{formatVnd(String(line.unitPrice))}</small>
+              <li key={line.key} className="nova-qr-line nova-qr-line--cart">
+                <div className="nova-qr-line-main">
+                  <MenuThumb name={line.item.name} className="nova-qr-thumb nova-qr-thumb--small" />
+                  <div className="nova-qr-item-text">
+                    <strong>{line.item.name}</strong>
+                    {line.optionLabel ? <small>{line.optionLabel}</small> : null}
+                    <small>{formatVnd(String(line.unitPrice))}</small>
+                  </div>
+                  <div className="nova-split-stepper">
+                    <button type="button" aria-label={`Giảm ${line.item.name}`} onClick={() => changeQty(line.key, -1)}>−</button>
+                    <output aria-label={`Số lượng ${line.item.name}`}>{line.quantity}</output>
+                    <button type="button" aria-label={`Tăng ${line.item.name}`} disabled={line.quantity >= MAX_QTY} onClick={() => changeQty(line.key, 1)}>+</button>
+                  </div>
                 </div>
-                <div className="nova-split-stepper">
-                  <button type="button" aria-label={`Giảm ${line.item.name}`} onClick={() => changeQty(line.key, -1)}>−</button>
-                  <output aria-label={`Số lượng ${line.item.name}`}>{line.quantity}</output>
-                  <button type="button" aria-label={`Tăng ${line.item.name}`} disabled={line.quantity >= MAX_QTY} onClick={() => changeQty(line.key, 1)}>+</button>
-                </div>
+                <label className="nova-qr-note">
+                  <span>Ghi chú cho bếp</span>
+                  <input type="text" value={line.note} maxLength={MAX_NOTE} placeholder="Ví dụ: ít cay, không hành" aria-label={`Ghi chú cho ${line.item.name}`} onChange={(event) => changeNote(line.key, event.target.value)} />
+                </label>
               </li>
             ))}
           </ul>
         )}
         <div className="nova-order-total"><span>Tạm tính</span><strong data-testid="qr-cart-total">{formatVnd(String(total))}</strong></div>
-        <Button variant="primary" type="button" accessibleLabel="Gửi món cho nhân viên" busy={sending} disabled={cart.length === 0 || locked} onClick={() => void submit()}>Gửi món</Button>
+        <p className="nova-readonly-note">{direct ? "Món gửi xong sẽ vào bếp ngay, không sửa được sau khi gửi." : "Món gửi xong sẽ chờ nhân viên xác nhận trước khi vào bếp."}</p>
+        <Button variant="primary" type="button" accessibleLabel={direct ? "Gửi món vào bếp" : "Gửi món cho nhân viên"} busy={sending} disabled={cart.length === 0 || locked} onClick={() => void submit()}>Gửi món</Button>
       </section>
 
       <section className="nova-qr-placed" aria-label="Món đã gọi" data-testid="qr-placed">
@@ -240,6 +258,7 @@ export function QrOrderPage() {
                 <div>
                   <strong>{item.quantity} × {item.menu_item_name}</strong>
                   {item.modifiers.length > 0 ? <small>{item.modifiers.map((m) => m.option_name).join(", ")}</small> : null}
+                  {item.note ? <small>Ghi chú: {item.note}</small> : null}
                 </div>
                 {item.status === "CREATED" ? <StatusBadge status={item.status} label="Chờ xác nhận" /> : <StatusBadge status={item.status} />}
               </li>

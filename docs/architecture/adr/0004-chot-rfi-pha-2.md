@@ -116,7 +116,8 @@ Nguyên tắc chốt:
   - tối đa 30 món chờ;
   - tối đa 5 lần nhập số điện thoại.
 - **Gửi món:**
-  - Món khách gọi chờ phục vụ xác nhận.
+  - *Sửa 17/11 theo yêu cầu BE sau khi test luồng QR, khớp luồng QR của HLR:* món khách gọi **vào bếp ngay** (chế độ `DIRECT`, mặc định). Supervisor đổi sang "chờ phục vụ xác nhận" (`CONFIRM`, phiếu B6 cũ) cho từng cửa hàng ở `PATCH /outlet/settings`, có audit.
+  - Khách ghi chú được cho từng món (tối đa 200 ký tự), bếp thấy ghi chú.
   - Khách không sửa đơn sau khi gửi.
   - Đã yêu cầu thanh toán thì không gọi thêm.
   - Khách tự yêu cầu thanh toán được (#77).

@@ -11,6 +11,9 @@ import pytest
 from app.db.models import AuditLog, KitchenQueue, MenuItem, RestaurantTable, TableSession
 from tests.conftest import login
 
+# Các test này viết cho chế độ chờ phục vụ xác nhận (CONFIRM). DIRECT: test_qr_direct_kitchen.py.
+pytestmark = pytest.mark.usefixtures("qr_confirm_mode")
+
 
 def _open_table(client, table_id, headers):
     resp = client.post(

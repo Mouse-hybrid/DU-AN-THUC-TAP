@@ -157,16 +157,21 @@ Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. 
 | 50 | POST | `/api/v1/tables/{id}/qr-session` (cần `Idempotency-Key`) | C, W, S | 107 Mã QR theo bàn. Bàn chưa mở phiên trả 409; cấp lại thì mã cũ hết dùng. Trả `token`, `expires_at`, `path` (`/qr/{token}`) | ✅ |
 | 51 | GET | `/api/v1/tables/{id}/qr-session` | C, W, S | Xem lại mã còn hạn; không có trả 404 | ✅ |
 | 52 | DELETE | `/api/v1/tables/{id}/qr-session` | C, W, S | Thu hồi mã, trả 204 | ✅ |
-| 53 | GET | `/api/v1/public/qr/{token}` | token | 40 Xác nhận bàn: `table_code`, `area_name`, `expires_at`, `ordering_locked` | ✅ |
+| 53 | GET | `/api/v1/public/qr/{token}` | token | 40 Xác nhận bàn: `table_code`, `area_name`, `expires_at`, `ordering_locked`, `send_mode` (`DIRECT`/`CONFIRM`, từ 17/11) | ✅ |
 | 54 | GET | `/api/v1/public/qr/{token}/menu` | token | 41, 42 Thực đơn; có cả món hết hàng (`is_available: false`) | ✅ |
 | 55 | POST | `/api/v1/public/qr/{token}/orders` (cần `Idempotency-Key`) | token | 44, 47 Gửi món: tối đa 20 dòng, mỗi dòng 1–20 phần, ghi chú 200 ký tự | ✅ |
 | 95 | POST | `/api/v1/public/qr/{token}/request-bill` (cần `Idempotency-Key`, không body) | token | Khách bấm "Yêu cầu thanh toán": mọi đơn `SENT`/`SERVED` của phiên và bàn chuyển `BILLING`, khách không gọi thêm được. Bàn đã `BILLING` thì trả lại hóa đơn hiện tại (200). Còn món chờ nhân viên xác nhận, hoặc chưa có món nào gửi bếp: 409. Trả cùng dạng `GET .../order`. Audit `ORDER_BILLING_REQUESTED` (nguồn QR, không có nhân viên); event `ORDER_UPDATED` (`reason: "BILLING_REQUESTED"`) và `TABLE_STATUS_CHANGED` | ✅ từ 17/11 |
 | 56 | GET | `/api/v1/public/qr/{token}/order` | token | 48, 53 Món của cả phiên bàn | ✅ |
 
-**Quy tắc** (phiếu quyết định B6: đơn QR chờ phục vụ xác nhận):
-- Món của khách nằm ở `CREATED`, `source: "QR"`, trong đơn đang mở của bàn; bàn chỉ có 1 hóa đơn, dùng chung với POS.
-- Xác nhận: phục vụ gọi `POST /orders/{id}/send-to-kitchen` như món POS. Từ chối: `DELETE /orders/{id}/items/{item_id}`, món thành `VOIDED`. Khách không sửa/xóa được sau khi gửi.
-- Mỗi lần khách gửi, kênh `tables` có event `ORDER_UPDATED` với `reason: "QR_ITEMS_SUBMITTED"`. Phía khách không có WebSocket, gọi lại `GET .../order` định kỳ.
+**Chế độ gửi món** (từ 17/11, cài đặt theo cửa hàng `qr_send_mode`, xem API 96–97):
+- **`DIRECT` (mặc định, theo luồng QR của HLR):** món khách gửi vào bếp ngay như nhân viên bấm "Gửi bếp": món `SENT`, có phiếu bếp theo trạm, đơn `SENT`. Audit `ORDER_SENT_TO_KITCHEN` (nguồn QR, không có nhân viên). Event `ORDER_UPDATED` với `reason: "QR_ITEMS_SENT_TO_KITCHEN"` và `KITCHEN_QUEUE_UPDATED` trên kênh `kitchen`. Món nhân viên đang soạn (`CREATED`) không bị kéo theo. Hủy món sai thì dùng API hủy món đã gửi bếp.
+- **`CONFIRM` (phiếu quyết định B6 cũ):** món nằm ở `CREATED`, `source: "QR"`. Xác nhận: `POST /orders/{id}/send-to-kitchen`. Từ chối: `DELETE /orders/{id}/items/{item_id}`, món thành `VOIDED`. Event `reason: "QR_ITEMS_SUBMITTED"`.
+- Cả hai chế độ: món nằm trong đơn đang mở của bàn, bàn chỉ có 1 hóa đơn dùng chung với POS. `note` của từng dòng hiện trên màn bếp. Khách không sửa/xóa được sau khi gửi. Phía khách không có WebSocket, gọi lại `GET .../order` định kỳ.
+
+| # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
+|---|---|---|---|---|---|
+| 96 | GET | `/api/v1/outlet/settings` | S (`OUTLET_SETTINGS`) | Cài đặt cửa hàng: `{"qr_send_mode": "DIRECT" \| "CONFIRM"}` | ✅ từ 17/11 |
+| 97 | PATCH | `/api/v1/outlet/settings` | S (`OUTLET_SETTINGS`) | Đổi chế độ gửi món QR, body `{"qr_send_mode"}`; giá trị khác 422. Có đổi thì ghi audit `OUTLET_SETTINGS_UPDATED` (trước/sau). Chỉ áp cho lần gửi sau | ✅ từ 17/11 |
 
 | Mã | Khi nào |
 |---|---|
@@ -174,7 +179,7 @@ Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. 
 | `410` | Token hết hạn (mặc định 4 giờ, `QR_SESSION_TTL_MINUTES`) hoặc phiên bàn đã đóng; hiện màn 54 |
 | `400` | Thiếu `Idempotency-Key` |
 | `404` | Món không có trong thực đơn của nhà hàng |
-| `409` | Món hết hàng; bàn đang chờ thanh toán; quá 30 phần đang chờ xác nhận (`QR_MAX_PENDING_ITEMS`); cùng `Idempotency-Key` khác nội dung |
+| `409` | Món hết hàng; bàn đang chờ thanh toán; quá 30 phần đang chờ xác nhận (`QR_MAX_PENDING_ITEMS`, chỉ chế độ `CONFIRM`); cùng `Idempotency-Key` khác nội dung |
 | `422` | Dữ liệu không hợp lệ |
 | `429` | Vượt giới hạn request theo IP (Nginx: 10 request/giây, burst 40) |
 
