@@ -1471,6 +1471,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/qr/{token}/request-bill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Qr Request Bill
+         * @description Khách bấm "Yêu cầu thanh toán" trên trang QR (P2-QR-013). Mọi đơn SENT/SERVED của phiên
+         *     chuyển BILLING, bàn chuyển BILLING; từ đó khách không gọi thêm món được (như khi nhân viên
+         *     yêu cầu thanh toán). Bàn đã BILLING thì trả lại hóa đơn hiện tại, không báo lỗi. Còn món
+         *     khách gọi đang chờ nhân viên xác nhận, hoặc chưa có món nào gửi bếp, thì 409: khóa đơn lúc
+         *     đó sẽ làm món chờ bị kẹt. Không đụng tới bàn khác (chỉ phiên của đúng mã QR).
+         */
+        post: operations["qr_request_bill_api_v1_public_qr__token__request_bill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/qr/{token}/member": {
         parameters: {
             query?: never;
@@ -6315,6 +6339,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrOrderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_request_bill_api_v1_public_qr__token__request_bill_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
