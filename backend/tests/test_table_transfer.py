@@ -3,6 +3,7 @@ hợp bị chặn; idempotency; audit; cách ly outlet."""
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import pytest
@@ -16,9 +17,9 @@ def _key():
     return {"Idempotency-Key": str(uuid.uuid4())}
 
 
-def _add_table(db_session_factory, outlet_id, code, status="AVAILABLE"):
+def _add_table(db_session_factory, outlet_id, code, status="AVAILABLE", seats=4):
     session = db_session_factory()
-    table = RestaurantTable(outlet_id=outlet_id, code=code, seats=4, status=status)
+    table = RestaurantTable(outlet_id=outlet_id, code=code, seats=seats, status=status)
     session.add(table)
     session.commit()
     table_id = table.id
@@ -61,7 +62,7 @@ def test_session_orders_and_kitchen_follow_to_new_table(client, seed, busy):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["table_session_id"] == busy["session_id"]
-    assert body["from_table"]["status"] == "CLEANING"
+    assert body["from_table"]["status"] == "AVAILABLE"  # BR-TT-010
     assert body["to_table"]["status"] == "OCCUPIED" and body["to_table"]["code"] == "T2"
 
     waiter = busy["waiter"]
@@ -78,19 +79,15 @@ def test_session_orders_and_kitchen_follow_to_new_table(client, seed, busy):
     assert {entry["table_code"] for entry in queue} == {"T2"}
 
 
-def test_old_table_needs_cleaning_then_reopens(client, seed, busy):
+def test_old_table_is_available_immediately(client, seed, busy):
+    """BR-TT-010 (BUG-P2-TBL-001): bàn nguồn trống ngay sau khi chuyển, xếp khách mới được."""
     _transfer(client, seed, busy)
-    waiter = busy["waiter"]
     reopen = client.post(
         f"/api/v1/tables/{seed['table_id']}/open-session",
         json={"guest_count": 1},
-        headers={**waiter, **_key()},
+        headers={**busy["waiter"], **_key()},
     )
-    assert reopen.status_code == 409
-    cleaned = client.post(
-        f"/api/v1/tables/{seed['table_id']}/mark-clean", headers={**waiter, **_key()}
-    )
-    assert cleaned.status_code == 200, cleaned.text
+    assert reopen.status_code == 201, reopen.text
 
 
 def test_order_flow_continues_and_pays_on_new_table(client, seed, busy):
@@ -111,7 +108,7 @@ def test_order_flow_continues_and_pays_on_new_table(client, seed, busy):
     )
     assert paid.status_code == 200, paid.text
     statuses = {t["code"]: t["status"] for t in client.get("/api/v1/tables", headers=waiter).json()}
-    assert statuses == {"T1": "CLEANING", "T2": "CLEANING"}
+    assert statuses == {"T1": "AVAILABLE", "T2": "CLEANING"}
 
 
 def test_qr_code_follows_session(client, seed, busy):
@@ -162,7 +159,7 @@ def test_retry_same_key_returns_same_result(client, seed, busy):
     again = _transfer(client, seed, busy, key="move-1")
     assert first.status_code == again.status_code == 200
     assert again.json() == first.json()
-    # Khác key: T1 đã thành CLEANING nên không chuyển lại được.
+    # Khác key: T1 đã trống (AVAILABLE, không còn phiên) nên không chuyển lại được.
     assert _transfer(client, seed, busy).status_code == 409
 
 
@@ -201,3 +198,36 @@ def test_cannot_move_to_table_of_other_outlet(client, seed, busy, db_session_fac
     assert _transfer(client, seed, busy, target=foreign).status_code == 404
     outsider = login(client, "waiter_khac")
     assert _transfer(client, seed, busy, headers=outsider).status_code == 404
+
+
+def test_capacity_is_checked_before_transfer(client, seed, busy, db_session_factory):
+    """BR-TT-014 (BUG-P2-TBL-006): phiên 3 khách không chuyển vào bàn 2 chỗ."""
+    small = _add_table(db_session_factory, seed["outlet_id"], "T3", seats=2)
+    resp = _transfer(client, seed, busy, target=small)
+    assert resp.status_code == 409
+    assert "2 chỗ" in resp.json()["detail"] and "3 khách" in resp.json()["detail"]
+    statuses = {
+        t["code"]: t["status"]
+        for t in client.get("/api/v1/tables", headers=busy["waiter"]).json()
+    }
+    assert statuses["T1"] == "OCCUPIED" and statuses["T3"] == "AVAILABLE"
+    exact = _add_table(db_session_factory, seed["outlet_id"], "T4", seats=3)
+    assert _transfer(client, seed, busy, target=exact).status_code == 200
+
+
+def test_capacity_override_needs_permission_and_reason(client, seed, busy, db_session_factory):
+    small = _add_table(db_session_factory, seed["outlet_id"], "T3", seats=2)
+    body = {"target_table_id": str(small), "capacity_override_reason": "Kê thêm ghế"}
+    url = f"/api/v1/tables/{seed['table_id']}/transfer"
+    waiter = client.post(url, json=body, headers={**busy["waiter"], **_key()})
+    assert waiter.status_code == 403
+    supervisor = login(client, "supervisor_test")
+    ok = client.post(url, json=body, headers={**supervisor, **_key()})
+    assert ok.status_code == 200, ok.text
+
+    session = db_session_factory()
+    log = session.query(AuditLog).filter_by(action="TABLE_TRANSFERRED").one()
+    payload = json.loads(log.payload)
+    assert payload["capacity_override_reason"] == "Kê thêm ghế"
+    assert (payload["guest_count"], payload["target_seats"]) == (3, 2)
+    session.close()

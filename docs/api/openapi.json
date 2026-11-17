@@ -367,7 +367,7 @@
           "tables"
         ],
         "summary": "Transfer Table",
-        "description": "Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi\nvà mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt\ntrước; bàn cũ sang CLEANING vì khách vừa ngồi. Bàn đang chờ thanh toán thì không chuyển,\ntránh lệch hóa đơn đã in.",
+        "description": "Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi\nvà mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt\ntrước và đủ chỗ cho số khách của phiên (BR-TT-014; người có quyền OVERRIDE vượt được nếu\nghi lý do). Bàn cũ về AVAILABLE ngay (BR-TT-010). Bàn đang chờ thanh toán thì không\nchuyển, tránh lệch hóa đơn đã in.",
         "operationId": "transfer_table_api_v1_tables__table_id__transfer_post",
         "security": [
           {
@@ -10570,6 +10570,19 @@
             "type": "string",
             "format": "uuid",
             "title": "Target Table Id"
+          },
+          "capacity_override_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Override Reason"
           }
         },
         "type": "object",

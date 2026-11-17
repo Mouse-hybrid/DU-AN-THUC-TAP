@@ -288,13 +288,13 @@ Audit mới: `POINTS_REVERSED`, `POINTS_REVERSAL_SHORTFALL` (cả hai là thao t
 
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
-| 78 | POST | `/api/v1/tables/{id}/transfer` (cần `Idempotency-Key`) | W, S (BRD "Merge/Split/Transfer Table") | 16 Chuyển bàn: body `{"target_table_id": "..."}`; trả `table_session_id`, `from_table`, `to_table` | ✅ |
+| 78 | POST | `/api/v1/tables/{id}/transfer` (cần `Idempotency-Key`) | W, S (BRD "Merge/Split/Transfer Table") | 16 Chuyển bàn: body `{"target_table_id": "...", "capacity_override_reason"?: "..."}`; trả `table_session_id`, `from_table`, `to_table` | ✅ |
 
 **Quy tắc:**
 - Cả phiên bàn đi theo: mọi đơn, món, phiếu bếp, ưu đãi, khách gắn vào đơn, mã QR. Mã bàn trên phiếu bếp và trên API QR tự đổi.
 - Bàn nguồn phải `OCCUPIED`. Bàn đang chờ thanh toán (`BILLING`) không chuyển được.
-- Bàn đích phải `AVAILABLE` hoặc `RESERVED`.
-- Sau khi chuyển: bàn đích `OCCUPIED`, **bàn nguồn `CLEANING`**, phải xác nhận dọn xong mới mở lại.
+- Bàn đích phải `AVAILABLE` hoặc `RESERVED`, và **đủ chỗ** cho số khách của phiên (BR-TT-014, từ 17/11). Thiếu chỗ trả 409, câu báo ghi rõ số chỗ và số khách. Người có quyền `OVERRIDE` (mặc định Supervisor) vẫn chuyển được nếu gửi `capacity_override_reason` (vd kê thêm ghế); vai trò khác gửi trường này thì 403. Audit `TABLE_TRANSFERRED` ghi `guest_count`, `target_seats` và lý do vượt.
+- Sau khi chuyển: bàn đích `OCCUPIED`, **bàn nguồn `AVAILABLE` ngay** (BR-TT-010, từ 17/11; trước đó là `CLEANING`), xếp khách mới được luôn.
 - Cashier không có quyền chuyển (theo BRD). Chuyển trùng bàn trả 422; bàn hoặc bàn đích thuộc nhà hàng khác trả 404; sai trạng thái trả 409.
 - Event: kênh `tables` có `TABLE_TRANSFERRED` (`table_session_id`, `from_table_id`, `to_table_id`) và `TABLE_STATUS_CHANGED` cho cả hai bàn. Kênh `kitchen` có `KITCHEN_QUEUE_UPDATED` với `reason: "TABLE_TRANSFERRED"` để màn bếp tải lại mã bàn.
 

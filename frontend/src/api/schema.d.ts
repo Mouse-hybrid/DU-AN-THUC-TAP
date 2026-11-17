@@ -133,8 +133,9 @@ export interface paths {
          * Transfer Table
          * @description Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi
          *     và mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt
-         *     trước; bàn cũ sang CLEANING vì khách vừa ngồi. Bàn đang chờ thanh toán thì không chuyển,
-         *     tránh lệch hóa đơn đã in.
+         *     trước và đủ chỗ cho số khách của phiên (BR-TT-014; người có quyền OVERRIDE vượt được nếu
+         *     ghi lý do). Bàn cũ về AVAILABLE ngay (BR-TT-010). Bàn đang chờ thanh toán thì không
+         *     chuyển, tránh lệch hóa đơn đã in.
          */
         post: operations["transfer_table_api_v1_tables__table_id__transfer_post"];
         delete?: never;
@@ -3315,6 +3316,8 @@ export interface components {
              * Format: uuid
              */
             target_table_id: string;
+            /** Capacity Override Reason */
+            capacity_override_reason?: string | null;
         };
         /** TokenResponse */
         TokenResponse: {

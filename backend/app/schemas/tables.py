@@ -44,6 +44,9 @@ class TableAreaAssign(BaseModel):
 
 class TableTransferRequest(BaseModel):
     target_table_id: uuid.UUID
+    # BR-TT-014: phiên có nhiều khách hơn số chỗ bàn đích thì bị chặn. Người có quyền OVERRIDE
+    # (mặc định Supervisor) vẫn chuyển được nếu ghi lý do (vd kê thêm ghế); có ghi audit.
+    capacity_override_reason: str | None = Field(default=None, min_length=3, max_length=500)
 
 
 class TableTransferOut(BaseModel):

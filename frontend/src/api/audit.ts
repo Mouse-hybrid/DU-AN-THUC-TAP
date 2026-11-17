@@ -5,6 +5,8 @@ export type AuditSummary = components["schemas"]["AuditSummaryOut"];
 export type AuditLog = components["schemas"]["AuditLogOut"];
 
 export interface ListAuditLogsParams {
+  /** Hủy request khi bộ lọc đổi (chỉ dùng cho danh sách). */
+  signal?: AbortSignal;
   orderId?: string | undefined;
   entityType?: string | undefined;
   actions?: readonly string[] | undefined;
@@ -52,5 +54,7 @@ export function listAuditLogs(params: ListAuditLogsParams = {}): Promise<AuditLo
   if (params.limit !== undefined) query.set("limit", String(params.limit));
   if (params.offset !== undefined) query.set("offset", String(params.offset));
   const suffix = query.toString();
-  return apiRequest<AuditLog[]>(suffix ? `/audit-logs?${suffix}` : "/audit-logs");
+  return apiRequest<AuditLog[]>(suffix ? `/audit-logs?${suffix}` : "/audit-logs", {
+    signal: params.signal,
+  });
 }
