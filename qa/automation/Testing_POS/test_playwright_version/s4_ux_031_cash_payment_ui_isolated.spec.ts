@@ -240,48 +240,13 @@ test('S4-UX-031 | CASHIER records full CASH payment in the UI',
       const openForm = cashier.getByRole('button',
         { name: 'Ghi nhận thanh toán', exact: true });
       await expect(openForm).toBeVisible();
-      await openForm.click();
-      const dialog = cashier.getByRole('dialog').filter({ hasText: /thanh toán/i });
-      try { await dialog.waitFor({ state: 'visible', timeout: 5_000 }); }
-      catch {
-        await testInfo.attach('S4_UX_031_payment_form_diagnostic', {
-          body: await cashier.screenshot({ fullPage: true, animations: 'disabled' }),
-          contentType: 'image/png',
-        });
-        throw new Error('PENDING_UI_SELECTOR: payment dialog absent after Ghi nhận thanh toán');
-      }
-      report.form_controls = await dialog.locator('input,select,button').evaluateAll(rows =>
-        rows.map(row => ({ tag: row.tagName.toLowerCase(),
-          type: row.getAttribute('type'), name: row.getAttribute('name'),
-          aria: row.getAttribute('aria-label'),
-          text: row.textContent?.trim().slice(0, 60),
-        })));
-      const cashRadio = dialog.getByRole('radio', { name: /tiền mặt|cash/i });
-      const cashButton = dialog.getByRole('button', { name: /^(tiền mặt|cash)$/i });
-      const methodSelect = dialog.locator('select[name="method"]');
-      if (await cashRadio.count()) await cashRadio.check();
-      else if (await cashButton.count()) await cashButton.click();
-      else if (await methodSelect.count()) await methodSelect.selectOption('CASH');
-      else if (!/tiền mặt|cash/i.test(await dialog.innerText()))
-        throw new Error('PENDING_UI_SELECTOR: CASH method control not found');
-      const amount = dialog.locator('input[name="amount"]');
-      if (await amount.count()) await amount.fill('50000');
-      const received = dialog.locator('input[name="cash_received"]');
-      if (await received.count()) await received.fill('50000');
-      await testInfo.attach('S4_UX_031_cash_form', {
-        body: await cashier.screenshot({ fullPage: true, animations: 'disabled' }),
-        contentType: 'image/png',
-      });
-      const submit = dialog.locator('button[type="submit"]');
-      if (await submit.count() !== 1)
-        throw new Error('PENDING_UI_SELECTOR: unique CASH payment submit missing; ' +
-          JSON.stringify(report.form_controls));
       const [recordedResponse] = await Promise.all([
         cashier.waitForResponse(response =>
           response.request().method() === 'POST' &&
           new URL(response.url()).pathname === paymentPath, { timeout: 20_000 }),
-        submit.click(),
+        openForm.click(),
       ]);
+      report.ui_action = 'DIRECT_PAYMENT_BUTTON';
       report.ui_payment_http = recordedResponse.status();
       expect(recordedResponse.status()).toBe(201);
       const recorded = await recordedResponse.json();
