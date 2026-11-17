@@ -5917,6 +5917,66 @@
         }
       }
     },
+    "/api/v1/public/qr/{token}/request-bill": {
+      "post": {
+        "tags": [
+          "qr-public"
+        ],
+        "summary": "Qr Request Bill",
+        "description": "Khách bấm \"Yêu cầu thanh toán\" trên trang QR (P2-QR-013). Mọi đơn SENT/SERVED của phiên\nchuyển BILLING, bàn chuyển BILLING; từ đó khách không gọi thêm món được (như khi nhân viên\nyêu cầu thanh toán). Bàn đã BILLING thì trả lại hóa đơn hiện tại, không báo lỗi. Còn món\nkhách gọi đang chờ nhân viên xác nhận, hoặc chưa có món nào gửi bếp, thì 409: khóa đơn lúc\nđó sẽ làm món chờ bị kẹt. Không đụng tới bàn khác (chỉ phiên của đúng mã QR).",
+        "operationId": "qr_request_bill_api_v1_public_qr__token__request_bill_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "title": "Token"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrOrderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/qr/{token}/member": {
       "post": {
         "tags": [
