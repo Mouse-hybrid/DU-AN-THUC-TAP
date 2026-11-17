@@ -13,6 +13,11 @@ Bốn phần, đều đã có trong code từ 09/11. Phần cần người làm 
   ```
 
 - Chạy local: log dạng text. Muốn xem dạng JSON thì đặt `LOG_FORMAT=json`.
+- **Xoay vòng log** (`infra/compose/compose.staging.yml`, ADR 0004): mỗi container (api, db, nginx) giữ tối đa 5 file × 20 MB, cũ nhất bị xóa trước. Với lượng log staging hiện tại thì đủ khoảng 7 ngày; ngày nhiều request thì ít hơn. Cần tra lỗi cũ hơn thì dùng Sentry. Kiểm cấu hình đang chạy:
+
+  ```bash
+  docker inspect --format '{{.HostConfig.LogConfig}}' $(docker compose --env-file .env.staging -f infra/compose/compose.staging.yml ps -q api)
+  ```
 
 ## 2. Sentry (lỗi và độ trễ)
 

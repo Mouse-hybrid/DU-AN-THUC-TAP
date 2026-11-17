@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import delete, func, select  # noqa: E402
+from sqlalchemy import delete, func, select, text  # noqa: E402
 
 from app.core.config import APP_ENV  # noqa: E402
 from app.core.security import hash_password, verify_password  # noqa: E402
@@ -249,6 +249,10 @@ def cleanup(session, really: bool) -> None:
             delete(IdempotencyKey).where(IdempotencyKey.key.like(f"{KEY_PREFIX}%")),
         ),
     )
+    if really and session.get_bind().dialect.name == "postgresql":
+        # Trigger audit_log chỉ cho xóa audit của outlet Load test khi có cờ này (ADR 0004,
+        # app/db/audit_guard.py). SET LOCAL: cờ hết hiệu lực khi transaction kết thúc.
+        session.execute(text("SET LOCAL pos.audit_purge = 'loadtest'"))
     for name, stmt in steps:
         count = session.scalar(select(func.count()).select_from(stmt.table).where(stmt.whereclause))
         print(f"{'-' if really else '?'} {name}: {count} dòng")

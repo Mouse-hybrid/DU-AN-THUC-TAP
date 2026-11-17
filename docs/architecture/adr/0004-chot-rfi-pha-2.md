@@ -104,7 +104,7 @@ Nguyên tắc chốt:
 - **Bằng chứng "không sửa được":** trigger trong database chặn UPDATE/DELETE bảng `audit_log`. Đây là bằng chứng cho P2-AUD-005.
 - **Dữ liệu cá nhân:** số điện thoại trong audit luôn che.
 - **Căn cứ:** BR-OM-VER-003/004; HLR BR-009 và yêu cầu Auditability.
-- **Việc kéo theo:** trigger, làm trong Pha 2.
+- **Việc kéo theo:** trigger, làm trong Pha 2. *Đã làm:* migration `0014_audit_log_immutable`, chi tiết ở `backend/app/db/audit_guard.py`.
 
 ### P2-RFI-QR — Mã QR và bảo mật
 - **Cấp và thu hồi mã:**
@@ -165,7 +165,7 @@ Nguyên tắc chốt:
 - **Lưu log:**
   - log Docker giữ 7 ngày (xoay vòng);
   - Sentry giữ theo gói miễn phí.
-- **Việc kéo theo:** BE đặt `SENTRY_DSN` trên staging; thêm cấu hình xoay vòng log Docker.
+- **Việc kéo theo:** BE đặt `SENTRY_DSN` trên staging; thêm cấu hình xoay vòng log Docker. *Đã làm:* xoay vòng log (5 × 20 MB mỗi container, `docs/runbooks/monitoring.md`). Còn đặt `SENTRY_DSN`.
 
 ### P2-RFI-PERF — Hiệu năng
 | Chỉ số | Mức chốt | Cách đo |
