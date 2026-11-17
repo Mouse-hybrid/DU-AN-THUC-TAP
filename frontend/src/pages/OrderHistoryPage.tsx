@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ApiError } from "../api/client";
+import { ApiError, RequestCancelled } from "../api/client";
 import { closeOrder, listOrders, type OrderSummaryRow } from "../api/orders";
 import { usePermissions } from "../auth/permissions";
 import type { FlashMessage } from "../auth/storage";
@@ -84,12 +84,17 @@ export function OrderHistoryPage() {
   const [toast, setToast] = useState<FlashMessage | null>(null);
   const hasLoaded = useRef(false);
   const loadSeq = useRef(0);
+  const loadAbort = useRef<AbortController | null>(null);
   const closeRunning = useRef(false);
   const closeKey = useRef("");
 
   const load = useCallback(async (refresh = false) => {
     const seq = loadSeq.current + 1;
     loadSeq.current = seq;
+    // Đổi khoảng thời gian khi lần tải trước chưa xong: dừng tải các trang còn lại của lần cũ.
+    loadAbort.current?.abort();
+    const controller = new AbortController();
+    loadAbort.current = controller;
     if (refresh) setRefreshing(true);
     else setState("loading");
     setError("");
@@ -100,6 +105,7 @@ export function OrderHistoryPage() {
         (offset, limit) => listOrders({ createdFrom, limit, offset }),
         FETCH_PAGE_SIZE,
         FETCH_MAX_PAGES,
+        controller.signal,
       );
       if (seq !== loadSeq.current) return;
       setRows(result.rows);
@@ -108,7 +114,7 @@ export function OrderHistoryPage() {
       setStale(false);
       setState("ready");
     } catch (loadError) {
-      if (seq !== loadSeq.current) return;
+      if (loadError instanceof RequestCancelled || seq !== loadSeq.current) return;
       setError(orderErrorMessage(loadError));
       if (hasLoaded.current && refresh) {
         setStale(true);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { downloadAuditExport, listAuditLogs, type AuditLog } from "../api/audit";
-import { ApiError } from "../api/client";
+import { ApiError, RequestCancelled } from "../api/client";
 import { AuditSummaryPanel } from "../components/AuditSummaryPanel";
 import { Toast } from "../components/Toast";
 import type { FlashMessage } from "../auth/storage";
@@ -67,10 +67,16 @@ export function AdminAuditLogPage() {
   const exportInFlight = useRef(false);
   const hasLoaded = useRef(false);
   const loadSeq = useRef(0);
+  const loadAbort = useRef<AbortController | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     const seq = loadSeq.current + 1;
     loadSeq.current = seq;
+    // Đổi khoảng thời gian khi lần tải trước chưa xong: hủy hẳn lần cũ (kể cả các trang còn lại),
+    // để không còn request mang created_from cũ gửi đi sau khi người dùng đã chọn khoảng mới.
+    loadAbort.current?.abort();
+    const controller = new AbortController();
+    loadAbort.current = controller;
     if (refresh) setRefreshing(true);
     else setState("loading");
     setError("");
@@ -78,9 +84,11 @@ export function AdminAuditLogPage() {
       const daysBack = RANGES.find((candidate) => candidate.id === range)?.daysBack ?? 6;
       const createdFrom = startOfDayIso(daysBack);
       const result = await fetchAllPages(
-        (offset, limit) => listAuditLogs({ orderId: orderId || undefined, createdFrom, limit, offset }),
+        (offset, limit) =>
+          listAuditLogs({ orderId: orderId || undefined, createdFrom, limit, offset, signal: controller.signal }),
         FETCH_PAGE_SIZE,
         FETCH_MAX_PAGES,
+        controller.signal,
       );
       if (seq !== loadSeq.current) return;
       // API trả cũ nhất trước; nhật ký đọc mới nhất trước.
@@ -90,7 +98,7 @@ export function AdminAuditLogPage() {
       setStale(false);
       setState("ready");
     } catch (loadError) {
-      if (seq !== loadSeq.current) return;
+      if (loadError instanceof RequestCancelled || seq !== loadSeq.current) return;
       setError(orderErrorMessage(loadError));
       if (hasLoaded.current && refresh) {
         setStale(true);
