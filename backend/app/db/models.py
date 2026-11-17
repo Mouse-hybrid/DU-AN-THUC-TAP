@@ -45,6 +45,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.db.audit_guard import install_on_create as install_audit_guard
 from app.db.base import GUID, Base, new_uuid
 
 # ---------------------------------------------------------------------------
@@ -780,6 +781,10 @@ class AuditLog(Base):
         Text, nullable=True
     )  # JSON: before/after hoặc chi tiết thao tác
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# Postgres: trigger chặn UPDATE/DELETE/TRUNCATE audit_log (ADR 0004). Xem app/db/audit_guard.py.
+install_audit_guard(AuditLog.__table__)
 
 
 # ---------------------------------------------------------------------------
