@@ -39,7 +39,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Validate S4 payment UI spec syntax
-        run: npx playwright test s4_ux_030_payment_role_ui_isolated.spec.ts s4_ux_031_cash_payment_ui_isolated.spec.ts s4_ux_032_split_cash_ui_isolated.spec.ts s4_ux_033_invalid_amount_ui_isolated.spec.ts --project=chromium --list
+        run: npx playwright test s4_ux_030_payment_role_ui_isolated.spec.ts s4_ux_031_cash_payment_ui_isolated.spec.ts s4_ux_032_split_cash_ui_isolated.spec.ts s4_ux_033_invalid_amount_ui_isolated.spec.ts s4_ux_035_audit_refresh_readonly.spec.ts --project=chromium --list
 
       - name: Run API Smoke Tests
         run: npx playwright test api-smoke.spec.ts --project=chromium
