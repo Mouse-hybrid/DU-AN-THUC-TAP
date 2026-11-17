@@ -160,6 +160,7 @@ Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. 
 | 53 | GET | `/api/v1/public/qr/{token}` | token | 40 Xác nhận bàn: `table_code`, `area_name`, `expires_at`, `ordering_locked` | ✅ |
 | 54 | GET | `/api/v1/public/qr/{token}/menu` | token | 41, 42 Thực đơn; có cả món hết hàng (`is_available: false`) | ✅ |
 | 55 | POST | `/api/v1/public/qr/{token}/orders` (cần `Idempotency-Key`) | token | 44, 47 Gửi món: tối đa 20 dòng, mỗi dòng 1–20 phần, ghi chú 200 ký tự | ✅ |
+| 95 | POST | `/api/v1/public/qr/{token}/request-bill` (cần `Idempotency-Key`, không body) | token | Khách bấm "Yêu cầu thanh toán": mọi đơn `SENT`/`SERVED` của phiên và bàn chuyển `BILLING`, khách không gọi thêm được. Bàn đã `BILLING` thì trả lại hóa đơn hiện tại (200). Còn món chờ nhân viên xác nhận, hoặc chưa có món nào gửi bếp: 409. Trả cùng dạng `GET .../order`. Audit `ORDER_BILLING_REQUESTED` (nguồn QR, không có nhân viên); event `ORDER_UPDATED` (`reason: "BILLING_REQUESTED"`) và `TABLE_STATUS_CHANGED` | ✅ từ 17/11 |
 | 56 | GET | `/api/v1/public/qr/{token}/order` | token | 48, 53 Món của cả phiên bàn | ✅ |
 
 **Quy tắc** (phiếu quyết định B6: đơn QR chờ phục vụ xác nhận):
@@ -422,7 +423,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |
 | ~~**Audit search / report**~~ | **Đã có** (mục A7): tra cứu từ 15/10, báo cáo và xuất CSV từ 09/11 | Còn màn hình báo cáo phía FE |
-| **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10). Còn: `POST /public/qr/{token}/request-bill`, thanh toán QR | Làm cùng VNPay |
+| **QR Ordering** (Key Focus BRD) | Phần gọi món **đã có từ 04/11** (mục A10); khách yêu cầu thanh toán có từ 17/11 (API 95). Còn: khách tự thanh toán VNPay trên trang QR | Làm cùng VNPay |
 | ~~**Modifier cơ bản** (cho QR + POS)~~ | **Đã có từ 04/11** (mục A11) | Chưa có combo |
 | **Rewards / CRM** (Key Focus BRD) | Đợt 1, 2 **đã có từ 04/11** (mục A12, A13). Đợt 3: `POST /public/qr/{token}/member`, hoàn điểm | PO chốt con số của luật; khách trên QR chỉ tích điểm, đổi điểm qua thu ngân |
 

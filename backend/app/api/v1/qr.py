@@ -11,6 +11,8 @@ GET  /api/v1/public/qr/{token}/menu    — thực đơn (màn 41, 42).
 GET  /api/v1/public/qr/{token}/order   — các món của phiên bàn (màn 48, 53); gọi định kỳ
                                          vì khách không có JWT để mở WebSocket.
 POST /api/v1/public/qr/{token}/orders  — gửi món (màn 44, 47), cần Idempotency-Key.
+POST /api/v1/public/qr/{token}/request-bill — khách yêu cầu thanh toán (BRD: Customer được
+                                         "Request Bill"), cần Idempotency-Key.
 POST /api/v1/public/qr/{token}/member  — khách nhập số điện thoại để tích điểm (Rewards đợt 3).
 
 Token sai hoặc đã thu hồi trả 401; hết hạn hoặc phiên đã đóng trả 410 (màn 54).
@@ -458,6 +460,117 @@ def qr_submit(
             "item_id": None,
         },
     )
+    return result
+
+
+# Đơn khách yêu cầu thanh toán được: đã có món gửi bếp (như API nhân viên request-billing).
+_BILLABLE_ORDER_STATUSES = ("SENT", "SERVED")
+
+
+@public_router.post("/{token}/request-bill", response_model=QrOrderOut)
+def qr_request_bill(
+    idempotency_key: str = Depends(require_idempotency_key),
+    table_session: TableSession = Depends(_session_from_token),
+    session: Session = Depends(get_session),
+) -> QrOrderOut:
+    """Khách bấm "Yêu cầu thanh toán" trên trang QR (P2-QR-013). Mọi đơn SENT/SERVED của phiên
+    chuyển BILLING, bàn chuyển BILLING; từ đó khách không gọi thêm món được (như khi nhân viên
+    yêu cầu thanh toán). Bàn đã BILLING thì trả lại hóa đơn hiện tại, không báo lỗi. Còn món
+    khách gọi đang chờ nhân viên xác nhận, hoặc chưa có món nào gửi bếp, thì 409: khóa đơn lúc
+    đó sẽ làm món chờ bị kẹt. Không đụng tới bàn khác (chỉ phiên của đúng mã QR)."""
+    endpoint = f"POST /api/v1/public/qr/{table_session.id}/request-bill"
+    request_hash = hash_request_body({"table_session_id": str(table_session.id)})
+    existing = get_idempotent_response(
+        session, key=idempotency_key, endpoint=endpoint, request_hash=request_hash
+    )
+    if existing is not None:
+        if existing.response_status != status.HTTP_200_OK:
+            raise HTTPException(existing.response_status, detail=existing.response_body)
+        return QrOrderOut.model_validate_json(existing.response_body)
+
+    session.execute(
+        select(TableSession)
+        .where(TableSession.id == table_session.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one()
+    _ensure_usable(table_session)
+    table = table_session.table
+
+    changed: list[Order] = []
+    if table.status != "BILLING":
+        orders = list(
+            session.scalars(
+                select(Order)
+                .where(
+                    Order.table_session_id == table_session.id,
+                    Order.status.in_(_OPEN_ORDER_STATUSES),
+                )
+                .with_for_update()
+            )
+        )
+        waiting = any(
+            item.status == "CREATED" for order in orders for item in order.items
+        )
+        if waiting:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail="Còn món đang chờ nhân viên xác nhận, vui lòng đợi rồi yêu cầu lại",
+            )
+        changed = [order for order in orders if order.status in _BILLABLE_ORDER_STATUSES]
+        if not changed:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail="Bàn chưa có món nào được phục vụ, chưa thể yêu cầu thanh toán",
+            )
+        for order in changed:
+            order.status = "BILLING"
+        table.status = "BILLING"
+        session.flush()
+        for order in changed:
+            write_audit_log(
+                session,
+                outlet_id=table.outlet_id,
+                staff_id=None,
+                action="ORDER_BILLING_REQUESTED",
+                entity_type="order",
+                entity_id=order.id,
+                payload={"table_id": str(table.id), "source": "QR"},
+            )
+
+    result = _order_view(session, table_session)
+    session.add(
+        IdempotencyKey(
+            key=idempotency_key,
+            endpoint=endpoint,
+            request_hash=request_hash,
+            response_status=status.HTTP_200_OK,
+            response_body=result.model_dump_json(),
+        )
+    )
+    session.commit()
+    for order in changed:
+        manager.publish(
+            table.outlet_id,
+            "tables",
+            "ORDER_UPDATED",
+            {
+                "order_id": str(order.id),
+                "table_id": str(table.id),
+                "table_session_id": str(table_session.id),
+                "status": order.status,
+                "current_version": order.current_version,
+                "reason": "BILLING_REQUESTED",
+                "item_id": None,
+            },
+        )
+    if changed:
+        manager.publish(
+            table.outlet_id,
+            "tables",
+            "TABLE_STATUS_CHANGED",
+            {"table_id": str(table.id), "status": table.status},
+        )
     return result
 
 
