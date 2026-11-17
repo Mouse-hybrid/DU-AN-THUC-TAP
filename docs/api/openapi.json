@@ -4825,6 +4825,76 @@
         }
       }
     },
+    "/api/v1/outlet/settings": {
+      "get": {
+        "tags": [
+          "outlet"
+        ],
+        "summary": "Get Outlet Settings",
+        "operationId": "get_outlet_settings_api_v1_outlet_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutletSettingsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "outlet"
+        ],
+        "summary": "Update Outlet Settings",
+        "operationId": "update_outlet_settings_api_v1_outlet_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutletSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutletSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/customers": {
       "get": {
         "tags": [
@@ -8464,6 +8534,41 @@
         ],
         "title": "OrderVersionOut"
       },
+      "OutletSettingsOut": {
+        "properties": {
+          "qr_send_mode": {
+            "type": "string",
+            "enum": [
+              "DIRECT",
+              "CONFIRM"
+            ],
+            "title": "Qr Send Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qr_send_mode"
+        ],
+        "title": "OutletSettingsOut",
+        "description": "`qr_send_mode`: DIRECT = món khách gọi qua QR vào bếp ngay; CONFIRM = chờ phục vụ xác\nnhận rồi mới gửi bếp."
+      },
+      "OutletSettingsUpdate": {
+        "properties": {
+          "qr_send_mode": {
+            "type": "string",
+            "enum": [
+              "DIRECT",
+              "CONFIRM"
+            ],
+            "title": "Qr Send Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qr_send_mode"
+        ],
+        "title": "OutletSettingsUpdate"
+      },
       "PaymentMetricsOut": {
         "properties": {
           "by_status": {
@@ -8852,7 +8957,8 @@
           "CUSTOMER_ACCESS",
           "REWARD_APPLY",
           "LOYALTY_MANAGE",
-          "PAYMENT_REFUND"
+          "PAYMENT_REFUND",
+          "OUTLET_SETTINGS"
         ],
         "title": "Permission"
       },
@@ -9078,6 +9184,11 @@
           "ordering_locked": {
             "type": "boolean",
             "title": "Ordering Locked"
+          },
+          "send_mode": {
+            "type": "string",
+            "title": "Send Mode",
+            "default": "DIRECT"
           }
         },
         "type": "object",

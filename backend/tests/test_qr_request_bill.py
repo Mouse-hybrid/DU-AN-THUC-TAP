@@ -12,6 +12,9 @@ from app.db.models import AuditLog, RestaurantTable
 from tests.conftest import login
 from tests.test_qr_ordering import _issue, _open_table, _submit
 
+# Các test này viết cho chế độ chờ phục vụ xác nhận (CONFIRM). DIRECT: test_qr_direct_kitchen.py.
+pytestmark = pytest.mark.usefixtures("qr_confirm_mode")
+
 
 def _key():
     return {"Idempotency-Key": str(uuid.uuid4())}

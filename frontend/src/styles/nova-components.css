@@ -3089,3 +3089,12 @@ a.nova-button {
 .nova-qr-cart, .nova-qr-placed { background: #fff; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 16px; padding: 14px; display: grid; gap: 10px; }
 .nova-qr-cart h2, .nova-qr-placed h2 { margin: 0; font-size: 16px; }
 .nova-qr-ok { background: var(--nova-soft, #ddf5f0); border-radius: 12px; padding: 10px 12px; margin: 0; }
+/* Ảnh món và ghi chú trên trang QR */
+.nova-qr-thumb { flex: 0 0 auto; width: 64px; height: 64px; border-radius: 10px; display: grid; place-items: center; background: var(--nova-soft, #ddf5f0); color: #00695b; font-weight: 700; font-size: 22px; }
+.nova-qr-thumb--small { width: 44px; height: 44px; font-size: 16px; }
+.nova-qr-item .nova-qr-item-text, .nova-qr-line-main .nova-qr-item-text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.nova-qr-line.nova-qr-line--cart { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; gap: 8px; }
+.nova-qr-line > div.nova-qr-line-main { display: flex; align-items: center; gap: 10px; }
+.nova-qr-note { display: grid; gap: 4px; font-size: 13px; color: #5b706c; }
+.nova-qr-note input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 10px; font: inherit; font-size: 14px; color: inherit; background: #fff; }
+.nova-qr-note input:focus { outline: 2px solid var(--nova-primary, #008573); outline-offset: 1px; }

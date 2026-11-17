@@ -112,6 +112,18 @@ def seed(db_session_factory):
     return data
 
 
+@pytest.fixture()
+def qr_confirm_mode(seed, db_session_factory):
+    """Đưa outlet seed về chế độ QR "chờ phục vụ xác nhận" (CONFIRM). Mặc định là DIRECT
+    (món QR vào bếp ngay); các test viết cho luồng xác nhận dùng fixture này."""
+    from app.db.models import Outlet
+
+    session = db_session_factory()
+    session.get(Outlet, seed["outlet_id"]).qr_send_mode = "CONFIRM"
+    session.commit()
+    session.close()
+
+
 def login(client: TestClient, username: str, password: str = SEED_PASSWORD) -> dict[str, str]:
     """Helper login + trả sẵn Authorization header, dùng chung cho các test file."""
     resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})

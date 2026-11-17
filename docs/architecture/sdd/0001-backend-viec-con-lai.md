@@ -23,7 +23,7 @@ Liệt kê phần BRD mà backend chưa làm, thiết kế cho từng phần, v�
   - QR và Rewards làm trong Pha 2.
   - VNPay chỉ làm trên sandbox.
   - Mã QR cấp theo phiên bàn.
-  - Món khách gọi qua QR phải chờ phục vụ xác nhận (phiếu B6).
+  - Món khách gọi qua QR: từ 17/11 vào bếp ngay theo mặc định; Supervisor bật lại "chờ phục vụ xác nhận" (phiếu B6) theo cửa hàng (ADR 0004, mục QR).
   - Khách trên QR chỉ tích điểm; đổi điểm làm ở quầy thu ngân.
 - **Lưu ý về BRD:** từ mục Payment & Billing trở đi, BRD chỉ có tiêu đề, không có quy tắc chi tiết. Phần thiết kế cho các mục đó dựa vào yêu cầu chức năng và các quyết định đã chốt, nên cần PO duyệt lại (mục 6).
 

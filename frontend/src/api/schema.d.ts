@@ -1224,6 +1224,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/outlet/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Outlet Settings */
+        get: operations["get_outlet_settings_api_v1_outlet_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Outlet Settings */
+        patch: operations["update_outlet_settings_api_v1_outlet_settings_patch"];
+        trace?: never;
+    };
     "/api/v1/customers": {
         parameters: {
             query?: never;
@@ -2554,6 +2572,26 @@ export interface components {
             snapshot: unknown;
         };
         /**
+         * OutletSettingsOut
+         * @description `qr_send_mode`: DIRECT = món khách gọi qua QR vào bếp ngay; CONFIRM = chờ phục vụ xác
+         *     nhận rồi mới gửi bếp.
+         */
+        OutletSettingsOut: {
+            /**
+             * Qr Send Mode
+             * @enum {string}
+             */
+            qr_send_mode: "DIRECT" | "CONFIRM";
+        };
+        /** OutletSettingsUpdate */
+        OutletSettingsUpdate: {
+            /**
+             * Qr Send Mode
+             * @enum {string}
+             */
+            qr_send_mode: "DIRECT" | "CONFIRM";
+        };
+        /**
          * PaymentMetricsOut
          * @description `success_rate` = thành công / (thành công + thất bại). Lần hủy (thu ngân sửa ghi nhầm)
          *     và lần đang chờ không tính.
@@ -2690,7 +2728,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "ORDER_WRITE" | "SEND_TO_KITCHEN" | "REQUEST_BILLING" | "PROCESS_PAYMENT" | "OVERRIDE" | "VIEW_KDS" | "KITCHEN_ACTION" | "SERVE_FOOD" | "TABLE_OPEN" | "TABLE_MARK_CLEAN" | "TABLE_LAYOUT_MANAGE" | "TABLE_TRANSFER" | "QR_SESSION_MANAGE" | "MENU_WRITE" | "AUDIT_READ" | "STAFF_MANAGE" | "CUSTOMER_ACCESS" | "REWARD_APPLY" | "LOYALTY_MANAGE" | "PAYMENT_REFUND";
+        Permission: "ORDER_WRITE" | "SEND_TO_KITCHEN" | "REQUEST_BILLING" | "PROCESS_PAYMENT" | "OVERRIDE" | "VIEW_KDS" | "KITCHEN_ACTION" | "SERVE_FOOD" | "TABLE_OPEN" | "TABLE_MARK_CLEAN" | "TABLE_LAYOUT_MANAGE" | "TABLE_TRANSFER" | "QR_SESSION_MANAGE" | "MENU_WRITE" | "AUDIT_READ" | "STAFF_MANAGE" | "CUSTOMER_ACCESS" | "REWARD_APPLY" | "LOYALTY_MANAGE" | "PAYMENT_REFUND" | "OUTLET_SETTINGS";
         /**
          * PermissionRuleOut
          * @description `roles` = vai trò đang có quyền (đã tính các ô Supervisor sửa). `default_roles` = theo
@@ -2778,6 +2816,11 @@ export interface components {
             expires_at: string;
             /** Ordering Locked */
             ordering_locked: boolean;
+            /**
+             * Send Mode
+             * @default DIRECT
+             */
+            send_mode: string;
         };
         /**
          * QrMemberOut
@@ -5729,6 +5772,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_outlet_settings_api_v1_outlet_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutletSettingsOut"];
+                };
+            };
+        };
+    };
+    update_outlet_settings_api_v1_outlet_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutletSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutletSettingsOut"];
                 };
             };
             /** @description Validation Error */

@@ -17,10 +17,12 @@ POST /api/v1/public/qr/{token}/member  — khách nhập số điện thoại đ
 
 Token sai hoặc đã thu hồi trả 401; hết hạn hoặc phiên đã đóng trả 410 (màn 54).
 
-Theo phiếu quyết định B6, món của khách KHÔNG vào bếp ngay: món nằm ở CREATED trong đơn
-đang mở của bàn, phục vụ xem lại rồi bấm gửi bếp như món POS (POST /orders/{id}/send-to-kitchen),
-món không hợp lệ thì bỏ bằng DELETE /orders/{id}/items/{item_id}. Khách không có API sửa/xóa
-sau khi gửi. Dùng chung 1 đơn với POS để bàn chỉ có 1 hóa đơn.
+Chế độ gửi món theo cửa hàng (`outlet.qr_send_mode`, Supervisor đổi ở PATCH /outlet/settings):
+- DIRECT (mặc định, theo luồng QR của HLR): món khách gửi vào bếp ngay, như nhân viên bấm
+  "Gửi bếp". Nhân viên vẫn hủy món được bằng API hủy món đã gửi bếp.
+- CONFIRM (phiếu quyết định B6 cũ): món nằm ở CREATED, phục vụ xem lại rồi bấm gửi bếp
+  (POST /orders/{id}/send-to-kitchen); món không hợp lệ thì bỏ bằng DELETE .../items/{item_id}.
+Khách không có API sửa/xóa sau khi gửi. Dùng chung 1 đơn với POS để bàn chỉ có 1 hóa đơn.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.api.v1.orders import enqueue_for_kitchen
 from app.core.audit import write_audit_log
 from app.core.config import QR_MAX_PENDING_ITEMS, QR_MEMBER_MAX_ATTEMPTS, QR_SESSION_TTL_MINUTES
 from app.core.deps import (
@@ -270,6 +273,7 @@ def qr_info(table_session: TableSession = Depends(_session_from_token)) -> QrInf
         area_name=table.area_name,
         expires_at=_as_utc(table_session.qr_expires_at),
         ordering_locked=_ordering_locked(table_session),
+        send_mode=table.outlet.qr_send_mode,
     )
 
 
@@ -411,8 +415,9 @@ def qr_submit(
             payload={"table_session_id": str(table_session.id), "source": "QR"},
         )
 
+    added: list[OrderItem] = []
     for line, menu_item, modifiers, modifier_total in resolved:
-        session.add(
+        added.append(
             OrderItem(
                 order_id=order.id,
                 menu_item_id=menu_item.id,
@@ -424,6 +429,7 @@ def qr_submit(
                 modifiers=modifiers,
             )
         )
+    session.add_all(added)
     order.current_version += 1
     session.flush()
     write_audit_log(
@@ -435,6 +441,18 @@ def qr_submit(
         entity_id=order.id,
         payload={"items_added": len(payload.items), "source": "QR"},
     )
+    direct = table.outlet.qr_send_mode == "DIRECT"
+    if direct:
+        sent = enqueue_for_kitchen(session, order, added, staff_id=None)
+        write_audit_log(
+            session,
+            outlet_id=table.outlet_id,
+            staff_id=None,
+            action="ORDER_SENT_TO_KITCHEN",
+            entity_type="order",
+            entity_id=order.id,
+            payload={"items_sent": sent, "source": "QR"},
+        )
 
     result = _order_view(session, table_session)
     session.add(
@@ -457,10 +475,17 @@ def qr_submit(
             "table_session_id": str(table_session.id),
             "status": order.status,
             "current_version": order.current_version,
-            "reason": "QR_ITEMS_SUBMITTED",
+            "reason": "QR_ITEMS_SENT_TO_KITCHEN" if direct else "QR_ITEMS_SUBMITTED",
             "item_id": None,
         },
     )
+    if direct:
+        manager.publish(
+            table.outlet_id,
+            "kitchen",
+            "KITCHEN_QUEUE_UPDATED",
+            {"order_id": str(order.id), "items_sent": len(added)},
+        )
     return result
 
 

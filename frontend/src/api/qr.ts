@@ -6,12 +6,7 @@ export type QrMenu = components["schemas"]["QrMenuOut"];
 export type QrMenuItem = components["schemas"]["QrMenuItemOut"];
 export type QrOrder = components["schemas"]["QrOrderOut"];
 export type QrOrderLine = components["schemas"]["QrOrderLine"];
-export type QrTableInfo = {
-  table_code: string;
-  area_name?: string | null;
-  expires_at: string;
-  ordering_locked: boolean;
-};
+export type QrTableInfo = components["schemas"]["QrInfoOut"];
 
 const base = (tableId: string) => `/tables/${encodeURIComponent(tableId)}/qr-session`;
 const pub = (token: string) => `/public/qr/${encodeURIComponent(token)}`;

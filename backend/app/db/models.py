@@ -131,6 +131,11 @@ class Outlet(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Món khách gọi qua QR: DIRECT = vào bếp ngay (HLR QR flow), CONFIRM = chờ phục vụ xác
+    # nhận rồi mới gửi bếp (phiếu B6 cũ). Supervisor đổi bằng PATCH /outlet/settings.
+    qr_send_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="DIRECT", server_default="DIRECT"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

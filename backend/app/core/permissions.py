@@ -52,6 +52,7 @@ class Permission(str, Enum):
     REWARD_APPLY = "REWARD_APPLY"
     LOYALTY_MANAGE = "LOYALTY_MANAGE"
     PAYMENT_REFUND = "PAYMENT_REFUND"
+    OUTLET_SETTINGS = "OUTLET_SETTINGS"
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,8 @@ PERMISSION_MATRIX: dict[Permission, PermissionRule] = {
     Permission.PAYMENT_REFUND: PermissionRule(
         ("SUPERVISOR",), "Hủy lần thanh toán ghi nhầm, hoàn tiền"
     ),
+    # Không có trong BRD Matrix; cấu hình vận hành của cửa hàng (vd chế độ gửi món QR).
+    Permission.OUTLET_SETTINGS: PermissionRule(("SUPERVISOR",), "Cài đặt vận hành cửa hàng"),
 }
 
 

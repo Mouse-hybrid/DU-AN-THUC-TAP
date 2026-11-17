@@ -28,6 +28,8 @@ class QrInfoOut(BaseModel):
     expires_at: datetime
     # true khi bàn đang chờ thanh toán: khách vẫn xem được nhưng không gọi thêm.
     ordering_locked: bool
+    # DIRECT: món gửi xong vào bếp ngay. CONFIRM: chờ nhân viên xác nhận rồi mới vào bếp.
+    send_mode: str = "DIRECT"
 
 
 class QrCategoryOut(BaseModel):
@@ -70,7 +72,7 @@ class QrOrderItemOut(BaseModel):
     unit_price: Decimal
     line_total: Decimal
     note: str | None
-    status: str  # CREATED = chờ phục vụ xác nhận, VOIDED = đã hủy
+    status: str  # CREATED = chờ phục vụ xác nhận (chế độ CONFIRM), SENT = đã vào bếp, ...
     source: str
     modifiers: list[OrderItemModifierOut] = []
 

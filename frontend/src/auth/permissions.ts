@@ -26,7 +26,8 @@ export type PermissionCode =
   | "CUSTOMER_ACCESS"
   | "REWARD_APPLY"
   | "LOYALTY_MANAGE"
-  | "PAYMENT_REFUND";
+  | "PAYMENT_REFUND"
+  | "OUTLET_SETTINGS";
 
 interface Snapshot {
   /** Access token mà `permissions` thuộc về, để đổi tài khoản không dùng nhầm quyền cũ. */
