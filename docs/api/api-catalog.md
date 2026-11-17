@@ -212,7 +212,7 @@ Khách hàng, luật điểm và tích điểm khi thanh toán. Ưu đãi và đ
 
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
-| 62 | GET | `/api/v1/customers?phone=&limit=&offset=` | C, S | Tra đúng 1 số. Không truyền `phone`: chỉ S, C nhận 403 | ✅ |
+| 62 | GET | `/api/v1/customers?phone=&limit=&offset=` | C, S | Tra đúng 1 số. Không truyền `phone`: chỉ S, C nhận 403. **`phone` trong mọi response khách hàng (62–65) chỉ hiện đủ với vai trò có `LOYALTY_MANAGE` (mặc định S); vai trò khác nhận dạng `090****567`** (ADR 0004) | ✅ |
 | 63 | POST | `/api/v1/customers` (cần `Idempotency-Key`) | C, S | Tạo khách, bắt buộc `consent: true`; trùng số trả 409 | ✅ |
 | 64 | GET | `/api/v1/customers/{id}` | C, S | 80 Tra cứu hội viên, số dư | ✅ |
 | 65 | GET | `/api/v1/customers/{id}/points?limit=&offset=` | C, S | Lịch sử điểm, mới nhất trước | ✅ |
@@ -244,10 +244,11 @@ Khách hàng, luật điểm và tích điểm khi thanh toán. Ưu đãi và đ
 **Quy tắc:**
 - `GET /orders/{id}` và `GET /tables/{id}` có thêm `discount_total`, `total`, `applied_reward`. **`total` là số phải trả**, `subtotal` vẫn là tổng món. API thanh toán lấy tiền theo `total`. `GET /orders` (danh sách) vẫn chỉ có `subtotal`.
 - Tiền giảm do server tính, gửi kèm số tiền trả 422. Mỗi đơn 1 ưu đãi, chưa cộng dồn.
+- **Trần 50% (Nghị định 81, ADR 0004):** tiền giảm của đơn không quá 50% `subtotal`, với mọi loại ưu đãi (phiếu giảm tiền lớn hơn cũng chỉ giảm 50%). Tạo/sửa ưu đãi `PERCENT` quá 50 hoặc luật có `max_redeem_percent` quá 50 trả 422. Dữ liệu cũ vượt trần vẫn chỉ giảm 50%. `override_reason` không bỏ qua được trần này.
 - **Trước khi thanh toán, tiền giảm được tính lại theo hóa đơn hiện tại.** Không còn hợp lệ thì `discount_total = 0`, `applied_reward.invalid_reason` có mã lý do, và `/pay` trả 409 tới khi gỡ ưu đãi.
 - **Điểm chỉ bị trừ khi thanh toán**, không giữ chỗ lúc áp. Hai đơn cùng đổi một số điểm: đơn trả sau nhận 409. Giá trị điểm theo phiên bản luật lúc áp; điểm tích theo số tiền thực trả.
 - Đổi điểm: tối đa theo `max_redeem_percent` của luật và `max_discount` của ưu đãi. Vượt lúc áp trả 409 kèm số tối đa; hóa đơn giảm sau đó thì tự giảm số điểm dùng theo trần mới.
-- `override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt, có ghi audit. Không bỏ qua được số dư và trần đổi điểm.
+- `override_reason`: chỉ Supervisor, bỏ qua thời hạn, đơn tối thiểu, số lượt, có ghi audit. Không bỏ qua được số dư, trần đổi điểm và trần 50%.
 - Đang đổi điểm thì không đổi hoặc bỏ khách được (409).
 - Đã thanh toán thì `COMMITTED`: số giảm, điểm và tên ưu đãi không đổi khi sửa ưu đãi, không gỡ được. Đơn được hoàn tiền hết thì thành `REVERSED` (xem mục A18); hóa đơn vẫn giữ số tiền đã giảm.
 
@@ -262,7 +263,7 @@ Spec: `specs/002-rewards-dot-3/`.
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
 | 90 | POST | `/api/v1/public/qr/{token}/member` (cần `Idempotency-Key`) | token | Khách nhập số điện thoại để tích điểm: body `{"phone"}`; luôn trả `{"status": "RECEIVED", "phone_masked": "090****567"}` | ✅ |
-| 91 | GET | `/api/v1/orders/{id}/pending-member` | C, S | Thu ngân xem số khách đã nhập: `{"phone", "member_customer_id"}` | ✅ |
+| 91 | GET | `/api/v1/orders/{id}/pending-member` | C, S | Thu ngân xem số khách đã nhập: `{"phone", "member_customer_id"}`. Số đã là thành viên thì vai trò không có `LOYALTY_MANAGE` nhận dạng che (gắn bằng `member_customer_id`); chưa là thành viên thì trả đủ để đăng ký | ✅ |
 
 **Số điện thoại trên QR:**
 - Số của thành viên đang hoạt động: tự gắn vào các đơn chưa thanh toán, chưa có khách của bàn. Thanh toán xong khách được tích điểm như bình thường.

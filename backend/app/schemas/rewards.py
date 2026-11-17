@@ -66,7 +66,8 @@ class LoyaltyRuleOut(BaseModel):
 class LoyaltyRuleCreate(BaseModel):
     earn_amount_per_point: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     redeem_value_per_point: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
-    max_redeem_percent: int = Field(ge=1, le=100)
+    # Nghị định 81: giảm tối đa 50% hóa đơn.
+    max_redeem_percent: int = Field(ge=1, le=50)
     points_expire_days: int | None = Field(default=None, ge=1, le=3650)
 
 
@@ -121,8 +122,8 @@ class RewardCreate(BaseModel):
             raise ValueError("Ưu đãi đổi điểm lấy giá trị từ luật điểm, không truyền value")
         if self.reward_type != "POINTS" and self.value is None:
             raise ValueError("Cần value")
-        if self.reward_type == "PERCENT" and self.value > 100:
-            raise ValueError("Phần trăm không được quá 100")
+        if self.reward_type == "PERCENT" and self.value > 50:
+            raise ValueError("Theo Nghị định 81, giảm tối đa 50%")
         if self.valid_from and self.valid_to and self.valid_from >= self.valid_to:
             raise ValueError("valid_from phải trước valid_to")
         return self

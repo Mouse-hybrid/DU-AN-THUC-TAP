@@ -131,12 +131,13 @@ def test_percent_discount_is_computed_by_server_and_capped(client, seed, ctx):
     assert body["applied_reward"]["status"] == "APPLIED"
 
 
-def test_fixed_discount_never_exceeds_bill(client, seed, ctx):
+def test_fixed_discount_capped_at_half_bill(client, seed, ctx):
+    """Nghị định 81: giảm tối đa 50% hóa đơn, kể cả phiếu giảm tiền lớn hơn hóa đơn."""
     order_id = _order(client, seed, ctx, quantity=1)
     reward = _reward(client, ctx, name="Giam tien", reward_type="FIXED", value="999999")
     body = _apply(client, ctx, order_id, reward["id"]).json()
-    _assert_money(body["discount_total"], "50000")
-    _assert_money(body["total"], "0")
+    _assert_money(body["discount_total"], "25000")
+    _assert_money(body["total"], "25000")
 
 
 def test_client_cannot_send_discount_amount(client, seed, ctx):

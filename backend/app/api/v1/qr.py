@@ -47,6 +47,7 @@ from app.core.loyalty import price_order
 from app.core.modifiers import resolve_modifiers
 from app.core.payments import has_collected_payment
 from app.core.permissions import Permission
+from app.core.pii import mask_phone
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
@@ -576,10 +577,6 @@ def qr_request_bill(
 
 # Gắn khách được tới trước lúc thanh toán, kể cả khi bàn đang chờ thanh toán.
 _MEMBER_ORDER_STATUSES = ("NEW", "SENT", "SERVED", "BILLING")
-
-
-def mask_phone(phone: str) -> str:
-    return f"{phone[:3]}****{phone[-3:]}"
 
 
 @public_router.post("/{token}/member", response_model=QrMemberOut)
