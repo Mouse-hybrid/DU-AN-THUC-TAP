@@ -38,6 +38,7 @@ from app.core.deps import (
 )
 from app.core.loyalty import active_order_reward
 from app.core.permissions import Permission
+from app.core.rbac import role_has
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
@@ -303,8 +304,9 @@ def transfer_table(
 ) -> TableTransferOut:
     """Chuyển khách sang bàn khác: cả phiên bàn đi theo, gồm mọi đơn, món, phiếu bếp, ưu đãi
     và mã QR (đều gắn với phiên nên không phải sửa từng thứ). Bàn đích phải trống hoặc đặt
-    trước; bàn cũ sang CLEANING vì khách vừa ngồi. Bàn đang chờ thanh toán thì không chuyển,
-    tránh lệch hóa đơn đã in."""
+    trước và đủ chỗ cho số khách của phiên (BR-TT-014; người có quyền OVERRIDE vượt được nếu
+    ghi lý do). Bàn cũ về AVAILABLE ngay (BR-TT-010). Bàn đang chờ thanh toán thì không
+    chuyển, tránh lệch hóa đơn đã in."""
     endpoint = f"POST /api/v1/tables/{table_id}/transfer"
     request_hash = hash_request_body(payload.model_dump(mode="json"))
     existing = get_idempotent_response(
@@ -349,10 +351,25 @@ def transfer_table(
     ).scalar_one_or_none()
     if table_session is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Bàn không có phiên đang mở")
+    over_capacity = table_session.guest_count > target.seats
+    if over_capacity:
+        if payload.capacity_override_reason is None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Bàn {target.code} chỉ có {target.seats} chỗ, phiên đang có "
+                    f"{table_session.guest_count} khách"
+                ),
+            )
+        if not role_has(session, current.outlet_id, current.role, Permission.OVERRIDE):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, detail="Vai trò này không được chuyển vượt sức chứa"
+            )
 
     table_session.table_id = target.id
     target.status = "OCCUPIED"
-    source.status = "CLEANING"
+    # BR-TT-010: bàn nguồn trống ngay để xếp khách khác.
+    source.status = "AVAILABLE"
     session.flush()
 
     write_audit_log(
@@ -367,6 +384,9 @@ def transfer_table(
             "from_table_code": source.code,
             "to_table_id": str(target.id),
             "to_table_code": target.code,
+            "guest_count": table_session.guest_count,
+            "target_seats": target.seats,
+            "capacity_override_reason": payload.capacity_override_reason if over_capacity else None,
         },
     )
     result = TableTransferOut(
