@@ -39,7 +39,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Validate S4 payment UI spec syntax
-        run: npx playwright test s4_ux_030_payment_role_ui_isolated.spec.ts s4_ux_031_cash_payment_ui_isolated.spec.ts s4_ux_032_split_cash_ui_isolated.spec.ts s4_ux_033_invalid_amount_ui_isolated.spec.ts s4_ux_035_audit_refresh_readonly.spec.ts s4_ux_037_staff_roles_readonly.spec.ts p2_pay_003_vnpay_sandbox_isolated.spec.ts p2_pay_004_vnpay_failure_retry_isolated.spec.ts p2_pay_005_vnpay_return_replay_isolated.spec.ts pf_p2_pay_002_card_pos_isolated.spec.ts --project=chromium --list
+        run: npx playwright test s4_ux_030_payment_role_ui_isolated.spec.ts s4_ux_031_cash_payment_ui_isolated.spec.ts s4_ux_032_split_cash_ui_isolated.spec.ts s4_ux_033_invalid_amount_ui_isolated.spec.ts s4_ux_035_audit_refresh_readonly.spec.ts s4_ux_037_staff_roles_readonly.spec.ts p2_pay_003_vnpay_sandbox_isolated.spec.ts p2_pay_004_vnpay_failure_retry_isolated.spec.ts p2_pay_005_vnpay_return_replay_isolated.spec.ts pf_p2_pay_002_card_pos_isolated.spec.ts p2_pay_006_vnpay_invalid_return_isolated.spec.ts --project=chromium --list
 
       - name: Run API Smoke Tests
         run: npx playwright test api-smoke.spec.ts --project=chromium
