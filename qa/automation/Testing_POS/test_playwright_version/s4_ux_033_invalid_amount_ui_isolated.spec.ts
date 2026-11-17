@@ -288,7 +288,8 @@ test('S4-UX-033 | CASHIER sees validation for zero CASH amount',
         button_disabled: disabled, native_invalid: !validity.valid,
         native_message: validity.message_present, aria_invalid: validity.aria_invalid,
         visible_feedback: feedback.some(text =>
-          /số tiền|không hợp lệ|phải lớn|thanh toán|lỗi/i.test(text)),
+          /không hợp lệ|phải lớn|phải.*0|số tiền.*(sai|lỗi)|không thể.*thanh toán|thanh toán.*(thất bại|không thành công)/i
+            .test(text)),
       };
       const billAfter = await order();
       const ledgerAfter = await ledger();
