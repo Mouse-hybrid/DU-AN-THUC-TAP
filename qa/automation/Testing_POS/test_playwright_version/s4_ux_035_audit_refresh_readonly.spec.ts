@@ -154,11 +154,17 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
         visible_table_rows: tableRows, audit_gets: reads };
       if (!marker) throw new Error('PENDING_FIXTURE: no QA3 order audit entity for outlet probe');
       const id = encodeURIComponent(marker.entity_id);
-      const ownEntity = await ownGet(`/api/v1/audit-logs?entity_id=${id}`, 'qa3');
-      const foreignEntity = await ownGet(`/api/v1/audit-logs?entity_id=${id}`, 'qa2');
-      report.outlet_probe.entity_id = marker.entity_id;
+      const orderAuditPath = `/api/v1/audit-logs?order_id=${id}&limit=100`;
+      const ownEntity = await ownGet(orderAuditPath, 'qa3');
+      const foreignEntity = await ownGet(orderAuditPath, 'qa2');
+      report.outlet_probe.filter = 'order_id';
+      report.outlet_probe.order_id = marker.entity_id;
       report.outlet_probe.own_http = ownEntity.http;
+      report.outlet_probe.own_rows = rowsOf(ownEntity.body).length;
       report.outlet_probe.foreign_http = foreignEntity.http;
+      report.outlet_probe.foreign_rows = rowsOf(foreignEntity.body).length;
+      report.outlet_probe.foreign_contains_order_id =
+        JSON.stringify(foreignEntity.body).includes(marker.entity_id);
       report.checks = {
         audit_get_200: reads.length >= 2 && reads.every(row => row.status === 200),
         refresh_same_range: reads[0].createdFrom !== null &&
@@ -167,7 +173,9 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
           (refreshedTotal > 0 || tableRows === 0),
         own_entity_visible: ownEntity.http === 200 &&
           rowsOf(ownEntity.body).some(row => row.entity_id === marker.entity_id),
-        foreign_entity_isolated: foreignEntity.http === 404,
+        foreign_entity_isolated: foreignEntity.http === 404 &&
+          report.outlet_probe.foreign_rows === 0 &&
+          !report.outlet_probe.foreign_contains_order_id,
         no_ui_business_write: report.ui_writes.length === 0,
       };
       await testInfo.attach('S4_UX_035_refreshed', {
