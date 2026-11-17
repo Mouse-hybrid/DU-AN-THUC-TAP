@@ -215,7 +215,8 @@ test('S4-QR-DIRECT-KDS-SETTINGS | QA3 QR sends a noted item and records mode cha
         current.status === 'SENT' && qrItems.length === 1 &&
         qrItems[0].status === 'SENT' && qrItems[0].note === own.note;
       report.checks.one_station_ticket = tickets.length === 1 &&
-        tickets[0].station_id === item.station_id;
+        tickets[0].station_id === item.station_id &&
+        tickets[0].note === own.note;
       report.checks.qr_send_audit_once = ownAudit.filter(row =>
         row.action === 'ORDER_SENT_TO_KITCHEN' &&
         row.payload?.source === 'QR').length === 1;
@@ -227,12 +228,15 @@ test('S4-QR-DIRECT-KDS-SETTINGS | QA3 QR sends a noted item and records mode cha
       await page.getByLabel('Mật khẩu', { exact: true }).fill(pin!);
       await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
       await expect(page).toHaveURL(/\/kitchen$/, { timeout: 15_000 });
-      await expect(page.getByText(own.note!, { exact: true })).toBeVisible({ timeout: 12_000 });
-      report.checks.kds_note_visible = true;
       await testInfo.attach('S4_QR_DIRECT_KDS', {
         body: await page.screenshot({ fullPage: true }),
         contentType: 'image/png',
       });
+      const noteOnTicket = page.locator('.nova-kds-ticket .nova-kds-note')
+        .filter({ hasText: own.note! });
+      await expect(noteOnTicket).toHaveCount(1, { timeout: 12_000 });
+      await expect(noteOnTicket).toBeVisible();
+      report.checks.kds_note_visible = true;
       const beforeAudit = await audit('/api/v1/audit-logs?limit=100');
       const auditIds = new Set(beforeAudit.map(row => row.id));
       const changed = await checked('PATCH', '/api/v1/outlet/settings',
