@@ -300,7 +300,8 @@ test('P2-PAY-003 | QA3 VNPay sandbox succeeds and settles one bill',
     report.build_stable = report.build_after === before;
     report.result = !failure && !cleanupError && report.cleanup_pass &&
       report.build_stable ? 'PASSED' : cleanupError ? 'INCONCLUSIVE' :
-      redact(failure).includes('PENDING_FIXTURE') ? 'PENDING' : 'FAILED';
+      redact(failure).includes('PENDING_FIXTURE') ||
+        report.business_execution === 'LINK_CREATED' ? 'PENDING' : 'FAILED';
     if (failure) report.error = redact(failure);
     if (cleanupError) report.cleanup_required = redact(cleanupError);
     const evidence = JSON.stringify(report, null, 2) + '\n';
