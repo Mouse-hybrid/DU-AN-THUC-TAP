@@ -124,7 +124,8 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
         contentType: 'image/png',
       });
       const beforeRefresh = reads.length;
-      const refresh = page.getByRole('button', { name: /Làm mới/i });
+      const refresh = page.getByRole('button',
+        { name: 'Tải lại nhật ký hệ thống', exact: true });
       if (await refresh.count() !== 1) {
         report.refresh_controls = await page.locator('button').evaluateAll(rows =>
           rows.map(row => ({
