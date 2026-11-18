@@ -158,6 +158,7 @@ try {
   report.build_stable = report.build_before === report.build_after;
   report.result = report.cleanup_pass && report.build_stable ? 'PASSED' :
     report.actions.length ? 'INCONCLUSIVE' : 'BLOCKED';
+  if (report.result !== 'PASSED') process.exitCode = 1;
   mkdirSync(join(process.cwd(), 'evidence'), { recursive: true });
   const filename = `S4_UX_022_RECOVERY_${report.run_id}.json`;
   writeFileSync(join(process.cwd(), 'evidence', filename),
