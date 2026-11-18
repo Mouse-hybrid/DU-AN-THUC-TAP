@@ -203,9 +203,10 @@ test('S4-UX-021 | KDS resynchronizes after a browser network interruption',
       report.checks.own_ticket_on_station = !!ticket &&
         ticket.station_id === item.station_id && ticket.note === own.note;
       const mutations: string[] = [];
-      const sockets: number[] = [];
-      page.on('websocket', ws => {
-        if (new URL(ws.url()).pathname === '/api/v1/ws') sockets.push(Date.now());
+      const sockets: Array<{ close: (options?: { code?: number; reason?: string }) => Promise<void> }> = [];
+      await page.routeWebSocket(/\/api\/v1\/ws(?:\?|$)/, ws => {
+        sockets.push(ws);
+        ws.connectToServer();
       });
       page.on('request', req => {
         const path = new URL(req.url()).pathname;
@@ -236,6 +237,10 @@ test('S4-UX-021 | KDS resynchronizes after a browser network interruption',
       await expect(page.locator('.nova-stale-notice'))
         .toContainText('Dữ liệu có thể đã cũ', { timeout: 10_000 });
       report.checks.offline_cue = true;
+      // Browser offline emulation can leave an existing WS open. Close this
+      // isolated page's routed socket so reconnection is genuinely exercised.
+      await sockets[0].close({ code: 1001, reason: 'QA connection interruption' });
+      report.ws_close_requested = true;
       const itemPath = `/api/v1/orders/${own.orderId}/items/${own.itemId}`;
       await checked('POST', itemPath + '/start-cooking', 'kitchen', 200);
       await checked('POST', itemPath + '/mark-ready', 'kitchen', 200);
