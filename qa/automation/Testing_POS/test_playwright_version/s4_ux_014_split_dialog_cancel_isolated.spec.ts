@@ -19,7 +19,7 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
     const report: any = {
       run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-S4UX014',
       test_ref: 'S4-UX-014', checked_at: new Date().toISOString(),
-      scope: 'QA3 split dialog shows two quantity rows, +/- controls and valid remainder; cancel leaves bill, tickets and split audit unchanged; owned cleanup. No split submission.',
+      scope: 'QA3 split dialog on two SERVED items shows quantity rows, +/- controls and valid remainder; cancel leaves bill, tickets and split audit unchanged; owned cleanup. No split submission.',
       case_coverage: 'DIALOG_QUANTITY_AND_CANCEL_ONLY',
       project: testInfo.project.name, secrets_recorded: false,
       ui_writes: [], checks: {}, cleanup_pass: false,
@@ -197,6 +197,14 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
       expect(own.itemIds.every(Boolean)).toBe(true);
       await checked('POST', '/api/v1/orders/' + own.orderId +
         '/send-to-kitchen', 'waiter', 200);
+      // The current quantity split dialog is exposed for served items.
+      for (const itemId of own.itemIds!)
+        for (const [action, role] of [
+          ['start-cooking', 'kitchen'], ['mark-ready', 'kitchen'],
+          ['pickup', 'waiter'], ['served', 'waiter'],
+        ] as const)
+          await checked('POST', '/api/v1/orders/' + own.orderId +
+            '/items/' + itemId + '/' + action, role, 200);
       console.log('[S4-UX-014] Own Q3-1 session ' + own.sessionId +
         ', order ' + own.orderId);
       const before = {
@@ -243,7 +251,7 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
       await expect(submit).toBeDisabled();
       await controls.nth(1).click();
       await expect.poll(() => moveRow.innerText()).toBe(plusText);
-      await expect(keepRow).toHaveText(keepBefore);
+      await expect.poll(() => keepRow.innerText()).toBe(keepBefore);
       await expect(submit).toBeEnabled();
       const keepControls = keepRow.locator('button');
       await expect(keepControls).toHaveCount(2);
@@ -251,7 +259,7 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
         await keepControls.nth(1).click();
         await expect(submit).toBeDisabled();
         await keepControls.nth(0).click();
-        await expect(keepRow).toHaveText(keepBefore);
+        await expect.poll(() => keepRow.innerText()).toBe(keepBefore);
       }
       await expect(submit).toBeEnabled();
       report.dialog = { rows: 2, plus_minus_changed_quantity: true,
