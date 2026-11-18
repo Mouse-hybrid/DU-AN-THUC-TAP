@@ -198,21 +198,27 @@ test('S4-UX-017 | UI denies splitting an already paid child bill',
     });
     async function openPaidChild(id: string) {
       const paymentPath = `/api/v1/orders/${id}/payments`;
-      const candidates = [
-        `/tables/${own.tableId}/summary?order_id=${id}`,
-        `/tables/${own.tableId}/summary?orderId=${id}`,
-      ];
-      for (const path of candidates) {
-        reads.length = 0;
-        await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 20_000 });
-        try {
-          await expect(page.getByText('Đã thanh toán').first())
-            .toBeVisible({ timeout: 5_000 });
-        } catch { continue; }
-        if (reads.includes(paymentPath) &&
-            !reads.some(read => read.endsWith('/payments') && read !== paymentPath)) {
-          return path;
-        }
+      const path = `/tables/${own.tableId}/summary?order_id=${id}`;
+      reads.length = 0;
+      await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+      const tabs = page.getByRole('button', { name: /^Hóa đơn \d+$/ });
+      await expect(tabs).toHaveCount(2, { timeout: 10_000 });
+      if (reads.includes(paymentPath) &&
+          await page.getByText('Đã thanh toán').first().isVisible())
+        return path;
+      const tabNames = await tabs.allTextContents();
+      for (let index = tabNames.length - 1; index >= 0; index--) {
+        const childRead = page.waitForResponse(response =>
+          response.request().method() === 'GET' &&
+          new URL(response.url()).pathname === paymentPath,
+        { timeout: 5_000 }).catch(() => null);
+        await tabs.nth(index).click();
+        const selected = await childRead;
+        if (!selected || selected.status() !== 200) continue;
+        await expect(page.getByText('Đã thanh toán').first())
+          .toBeVisible({ timeout: 5_000 });
+        report.selected_bill_tab = tabNames[index].trim();
+        return path + ' via ' + report.selected_bill_tab;
       }
       report.bill_navigation = {
         id, pathname: new URL(page.url()).pathname,
