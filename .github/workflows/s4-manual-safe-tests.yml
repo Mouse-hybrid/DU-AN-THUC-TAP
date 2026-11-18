@@ -1,0 +1,84 @@
+name: Run QA safe tests
+
+# Manual one-click run from Actions on the default branch. Test code is read
+# from ONLY_TESTING; staging is never reset and no QA business fixture is made.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-safe-manual-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  safe-tests:
+    name: P0/P1 regression and anonymous UI smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    env:
+      BASE_URL: http://160.191.47.17
+      CYPRESS_INSTALL_BINARY: '0'
+
+    steps:
+      - name: Checkout ONLY_TESTING scripts
+        uses: actions/checkout@v4
+        with:
+          ref: ONLY_TESTING
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Pin current deployed staging SHA
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const response = await fetch(`${process.env.BASE_URL}/version`, {
+            signal: AbortSignal.timeout(20_000),
+          });
+          if (response.status !== 200) throw new Error(`Staging /version HTTP ${response.status}`);
+          const version = await response.json();
+          if (version.environment !== 'staging' || !/^[a-f0-9]{40}$/.test(version.commit || ''))
+            throw new Error('Invalid staging environment or commit');
+          appendFileSync(process.env.GITHUB_ENV, `POS_EXPECTED_COMMIT=${version.commit}\n`);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `Deployed staging SHA: \`${version.commit}\`. Scripts: ONLY_TESTING.\n`);
+          NODE
+
+      - name: Run fixture-free P0/P1 API regression
+        run: node scripts/s4_p0p1_safe_readonly.mjs
+
+      - name: Run anonymous route UI smoke
+        run: npx playwright test pos-smoke.spec.ts --project=chromium --grep 'anonymous route guard smoke' --workers=1 --retries=0
+
+      - name: Explain scope
+        if: always()
+        run: |
+          echo 'Only TC_EXT_009, TC_API_01_003 and anonymous route smoke are executed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Authenticated QA3, payment, VNPay, fixture mutations and the 71 Phase 2 cases are not included.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload QA evidence and Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-safe-manual-${{ github.run_id }}
+          path: |
+            qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
+            qa/automation/Testing_POS/test-results/
+            qa/automation/Testing_POS/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
