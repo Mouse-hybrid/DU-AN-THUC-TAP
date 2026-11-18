@@ -256,6 +256,18 @@ test('S4-UX-018 | KDS queue tabs and station filter match server',
         Array.isArray(await ready.json());
       await expect(page.getByRole('tab', { name: 'Sẵn sàng' }))
         .toHaveAttribute('aria-selected', 'true');
+      const emptyQueuePath = /\/api\/v1\/kitchen\/queue(?:\?|$)/;
+      await page.route(emptyQueuePath, async route => {
+        if (route.request().method() === 'GET')
+          await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+        else await route.continue();
+      });
+      try {
+        await page.getByRole('tab', { name: 'Món mới' }).click();
+        await expect(page.getByRole('heading', { name: 'Chưa có món' }))
+          .toBeVisible({ timeout: 10_000 });
+        report.checks.empty_queue_message = true;
+      } finally { await page.unroute(emptyQueuePath); }
       report.checks.no_kds_ui_write = mutations.length === 0;
       report.station_id = item.station_id;
       report.ui_writes = mutations;
