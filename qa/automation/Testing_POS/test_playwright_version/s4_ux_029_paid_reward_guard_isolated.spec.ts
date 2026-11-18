@@ -17,14 +17,15 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       'S2_STAGING_PIN and full POS_EXPECTED_COMMIT required');
     const tokens: Record<string, string> = {};
     const own: { tableId?: string; sessionId?: string; orderId?: string;
-      itemId?: string; menuId?: string; customerId?: string; rewardId?: string;
+      sourceId?: string; itemId?: string; sourceItemId?: string;
+      menuId?: string; customerId?: string; rewardId?: string;
       orderRewardId?: string; phone?: string; customerName?: string;
       rewardName?: string } = {};
     const report: any = {
       run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-S4UX029',
       test_ref: 'S4-UX-029', checked_at: new Date().toISOString(),
       project: testInfo.project.name,
-      scope: 'QA3 paid CASH bill with an owned FIXED reward: revisit desktop UI and verify apply/remove guarded; bill, points, ledger, audit and owned cleanup. No gateway or PO customer-specific policy.',
+      scope: 'QA3 two bills in one session: pay the child bill with an owned FIXED reward while the source remains BILLING; revisit child UI and verify apply/remove guarded, immutable bill, points, ledger, audit and owned cleanup. No gateway or PO customer-specific policy.',
       secrets_recorded: false, phone_recorded: false,
       checks: {}, ui_writes: [], cleanup_pass: false,
     };
@@ -58,6 +59,8 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       'waiter', 200);
     const ledger = () => checked('GET', '/api/v1/orders/' + own.orderId +
       '/payments', 'cashier', 200);
+    const orderById = (id: string) => checked('GET', '/api/v1/orders/' + id,
+      'cashier', 200);
     const points = () => checked('GET', '/api/v1/customers/' + own.customerId +
       '/points?limit=200', 'cashier', 200);
     const audit = () => checked('GET', '/api/v1/audit-logs?order_id=' +
@@ -81,6 +84,7 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       ['/api/v1/orders/{order_id}/rewards', 'post'],
       ['/api/v1/orders/{order_id}/rewards/{order_reward_id}', 'delete'],
       ['/api/v1/orders/{order_id}/payments', 'post'],
+      ['/api/v1/orders/{order_id}/split', 'post'],
     ]) expect(spec.paths?.[path]?.[method], method + ' ' + path).toBeTruthy();
     for (const [role, expectedRole] of [
       ['admin', 'SUPERVISOR'], ['cashier', 'CASHIER'],
@@ -137,72 +141,84 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
           const t = await table();
           if (t.current_session && t.current_session.id !== own.sessionId)
             throw new Error('CLEANUP REQUIRED: table session owner changed');
-          if (!own.orderId) {
-            const matches = (t.orders || []).filter((row: any) =>
-              row.table_session_id === own.sessionId);
-            if (matches.length !== 1)
-              throw new Error('CLEANUP REQUIRED: own order uncertain');
-            own.orderId = matches[0].id;
-          }
-          let current = await order();
-          if (current.table_session_id !== own.sessionId)
-            throw new Error('CLEANUP REQUIRED: order/session mismatch');
-          if (current.applied_reward && !['PAID', 'CLOSED'].includes(current.status))
-            await checked('DELETE', '/api/v1/orders/' + own.orderId +
-              '/rewards/' + current.applied_reward.id, 'cashier', 200);
-          current = await order();
-          if (current.status === 'NEW') {
-            if (!current.items.length)
-              await checked('POST', '/api/v1/orders/' + own.orderId + '/items',
+          const rows = (t.orders || []).filter((row: any) =>
+            row.table_session_id === own.sessionId);
+          if (rows.length > 2)
+            throw new Error('CLEANUP REQUIRED: unexpected order count');
+          if (!own.sourceId && rows.length === 1) own.sourceId = rows[0].id;
+          if (!own.sourceId && own.orderId) own.sourceId = own.orderId;
+          if (!own.sourceId)
+            throw new Error('CLEANUP REQUIRED: source order uncertain');
+          const child = rows.find((row: any) => row.id !== own.sourceId)?.id;
+          if (child && own.orderId && own.orderId !== own.sourceId &&
+            child !== own.orderId)
+            throw new Error('CLEANUP REQUIRED: child order owner changed');
+          if (child) own.orderId = child;
+          const ids = [own.orderId, own.sourceId]
+            .filter((id, index, list) => !!id && list.indexOf(id) === index) as string[];
+          for (const id of ids) {
+            let current = await orderById(id);
+            if (current.table_session_id !== own.sessionId)
+              throw new Error('CLEANUP REQUIRED: order/session mismatch');
+            if (current.status === 'CLOSED') continue;
+            if (current.applied_reward && !['PAID', 'CLOSED'].includes(current.status))
+              await checked('DELETE', '/api/v1/orders/' + id +
+                '/rewards/' + current.applied_reward.id, 'cashier', 200);
+            current = await orderById(id);
+            if (!current.items.length && current.status === 'NEW')
+              await checked('POST', '/api/v1/orders/' + id + '/items',
                 'waiter', 201, { items: [{ menu_item_id: own.menuId,
                   quantity: 1, note: 'S4-UX-029 cleanup' }] });
-            await checked('POST', '/api/v1/orders/' + own.orderId +
-              '/send-to-kitchen', 'waiter', 200);
-          }
-          for (const item of (await order()).items) {
-            for (const [state, action, role] of [
-              ['SENT', 'start-cooking', 'kitchen'],
-              ['PREPARING', 'mark-ready', 'kitchen'],
-              ['READY', 'pickup', 'waiter'],
-              ['PICKED_UP', 'served', 'waiter'],
-            ] as const) {
-              if ((await order()).items.find((row: any) =>
-                row.id === item.id)?.status === state)
-                await checked('POST', '/api/v1/orders/' + own.orderId +
-                  '/items/' + item.id + '/' + action, role, 200);
+            if ((await orderById(id)).items.some((item: any) =>
+              item.status === 'CREATED'))
+              await checked('POST', '/api/v1/orders/' + id +
+                '/send-to-kitchen', 'waiter', 200);
+            for (const item of (await orderById(id)).items) {
+              for (const [state, action, role] of [
+                ['SENT', 'start-cooking', 'kitchen'],
+                ['PREPARING', 'mark-ready', 'kitchen'],
+                ['READY', 'pickup', 'waiter'],
+                ['PICKED_UP', 'served', 'waiter'],
+              ] as const) {
+                if ((await orderById(id)).items.find((row: any) =>
+                  row.id === item.id)?.status === state)
+                  await checked('POST', '/api/v1/orders/' + id +
+                    '/items/' + item.id + '/' + action, role, 200);
+              }
             }
+            current = await orderById(id);
+            if (!['PAID', 'CLOSED'].includes(current.status) && current.customer_id)
+              await checked('POST', '/api/v1/orders/' + id +
+                '/customer', 'cashier', 200, { customer_id: null });
+            current = await orderById(id);
+            if (!['BILLING', 'PAID', 'CLOSED'].includes(current.status))
+              await checked('POST', '/api/v1/orders/' + id +
+                '/request-billing', 'waiter', 200);
+            if ((await orderById(id)).status === 'BILLING')
+              await checked('POST', '/api/v1/orders/' + id +
+                '/pay', 'cashier', 200);
+            if ((await orderById(id)).status === 'PAID')
+              await checked('POST', '/api/v1/orders/' + id +
+                '/close', 'cashier', 200);
           }
-          current = await order();
-          if (!['PAID', 'CLOSED'].includes(current.status) && current.customer_id)
-            await checked('POST', '/api/v1/orders/' + own.orderId +
-              '/customer', 'cashier', 200, { customer_id: null });
-          current = await order();
-          if (!['BILLING', 'PAID', 'CLOSED'].includes(current.status))
-            await checked('POST', '/api/v1/orders/' + own.orderId +
-              '/request-billing', 'waiter', 200);
-          if ((await order()).status === 'BILLING')
-            await checked('POST', '/api/v1/orders/' + own.orderId +
-              '/pay', 'cashier', 200);
-          if ((await order()).status === 'PAID')
-            await checked('POST', '/api/v1/orders/' + own.orderId +
-              '/close', 'cashier', 200);
           if ((await table()).status === 'CLEANING')
             await checked('POST', '/api/v1/tables/' + own.tableId +
               '/mark-clean', 'waiter', 200);
-          const finalOrder = await order();
+          const finalOrders = await Promise.all(ids.map(id => orderById(id)));
           const finalTable = await table();
           const done = await checked('GET', '/api/v1/kitchen/queue?status=DONE',
             'kitchen', 200) as any[];
           const active = await checked('GET', '/api/v1/kitchen/queue',
             'kitchen', 200) as any[];
           report.cleanup_state = {
-            order_closed: finalOrder.status === 'CLOSED',
+            orders_closed: finalOrders.every(row => row.status === 'CLOSED'),
             table_available: finalTable.status === 'AVAILABLE' &&
               !finalTable.current_session,
-            items_served: finalOrder.items.every((row: any) =>
-              row.status === 'SERVED'),
-            ticket_done: done.some(row => row.order_id === own.orderId),
-            no_active_ticket: !active.some(row => row.order_id === own.orderId),
+            items_served: finalOrders.every(row => row.items.every((item: any) =>
+              item.status === 'SERVED')),
+            tickets_done: finalOrders.flatMap(row => row.items).every((item: any) =>
+              done.some(ticket => ticket.order_item_id === item.id)),
+            no_active_ticket: !active.some(row => ids.includes(row.order_id)),
           };
           if (!Object.values(report.cleanup_state).every(Boolean))
             throw new Error('CLEANUP REQUIRED: final order/table/ticket mismatch');
@@ -252,15 +268,36 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
         'admin', 201, { name: own.rewardName, reward_type: 'FIXED',
           value: '1.00', min_order_amount: '0' })).id;
       own.sessionId = (await checked('POST', '/api/v1/tables/' + own.tableId +
-        '/open-session', 'waiter', 201, { guest_count: 1 })).id;
-      own.orderId = (await checked('POST', '/api/v1/orders', 'waiter',
+        '/open-session', 'waiter', 201, { guest_count: 2 })).id;
+      own.sourceId = (await checked('POST', '/api/v1/orders', 'waiter',
         201, { table_session_id: own.sessionId })).id;
+      own.orderId = own.sourceId;
       const added = await checked('POST', '/api/v1/orders/' + own.orderId +
-        '/items', 'waiter', 201, { items: [{ menu_item_id: own.menuId,
-          quantity: 1, note: 'S4-UX-029 owned paid reward' }] });
+        '/items', 'waiter', 201, { items: [
+          { menu_item_id: own.menuId, quantity: 1, note: 'S4-UX-029 source' },
+          { menu_item_id: own.menuId, quantity: 1, note: 'S4-UX-029 child' },
+        ] });
       own.itemId = added.items?.find((row: any) =>
-        row.menu_item_id === own.menuId)?.id;
-      expect(own.itemId).toBeTruthy();
+        row.note === 'S4-UX-029 child')?.id;
+      own.sourceItemId = added.items?.find((row: any) =>
+        row.note === 'S4-UX-029 source')?.id;
+      expect(own.itemId && own.sourceItemId).toBeTruthy();
+      await checked('POST', '/api/v1/orders/' + own.orderId +
+        '/send-to-kitchen', 'waiter', 200);
+      for (const itemId of [own.itemId!, own.sourceItemId!])
+        for (const [action, role] of [
+          ['start-cooking', 'kitchen'], ['mark-ready', 'kitchen'],
+          ['pickup', 'waiter'], ['served', 'waiter'],
+        ] as const)
+          await checked('POST', '/api/v1/orders/' + own.orderId +
+            '/items/' + itemId + '/' + action, role, 200);
+      const split = await checked('POST', '/api/v1/orders/' + own.sourceId +
+        '/split', 'waiter', 201,
+        { items: [{ order_item_id: own.itemId, quantity: 1 }] });
+      own.orderId = split.new_order?.id;
+      expect(own.orderId).toBeTruthy();
+      expect((await order()).table_session_id).toBe(own.sessionId);
+      expect((await orderById(own.sourceId!)).table_session_id).toBe(own.sessionId);
       await checked('POST', '/api/v1/orders/' + own.orderId +
         '/customer', 'cashier', 200, { customer_id: own.customerId });
       await checked('POST', '/api/v1/orders/' + own.orderId +
@@ -270,14 +307,8 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       expect(own.orderRewardId).toBeTruthy();
       expect(Number(applied.total)).toBe(49_999);
       await checked('POST', '/api/v1/orders/' + own.orderId +
-        '/send-to-kitchen', 'waiter', 200);
-      for (const [action, role] of [
-        ['start-cooking', 'kitchen'], ['mark-ready', 'kitchen'],
-        ['pickup', 'waiter'], ['served', 'waiter'],
-      ] as const)
-        await checked('POST', '/api/v1/orders/' + own.orderId +
-          '/items/' + own.itemId + '/' + action, role, 200);
-      await checked('POST', '/api/v1/orders/' + own.orderId +
+        '/request-billing', 'waiter', 200);
+      await checked('POST', '/api/v1/orders/' + own.sourceId +
         '/request-billing', 'waiter', 200);
       const payment = await checked('POST', '/api/v1/orders/' + own.orderId +
         '/payments', 'cashier', 201, { method: 'CASH',
@@ -288,10 +319,14 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       const paidPoints = await points();
       const paidAudit = await audit();
       const paidTable = await table();
+      const sourceBefore = await orderById(own.sourceId!);
       expect(paidOrder.status).toBe('PAID');
-      expect(paidTable.status).toBe('CLEANING');
+      expect(sourceBefore.status).toBe('BILLING');
+      expect(paidTable.current_session?.id).toBe(own.sessionId);
+      expect(paidTable.status).not.toBe('CLEANING');
       expect(paidLedger.payments).toHaveLength(1);
       report.order_id = own.orderId;
+      report.source_order_id = own.sourceId;
       report.table_code = 'Q3-1';
       console.log('[S4-UX-029] Own Q3-1 paid order ' + own.orderId);
 
@@ -350,6 +385,7 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       const afterLedger = await ledger();
       const afterPoints = await points();
       const afterAudit = await audit();
+      const sourceAfter = await orderById(own.sourceId!);
       report.checks = {
         paid_reward_preserved: paidOrder.applied_reward?.id === own.orderRewardId &&
           afterOrder.applied_reward?.id === own.orderRewardId &&
@@ -363,6 +399,8 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
         ledger_unchanged: JSON.stringify(afterLedger) === JSON.stringify(paidLedger),
         points_unchanged: JSON.stringify(afterPoints) === JSON.stringify(paidPoints),
         audit_unchanged: JSON.stringify(afterAudit) === JSON.stringify(paidAudit),
+        source_still_unpaid: sourceAfter.status === 'BILLING' &&
+          Number(sourceAfter.amount_due) === Number(sourceBefore.amount_due),
         no_successful_ui_write: uiWrites.length === actions.filter(row =>
           row.guard === 'server').length,
       };
