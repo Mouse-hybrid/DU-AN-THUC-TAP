@@ -1,0 +1,83 @@
+name: Sprint 4 QA Safe Regression
+
+on:
+  push:
+    branches: [ONLY_TESTING]
+    paths:
+      - '.github/workflows/s4-safe-regression.yml'
+      - 'qa/automation/Testing_POS/**'
+  pull_request:
+    branches: [ONLY_TESTING]
+    paths:
+      - '.github/workflows/s4-safe-regression.yml'
+      - 'qa/automation/Testing_POS/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s4-safe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  safe-regression:
+    name: Fixture-free smoke and script discovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    env:
+      BASE_URL: http://160.191.47.17
+
+    steps:
+      - name: Checkout ONLY_TESTING
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Discover Sprint 4 UI specs without executing business flows
+        run: npx playwright test 's4_ux_(018|019|022|023|024|025)_.*\.spec\.ts' --project=chromium --list
+
+      - name: Validate fixture-free regression script
+        run: node --check scripts/s4_p0p1_safe_readonly.mjs
+
+      - name: Pin current deployed staging SHA
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const response = await fetch(`${process.env.BASE_URL}/version`, {
+            signal: AbortSignal.timeout(20_000),
+          });
+          if (response.status !== 200) throw new Error(`Staging /version HTTP ${response.status}`);
+          const version = await response.json();
+          if (version.environment !== 'staging' || !/^[a-f0-9]{40}$/.test(version.commit || ''))
+            throw new Error('Invalid staging environment or commit');
+          appendFileSync(process.env.GITHUB_ENV, `POS_EXPECTED_COMMIT=${version.commit}\n`);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `Deployed staging SHA: \`${version.commit}\`. Source branch SHA: \`${process.env.GITHUB_SHA}\`.\n`);
+          NODE
+
+      - name: Run fixture-free P0/P1 regression
+        run: node scripts/s4_p0p1_safe_readonly.mjs
+
+      - name: Upload regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s4-safe-regression-${{ github.run_id }}
+          path: qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
+          if-no-files-found: warn
+          retention-days: 14
