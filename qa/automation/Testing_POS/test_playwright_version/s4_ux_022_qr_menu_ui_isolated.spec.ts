@@ -183,8 +183,12 @@ test('S4-UX-022 | customer QR opens own table and server menu',
       own.sessionId = (await checked('POST',
         `/api/v1/tables/${own.tableId}/open-session`, 'waiter', 201,
         { guest_count: 1 })).id;
+      report.table_id = own.tableId;
+      report.session_id = own.sessionId;
       own.orderId = (await checked('POST', '/api/v1/orders',
         'waiter', 201, { table_session_id: own.sessionId })).id;
+      report.order_id = own.orderId;
+      console.log(`[S4-UX-022] Own Q3-1 session ${own.sessionId}, order ${own.orderId}`);
       const issued = await checked('POST',
         `/api/v1/tables/${own.tableId}/qr-session`, 'waiter', 201);
       own.qrIssued = true;
@@ -213,7 +217,9 @@ test('S4-UX-022 | customer QR opens own table and server menu',
       const menuGate = new Promise<void>(resolve => { releaseMenu = resolve; });
       await page.route(menuPath, async route => {
         await menuGate;
-        await route.continue();
+        // The browser can close after an assertion fails; do not raise a second,
+        // unhandled route error that terminates the test before owned cleanup.
+        await route.continue().catch(() => {});
       });
       try {
         await page.goto(base + issued.path, { waitUntil: 'domcontentloaded' });
@@ -221,8 +227,8 @@ test('S4-UX-022 | customer QR opens own table and server menu',
           .toBeVisible({ timeout: 10_000 });
         report.checks.loading_visible = true;
       } finally { releaseMenu(); }
-      await page.unroute(menuPath);
       await expect(page.getByTestId('qr-table')).toHaveText('Bàn Q3-1');
+      await page.unroute(menuPath);
       for (const offeredItem of offered) {
         const row = page.getByTestId('qr-menu-item').filter({
           has: page.getByRole('button', { name: `Thêm ${offeredItem.name}`, exact: true }),
