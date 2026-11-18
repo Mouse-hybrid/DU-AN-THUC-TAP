@@ -306,7 +306,22 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
       watch(page);
       await page.goto('/tables/' + own.tableId + '/summary?order_id=' +
         own.orderId, { waitUntil: 'domcontentloaded', timeout: 20_000 });
-      await expect(page.getByText('Đã thanh toán').first()).toBeVisible({ timeout: 15_000 });
+      try {
+        await expect(page.getByText('Đã thanh toán').first())
+          .toBeVisible({ timeout: 15_000 });
+      } catch {
+        report.ui_probe = {
+          pathname: new URL(page.url()).pathname,
+          order_query_preserved: new URL(page.url()).searchParams.get('order_id') === own.orderId,
+          headings: await page.locator('h1,h2,h3').allTextContents(),
+          buttons: (await page.locator('button').allTextContents())
+            .map(value => value.trim()).filter(Boolean).slice(0, 30),
+          paid_label_count: await page.getByText('Đã thanh toán').count(),
+          bill_total_visible: await page.getByText('49.999', { exact: false }).count() > 0,
+        };
+        throw new Error('PENDING_UI_ROUTE_OR_MARKER: ' +
+          JSON.stringify(report.ui_probe));
+      }
       const apply = page.getByTestId('reward-row').getByRole('button',
         { name: /^(Áp dụng|Áp ưu đãi|Sử dụng)(?:\s|$)/i });
       const remove = page.getByRole('button',
@@ -366,7 +381,7 @@ test('S4-UX-029 | paid bill cannot apply or remove a reward in UI',
     report.business_execution = report.payment_id ? 'EXECUTED' : 'NOT_EXECUTED';
     report.result = !failure && !cleanupError && report.cleanup_pass &&
       report.build_stable ? 'PASSED' : cleanupError ? 'INCONCLUSIVE' :
-      redact(failure).includes('PENDING_UI_SELECTOR') ? 'PENDING' : 'FAILED';
+      redact(failure).includes('PENDING_UI_') ? 'PENDING' : 'FAILED';
     if (failure) report.error = redact(failure);
     if (cleanupError) report.cleanup_required = redact(cleanupError);
     const evidence = JSON.stringify(report, null, 2) + '\n';
