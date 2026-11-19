@@ -74,7 +74,7 @@ export function TableMoveDialog({ mode, tableId, tableCode, onSubmit, onCancel }
     >
       <p>
         {mode === "transfer"
-          ? "Toàn bộ đơn, món và phiếu bếp chuyển sang bàn mới. Bàn cũ chuyển sang trạng thái đang dọn."
+          ? "Toàn bộ đơn, món và phiếu bếp chuyển sang bàn mới. Bàn cũ trống ngay để xếp khách mới. Bàn mới phải đủ chỗ cho số khách."
           : "Món của các bàn được chọn sẽ gộp vào hóa đơn của bàn này. Không thể hoàn tác việc gộp."}
       </p>
       {tables === null && !loadError ? <p className="nova-readonly-note">Đang tải danh sách bàn…</p> : null}

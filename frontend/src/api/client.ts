@@ -32,10 +32,18 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Câu lỗi server trả trong `detail` (dạng chuỗi), nếu có. `message` của 409 luôn là câu
+     * chung, nên chỗ nào muốn báo đúng lý do (vd "Bàn B3 chỉ có 2 chỗ…") thì đọc trường này. */
+    public readonly serverDetail?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+function serverDetail(payload: unknown): string | undefined {
+  if (isRecord(payload) && typeof payload.detail === "string" && payload.detail.trim()) return payload.detail.trim();
+  return undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,7 +166,7 @@ async function fetchOnce<TResponse, TBody>(path: string, options: RequestOptions
       if (response.status === 401 && needsAuth) redirectToLogin();
       // Quyền có thể vừa bị quản lý đổi. /auth/me không tự phát để tránh vòng lặp.
       if (response.status === 403 && needsAuth && path !== "/auth/me") window.dispatchEvent(new Event(FORBIDDEN_EVENT));
-      throw new ApiError(errorMessage(payload, response.status), response.status);
+      throw new ApiError(errorMessage(payload, response.status), response.status, serverDetail(payload));
     }
     return payload as TResponse;
   } finally {
@@ -217,7 +225,8 @@ export async function apiDownload(path: string): Promise<DownloadResult> {
     if (!response.ok) {
       if (response.status === 401) redirectToLogin();
       if (response.status === 403) window.dispatchEvent(new Event(FORBIDDEN_EVENT));
-      throw new ApiError(errorMessage(await readPayload(response), response.status), response.status);
+      const failed = await readPayload(response);
+      throw new ApiError(errorMessage(failed, response.status), response.status, serverDetail(failed));
     }
     const disposition = response.headers.get("Content-Disposition") ?? "";
     const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
