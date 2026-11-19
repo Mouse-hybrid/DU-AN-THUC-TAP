@@ -268,7 +268,19 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
         body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
         contentType: 'image/png',
       });
-      await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+      const cancel = dialog.getByRole('button', { name: 'Hủy', exact: true });
+      report.ui_probe = {
+        dialog_visible: await dialog.isVisible(),
+        buttons: await dialog.locator('button').evaluateAll(rows =>
+          rows.map(row => ({
+            text: row.textContent?.trim(),
+            aria_label: row.getAttribute('aria-label'),
+          }))),
+      };
+      if (await cancel.count() !== 1)
+        throw new Error('PENDING_UI_CANCEL_SELECTOR: ' +
+          JSON.stringify(report.ui_probe));
+      await cancel.click({ timeout: 5_000 });
       await expect(dialog).toBeHidden();
       const after = {
         table: await table(), order: await order(),
