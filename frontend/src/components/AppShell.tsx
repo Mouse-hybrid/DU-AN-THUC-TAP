@@ -36,6 +36,7 @@ function navItemsFor(role: string | undefined, can: (code: PermissionCode) => bo
     );
   }
   if (can("AUDIT_READ")) items.push({ to: "/admin/audit-logs", prefix: "/admin/audit-logs", label: "Nhật ký", icon: "scroll-text" });
+  if (can("OUTLET_SETTINGS")) items.push({ to: "/admin/settings", prefix: "/admin/settings", label: "Cài đặt", icon: "key-round" });
   return items;
 }
 

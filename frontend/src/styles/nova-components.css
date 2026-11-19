@@ -3105,3 +3105,21 @@ a.nova-button {
 .nova-qr-note { display: grid; gap: 4px; font-size: 13px; color: #5b706c; }
 .nova-qr-note input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 10px; font: inherit; font-size: 14px; color: inherit; background: #fff; }
 .nova-qr-note input:focus { outline: 2px solid var(--nova-primary, #008573); outline-offset: 1px; }
+
+/* Pha 2 bổ sung 20/11: VNPay, chia tiền, cảnh báo, tích điểm QR, cài đặt cửa hàng */
+.nova-alert.nova-alert--warning { border-color: #ffd7a8; color: #8a4b08; background: #fff4e5; }
+.nova-vnpay-card { display: grid; justify-items: center; gap: 10px; margin: 12px 0; padding: 14px; border: 1px solid #b9e3da; border-radius: 14px; background: #f2fbf8; text-align: center; }
+.nova-vnpay-card-head { display: grid; gap: 2px; }
+.nova-vnpay-card-head span { color: #5b706c; font-size: 13px; }
+.nova-vnpay-link { font-weight: 700; color: var(--nova-primary, #008573); word-break: break-all; }
+.nova-vnpay-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.nova-payment-split { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.nova-payment-split .nova-field { margin: 0; }
+@media (max-width: 560px) { .nova-payment-split { grid-template-columns: minmax(0, 1fr) auto; } }
+.nova-qr-member { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.nova-settings-card { display: grid; gap: 12px; max-width: 720px; padding: 20px; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 16px; background: #fff; }
+.nova-settings-card h2 { margin: 0; font-size: 18px; }
+.nova-settings-options { display: grid; gap: 10px; }
+.nova-settings-option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px 14px; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 12px; cursor: pointer; }
+.nova-settings-option--active { border-color: var(--nova-primary, #008573); background: #f2fbf8; }
+.nova-settings-option p { margin: 2px 0 0; color: #5b706c; font-size: 14px; }

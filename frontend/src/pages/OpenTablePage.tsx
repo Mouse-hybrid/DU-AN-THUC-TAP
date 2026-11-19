@@ -146,6 +146,12 @@ export function OpenTablePage() {
                 </div>
               </div>
 
+              {guestCount > table.seats ? (
+                <p className="nova-alert nova-alert--warning" role="status" data-testid="over-capacity-warning">
+                  Bàn {table.code} có {table.seats} chỗ, đang mở cho {guestCount} khách. Vẫn mở được; nhớ kê thêm ghế hoặc chọn bàn lớn hơn.
+                </p>
+              ) : null}
+
               <button className="nova-button nova-button--primary nova-button--full" type="submit" disabled={busy}>
                 {busy ? <span className="nova-spinner" aria-hidden="true" /> : null}
                 <span>{busy ? "Đang mở bàn…" : "Mở bàn"}</span>

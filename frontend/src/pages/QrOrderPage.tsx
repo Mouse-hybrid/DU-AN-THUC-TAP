@@ -5,6 +5,8 @@ import {
   getQrMenu,
   getQrOrder,
   getQrTable,
+  requestQrBill,
+  submitQrMember,
   submitQrOrder,
   type QrMenu,
   type QrMenuItem,
@@ -12,6 +14,7 @@ import {
   type QrTableInfo,
 } from "../api/qr";
 import { Button } from "../components/Button";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { MenuThumb } from "../components/MenuThumb";
 import { ModifierDialog } from "../components/ModifierDialog";
 import { StatusBadge } from "../components/StatusBadge";
@@ -66,6 +69,16 @@ export function QrOrderPage() {
   const [picking, setPicking] = useState<QrMenuItem | null>(null);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "ok" | "error" } | null>(null);
+  // Lần gửi đầu, khách xác nhận đúng bàn (quét nhầm mã bàn khác thì dừng lại hỏi nhân viên).
+  const confirmKey = `nova-qr-table-ok:${token}`;
+  const [tableConfirmed, setTableConfirmed] = useState(() => {
+    try { return window.sessionStorage.getItem(confirmKey) === "1"; } catch { return false; }
+  });
+  const [askTable, setAskTable] = useState(false);
+  const [billBusy, setBillBusy] = useState(false);
+  const [memberPhone, setMemberPhone] = useState("");
+  const [memberBusy, setMemberBusy] = useState(false);
+  const [memberMessage, setMemberMessage] = useState<{ text: string; type: "ok" | "error" } | null>(null);
   const inFlight = useRef(false);
   // Giữ Idempotency-Key của lần gửi đang thử lại để bấm lại không tạo trùng món.
   const pendingKey = useRef<{ signature: string; key: string } | null>(null);
@@ -143,8 +156,57 @@ export function QrOrderPage() {
       .filter((line) => line.quantity > 0));
   }
 
-  async function submit() {
+  function confirmTable() {
+    try { window.sessionStorage.setItem(confirmKey, "1"); } catch { /* trình duyệt chặn lưu: hỏi lại lần sau */ }
+    setTableConfirmed(true);
+    setAskTable(false);
+    void submit(true);
+  }
+
+  async function requestBill() {
+    if (inFlight.current || locked) return;
+    inFlight.current = true;
+    setBillBusy(true);
+    setMessage(null);
+    try {
+      setPlaced(await requestQrBill(token, createIdempotencyKey()));
+      setInfo(await getQrTable(token));
+      setMessage({ text: "Đã báo nhân viên mang hóa đơn. Vui lòng chờ trong giây lát.", type: "ok" });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 410)) setFatal(fatalMessage(error));
+      else setMessage({ text: error instanceof ApiError && error.serverDetail ? error.serverDetail : "Chưa gửi được yêu cầu. Vui lòng thử lại hoặc gọi nhân viên.", type: "error" });
+    } finally {
+      inFlight.current = false;
+      setBillBusy(false);
+    }
+  }
+
+  async function submitMember() {
+    const phone = memberPhone.replace(/[\s.-]/g, "");
+    if (!/^0\d{9}$/.test(phone)) {
+      setMemberMessage({ text: "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.", type: "error" });
+      return;
+    }
+    setMemberBusy(true);
+    setMemberMessage(null);
+    try {
+      const result = await submitQrMember(token, phone, createIdempotencyKey());
+      setMemberPhone("");
+      setMemberMessage({ text: `Đã nhận số ${result.phone_masked}. Điểm được tích khi thanh toán (nhân viên xác nhận nếu bạn chưa là hội viên).`, type: "ok" });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 410)) setFatal(fatalMessage(error));
+      else setMemberMessage({ text: error instanceof ApiError && error.serverDetail ? error.serverDetail : "Chưa gửi được số điện thoại. Vui lòng thử lại.", type: "error" });
+    } finally {
+      setMemberBusy(false);
+    }
+  }
+
+  async function submit(confirmed = tableConfirmed) {
     if (inFlight.current || cart.length === 0 || locked) return;
+    if (!confirmed) {
+      setAskTable(true);
+      return;
+    }
     inFlight.current = true;
     setSending(true);
     setMessage(null);
@@ -265,8 +327,39 @@ export function QrOrderPage() {
             ))}
           </ul>
         )}
+        {placed && Number(placed.discount_total) > 0 ? <div className="nova-order-total"><span>Ưu đãi</span><strong>−{formatVnd(placed.discount_total)}</strong></div> : null}
         {placed ? <div className="nova-order-total"><span>Tổng</span><strong>{formatVnd(placed.total)}</strong></div> : null}
+        {placed && placed.items.some((item) => item.status !== "CREATED" && item.status !== "VOIDED") ? (
+          locked
+            ? <p className="nova-readonly-note">Đã yêu cầu thanh toán. Nhân viên sẽ mang hóa đơn tới bàn.</p>
+            : <Button variant="secondary" type="button" accessibleLabel="Yêu cầu thanh toán" busy={billBusy} onClick={() => void requestBill()}>Yêu cầu thanh toán</Button>
+        ) : null}
       </section>
+
+      <section className="nova-qr-placed" aria-label="Tích điểm" data-testid="qr-member">
+        <h2>Tích điểm hội viên</h2>
+        <p className="nova-readonly-note">Không bắt buộc. Nhập số điện thoại để tích điểm cho hóa đơn này.</p>
+        <form className="nova-qr-member" onSubmit={(event) => { event.preventDefault(); void submitMember(); }} noValidate>
+          <label className="nova-qr-note">
+            <span>Số điện thoại</span>
+            <input type="tel" inputMode="tel" autoComplete="tel" value={memberPhone} maxLength={15} placeholder="09xxxxxxxx" onChange={(event) => { setMemberPhone(event.target.value); setMemberMessage(null); }} />
+          </label>
+          <Button variant="secondary" type="submit" accessibleLabel="Gửi số điện thoại tích điểm" busy={memberBusy} disabled={memberPhone.trim() === ""}>Tích điểm</Button>
+        </form>
+        {memberMessage ? <p className={memberMessage.type === "ok" ? "nova-qr-ok" : "nova-alert"} role={memberMessage.type === "ok" ? "status" : "alert"}>{memberMessage.text}</p> : null}
+      </section>
+
+      {askTable ? (
+        <ConfirmDialog
+          title={`Bạn đang ngồi ở bàn ${info.table_code}?`}
+          confirmLabel={`Đúng, bàn ${info.table_code}`}
+          busy={sending}
+          onCancel={() => setAskTable(false)}
+          onConfirm={confirmTable}
+        >
+          <p>Món sẽ được mang tới bàn {info.table_code}{info.area_name ? ` (${info.area_name})` : ""}. Nếu không đúng bàn, vui lòng gọi nhân viên để lấy mã QR của bàn bạn.</p>
+        </ConfirmDialog>
+      ) : null}
 
       {picking ? (
         <ModifierDialog

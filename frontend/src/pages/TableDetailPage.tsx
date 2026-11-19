@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, getErrorMessage } from "../api/client";
 import { pickupItem, serveItem, type OrderItemDetail } from "../api/orders";
 import { getTable, mergeTables, transferTable, type TableDetailResponse } from "../api/tables";
+import { usePermissions } from "../auth/permissions";
 import { consumeFlash, setFlash, type FlashMessage } from "../auth/storage";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
@@ -48,6 +49,7 @@ function noopItemRemove() {
 export function TableDetailPage() {
   const { id: tableId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const [qrOpen, setQrOpen] = useState(false);
   const [moveMode, setMoveMode] = useState<"transfer" | "merge" | null>(null);
   const [table, setTable] = useState<TableDetailResponse | null>(null);
@@ -158,14 +160,14 @@ export function TableDetailPage() {
     }
   }
 
-  async function submitMove(targetIds: string[]): Promise<string | null> {
+  async function submitMove(targetIds: string[], capacityOverrideReason?: string): Promise<string | null> {
     if (!table || !moveMode) return null;
     try {
       const key = createIdempotencyKey();
       if (moveMode === "transfer") {
         const first = targetIds[0];
         if (!first) return "Hãy chọn bàn đích.";
-        const result = await transferTable(table.id, first, key);
+        const result = await transferTable(table.id, first, key, capacityOverrideReason);
         setMoveMode(null);
         setFlash(`Đã chuyển bàn ${result.from_table.code} sang bàn ${result.to_table.code}.`, "success");
         navigate(`/tables/${encodeURIComponent(result.to_table.id)}`);
@@ -305,7 +307,7 @@ export function TableDetailPage() {
       {overrides.dialog}
       {qrOpen && table ? <QrSessionDialog tableId={table.id} tableCode={table.code} onClose={() => setQrOpen(false)} /> : null}
       {moveMode && table ? (
-        <TableMoveDialog mode={moveMode} tableId={table.id} tableCode={table.code} onSubmit={submitMove} onCancel={() => setMoveMode(null)} />
+        <TableMoveDialog mode={moveMode} tableId={table.id} tableCode={table.code} onSubmit={submitMove} onCancel={() => setMoveMode(null)} canOverrideCapacity={can("OVERRIDE")} />
       ) : null}
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
     </AppShell>

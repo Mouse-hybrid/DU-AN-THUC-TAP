@@ -45,3 +45,20 @@ export function submitQrOrder(token: string, items: QrOrderLine[], idempotencyKe
     auth: false,
   });
 }
+
+/** Khách bấm "Yêu cầu thanh toán": các món đã gửi bếp chuyển sang chờ thanh toán, khóa gọi thêm. */
+export function requestQrBill(token: string, idempotencyKey: string): Promise<QrOrder> {
+  return apiRequest<QrOrder>(`${pub(token)}/request-bill`, { method: "POST", idempotencyKey, auth: false });
+}
+
+export type QrMemberResult = components["schemas"]["QrMemberOut"];
+
+/** Khách nhập số điện thoại để tích điểm (chỉ tích, không đổi điểm trên QR). Luôn trả số đã che. */
+export function submitQrMember(token: string, phone: string, idempotencyKey: string): Promise<QrMemberResult> {
+  return apiRequest<QrMemberResult, { phone: string }>(`${pub(token)}/member`, {
+    method: "POST",
+    body: { phone },
+    idempotencyKey,
+    auth: false,
+  });
+}

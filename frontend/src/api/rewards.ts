@@ -51,3 +51,10 @@ export function removeReward(orderId: string, orderRewardId: string, idempotency
     { method: "DELETE", idempotencyKey },
   );
 }
+
+export type PendingMember = components["schemas"]["PendingMemberOut"];
+
+/** Số điện thoại khách nhập trên trang QR cho bàn của đơn này (chờ thu ngân đăng ký hoặc gắn). */
+export function getPendingMember(orderId: string): Promise<PendingMember> {
+  return apiRequest<PendingMember>(`/orders/${encodeURIComponent(orderId)}/pending-member`);
+}

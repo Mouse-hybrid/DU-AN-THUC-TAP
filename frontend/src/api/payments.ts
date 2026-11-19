@@ -21,6 +21,14 @@ export function recordPayment(orderId: string, body: CreatePaymentBody, idempote
   });
 }
 
+/** POST /payments/{id}/check: hỏi lại VNPay kết quả của một link (nút "Kiểm tra lại"). 502 khi chưa hỏi được VNPay. */
+export function checkPayment(paymentId: string, idempotencyKey: string): Promise<PaymentRecorded> {
+  return apiRequest<PaymentRecorded>(`/payments/${encodeURIComponent(paymentId)}/check`, {
+    method: "POST",
+    idempotencyKey,
+  });
+}
+
 /** POST /payments/{id}/cancel: hủy lần ghi nhầm khi đơn còn BILLING (quyền PAYMENT_REFUND), trả lại danh sách thanh toán mới. */
 export function cancelPayment(paymentId: string, reason: string, idempotencyKey: string): Promise<OrderPayments> {
   return apiRequest<OrderPayments, { reason: string }>(`/payments/${encodeURIComponent(paymentId)}/cancel`, {
