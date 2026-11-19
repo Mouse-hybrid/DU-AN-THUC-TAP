@@ -97,6 +97,8 @@ export function moveErrorMessage(error: unknown, kind: "transfer" | "merge" | "s
     if (error.status === 403) return "Chỉ phục vụ hoặc quản lý mới được chuyển/gộp bàn và tách bill.";
     if (error.status === 404) return kind === "split" ? "Không tìm thấy đơn hoặc món cần tách." : "Không tìm thấy bàn. Danh sách bàn có thể đã đổi.";
     if (error.status === 409) {
+      // Server nêu đúng lý do (thiếu chỗ, đang chờ thanh toán, đang áp ưu đãi…): ưu tiên câu đó.
+      if (error.serverDetail) return error.serverDetail;
       if (kind === "transfer") return "Bàn không còn ở trạng thái phù hợp (bàn đi phải đang phục vụ, bàn đến phải trống hoặc đã đặt).";
       if (kind === "merge") return "Không gộp được: bàn đang chờ thanh toán/dọn, đã gộp, hoặc bàn phụ còn ưu đãi đang áp.";
       return "Không tách được: đơn đang chờ thanh toán, đã áp ưu đãi, hoặc món đã vào bếp chỉ tách nguyên dòng.";

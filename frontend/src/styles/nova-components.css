@@ -1442,6 +1442,13 @@ a.nova-button {
   color: #b45309;
 }
 
+/* Tùy chọn món (topping, size) trên phiếu bếp: bếp phải thấy ngay, không phải mở Chi tiết. */
+.nova-kds-modifiers {
+  margin: 0;
+  font-weight: 600;
+  color: var(--nova-color-text, #10231f);
+}
+
 .nova-kds-station {
   margin: 0;
   color: var(--nova-color-muted);

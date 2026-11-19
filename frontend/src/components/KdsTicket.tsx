@@ -63,6 +63,9 @@ export function KdsTicket({ entry, stationName, action, busy, canAct, onAction }
         <MenuThumb name={entry.menu_item_name} className="nova-kds-thumb" />
         <div className="nova-kds-item-copy">
           <h2>{entry.quantity}× {entry.menu_item_name}</h2>
+          {entry.modifiers.length > 0 ? (
+            <p className="nova-kds-modifiers">{entry.modifiers.map((modifier) => modifier.option_name).join(", ")}</p>
+          ) : null}
           {entry.note ? <p className="nova-kds-note"><strong>Ghi chú:</strong> {entry.note}</p> : null}
         </div>
       </div>

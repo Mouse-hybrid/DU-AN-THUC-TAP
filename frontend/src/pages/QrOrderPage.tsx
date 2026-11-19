@@ -46,7 +46,7 @@ function fatalMessage(error: unknown): string {
 function submitMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401 || error.status === 410) return fatalMessage(error);
-    if (error.status === 409) return error.message || "Không gửi được: có món hết hàng hoặc bàn đang chờ thanh toán. Vui lòng kiểm tra lại hoặc gọi nhân viên.";
+    if (error.status === 409) return error.serverDetail ?? "Không gửi được: có món hết hàng hoặc bàn đang chờ thanh toán. Vui lòng kiểm tra lại hoặc gọi nhân viên.";
     if (error.status === 422) return error.message || "Món hoặc tùy chọn chưa hợp lệ.";
     if (error.status === 429) return "Quá nhiều lượt truy cập. Vui lòng thử lại sau vài giây.";
     if (error.status === 0) return navigator.onLine ? "Không thể kết nối. Giỏ hàng vẫn được giữ, vui lòng thử lại." : "Bạn đang ngoại tuyến. Giỏ hàng vẫn được giữ.";
