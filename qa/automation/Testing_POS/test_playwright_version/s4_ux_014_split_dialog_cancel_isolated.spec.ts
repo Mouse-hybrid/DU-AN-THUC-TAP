@@ -209,7 +209,7 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
         ', order ' + own.orderId);
       const before = {
         table: await table(), order: await order(),
-        tickets: await queue(), splitAudit: await audit(),
+        tickets: await queue('DONE'), splitAudit: await audit(),
       };
       expect(before.order.items).toHaveLength(2);
       expect(before.tickets).toHaveLength(2);
@@ -272,7 +272,7 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
       await expect(dialog).toBeHidden();
       const after = {
         table: await table(), order: await order(),
-        tickets: await queue(), splitAudit: await audit(),
+        tickets: await queue('DONE'), splitAudit: await audit(),
       };
       const stableTable = (row: any) => ({
         status: row.status, current_session: row.current_session,
