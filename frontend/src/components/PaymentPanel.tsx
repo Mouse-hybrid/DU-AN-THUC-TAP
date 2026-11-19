@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelPayment,
+  checkPayment,
   listPayments,
   recordPayment,
   refundPayment,
@@ -15,9 +16,10 @@ import { formatShortDateTime, formatVnd } from "../utils/format";
 import { createIdempotencyKey } from "../utils/idempotency";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { QrCode } from "./QrCode";
 import { StateCard } from "./StateCard";
 
-type Method = "CASH" | "CARD";
+type Method = "CASH" | "CARD" | "VNPAY";
 type Dialog = { kind: "cancel" | "refund"; payment: PaymentRecord } | null;
 
 interface PaymentPanelProps {
@@ -34,9 +36,16 @@ interface PaymentPanelProps {
   onChanged: () => Promise<void>;
 }
 
-const METHOD_LABEL: Record<string, string> = { CASH: "Tiền mặt", CARD: "Thẻ" };
+const METHOD_LABEL: Record<string, string> = { CASH: "Tiền mặt", CARD: "Thẻ", VNPAY: "VNPay" };
+/** Link VNPay chưa có kết quả: còn giữ chỗ số tiền (nếu chưa hết hạn), hủy được. */
+const WAITING = new Set(["PENDING", "UNKNOWN"]);
+const POLL_MS = 5_000;
 
 function paymentStatusLabel(payment: PaymentRecord): string {
+  if (payment.status === "PENDING") return "Chờ khách trả";
+  if (payment.status === "UNKNOWN") return "Chưa rõ kết quả";
+  if (payment.status === "FAILED") return "Không thành công";
+  if (payment.status === "EXPIRED") return "Link hết hạn";
   if (payment.status === "CANCELLED") return "Đã hủy";
   if (payment.status === "REFUNDED") return "Đã hoàn";
   if (Number(payment.refunded_amount) > 0) return "Hoàn một phần";
@@ -85,6 +94,28 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
     void load();
   }, [load, orderStatus]);
 
+  const waitingLink = data?.payments.find((payment) => payment.method === "VNPAY" && WAITING.has(payment.status)) ?? null;
+  const waitingId = waitingLink?.id ?? null;
+  useEffect(() => {
+    if (!waitingId) return undefined;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || inFlight.current) return;
+      void listPayments(orderId).then((next) => {
+        setData(next);
+        const still = next.payments.find((payment) => payment.id === waitingId);
+        if (still && !WAITING.has(still.status)) {
+          notify({ message: still.status === "SUCCEEDED" ? `Khách đã trả ${formatVnd(still.amount)} qua VNPay.` : "Link VNPay đã kết thúc, chưa thu được tiền.", type: still.status === "SUCCEEDED" ? "success" : "error" });
+          void onChanged();
+        }
+      }).catch(() => undefined);
+    }, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [waitingId, orderId, notify, onChanged]);
+
+  // Chia tiền: theo số khách hoặc theo %. Chỉ tính sẵn số tiền của lần thu này, vẫn thu từng lần.
+  const [splitPeople, setSplitPeople] = useState("");
+  const [splitPercent, setSplitPercent] = useState("");
+
   const summary = data?.summary;
   const remaining = summary ? Number(summary.remaining) : 0;
   const amountValue = amountText.trim() === "" ? remaining : parseMoney(amountText);
@@ -92,7 +123,8 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
   const change = method === "CASH" && amountValue !== null && cashValue !== null && Number.isFinite(amountValue) && Number.isFinite(cashValue)
     ? cashValue - amountValue
     : null;
-  const showForm = canRecord && orderStatus === "BILLING" && remaining > 0;
+  const pendingAmount = summary ? Number(summary.pending ?? 0) : 0;
+  const showForm = canRecord && orderStatus === "BILLING" && remaining > 0 && !waitingLink;
 
   /** Chạy một thao tác ghi với chống bấm đúp; 404/409 thì tải lại dữ liệu để thấy số mới. */
   async function run(task: (key: string) => Promise<string>, conflict: string): Promise<boolean> {
@@ -132,6 +164,14 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
       return;
     }
     const body: CreatePaymentBody = { method, amount: String(amountValue) };
+    if (method === "VNPAY") {
+      const ok = await run(async (key) => {
+        await recordPayment(orderId, body, key);
+        return "Đã tạo link VNPay. Đưa mã QR hoặc link cho khách để trả.";
+      }, "Số còn phải thu vừa thay đổi hoặc đang có link VNPay khác. Dữ liệu đã được tải lại.");
+      if (ok) { setAmountText(""); setNote(""); }
+      return;
+    }
     if (method === "CASH" && cashText.trim() !== "") body.cash_received = String(cashValue);
     if (method === "CARD" && providerRef.trim() !== "") body.provider_ref = providerRef.trim();
     if (note.trim() !== "") body.note = note.trim();
@@ -149,6 +189,30 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
       setProviderRef("");
       setNote("");
     }
+  }
+
+  async function recheck(payment: PaymentRecord) {
+    await run(async (key) => {
+      const result = await checkPayment(payment.id, key);
+      if (result.payment.status === "SUCCEEDED") return `VNPay xác nhận đã nhận ${formatVnd(result.payment.amount)}.`;
+      if (WAITING.has(result.payment.status)) return "VNPay chưa có kết quả. Khách chưa trả xong hoặc cần thử lại sau.";
+      return "Link VNPay không thành công. Có thể tạo link mới hoặc thu cách khác.";
+    }, "Trạng thái thanh toán vừa đổi. Dữ liệu đã được tải lại.");
+  }
+
+  function applySplit(kind: "people" | "percent") {
+    const base = Number(summary?.total ?? 0);
+    if (kind === "people") {
+      const people = Number(splitPeople);
+      if (!Number.isInteger(people) || people < 2 || people > 50) { setFormError("Số người chia từ 2 đến 50."); return; }
+      // Làm tròn lên tới đồng; lần thu cuối chỉ lấy đúng phần còn lại.
+      setAmountText(String(Math.min(remaining, Math.ceil(base / people))));
+    } else {
+      const percent = Number(splitPercent);
+      if (!Number.isFinite(percent) || percent <= 0 || percent > 100) { setFormError("Phần trăm từ 1 đến 100."); return; }
+      setAmountText(String(Math.min(remaining, Math.round((base * percent) / 100))));
+    }
+    setFormError("");
   }
 
   function openDialog(kind: "cancel" | "refund", payment: PaymentRecord) {
@@ -180,7 +244,7 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
     const ok = await run(async (key) => {
       if (kind === "cancel") {
         await cancelPayment(payment.id, trimmed, key);
-        return "Đã hủy lần thanh toán.";
+        return WAITING.has(payment.status) ? "Đã hủy link VNPay." : "Đã hủy lần thanh toán.";
       }
       await refundPayment(payment.id, refundAmount === undefined ? { reason: trimmed } : { amount: refundAmount, reason: trimmed }, key);
       return "Đã hoàn tiền.";
@@ -206,9 +270,32 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
         <div><dt>Phải trả</dt><dd data-testid="pay-total">{formatVnd(summary.total)}</dd></div>
         <div><dt>Đã thu</dt><dd data-testid="pay-paid">{formatVnd(summary.paid)}</dd></div>
         {Number(summary.refunded) > 0 ? <div><dt>Đã hoàn</dt><dd>{formatVnd(summary.refunded)}</dd></div> : null}
+        {pendingAmount > 0 ? <div><dt>Chờ VNPay</dt><dd data-testid="pay-pending">{formatVnd(String(pendingAmount))}</dd></div> : null}
         <div className="nova-payment-remaining"><dt>Còn lại</dt><dd data-testid="pay-remaining">{formatVnd(summary.remaining)}</dd></div>
       </dl>
       {error ? <p className="nova-readonly-note" role="alert">{error}</p> : null}
+
+      {waitingLink ? (
+        <div className="nova-vnpay-card" data-testid="vnpay-waiting" role="status">
+          <div className="nova-vnpay-card-head">
+            <strong>Chờ khách trả qua VNPay · {formatVnd(waitingLink.amount)}</strong>
+            {waitingLink.expires_at ? <span>Hết hạn {formatShortDateTime(waitingLink.expires_at)}</span> : null}
+          </div>
+          {waitingLink.payment_url ? (
+            <>
+              <QrCode value={waitingLink.payment_url} size={200} label={`Mã QR thanh toán VNPay ${formatVnd(waitingLink.amount)}`} />
+              <a className="nova-vnpay-link" href={waitingLink.payment_url} target="_blank" rel="noopener noreferrer">Mở trang thanh toán VNPay</a>
+            </>
+          ) : null}
+          <p className="nova-field-hint">Khách quét mã bằng điện thoại hoặc mở link. Trả xong, màn này tự cập nhật trong vài giây.</p>
+          <div className="nova-vnpay-actions">
+            <Button variant="secondary" type="button" accessibleLabel="Kiểm tra lại kết quả VNPay" busy={busy} disabled={locked} onClick={() => void recheck(waitingLink)}>Kiểm tra lại</Button>
+            {canRecord ? (
+              <Button variant="secondary" type="button" accessibleLabel="Hủy link VNPay" disabled={busy || locked} onClick={() => openDialog("cancel", waitingLink)}>Hủy link</Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {data.payments.length > 0 ? (
         <ul className="nova-payment-list" aria-label="Các lần thanh toán">
@@ -223,7 +310,8 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
                     {formatShortDateTime(payment.created_at)}
                     {payment.method === "CASH" && payment.cash_received ? ` · Khách đưa ${formatVnd(payment.cash_received)}` : ""}
                     {payment.change_due && Number(payment.change_due) > 0 ? ` · Thối ${formatVnd(payment.change_due)}` : ""}
-                    {payment.provider_ref ? ` · Hóa đơn máy ${payment.provider_ref}` : ""}
+                    {payment.method === "CARD" && payment.provider_ref ? ` · Hóa đơn máy ${payment.provider_ref}` : ""}
+                    {payment.provider_txn_no ? ` · Mã GD VNPay ${payment.provider_txn_no}` : ""}
                     {Number(payment.refunded_amount) > 0 ? ` · Đã hoàn ${formatVnd(payment.refunded_amount)}` : ""}
                     {payment.cancel_reason ? ` · Lý do hủy: ${payment.cancel_reason}` : ""}
                   </p>
@@ -250,7 +338,7 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
         >
           <fieldset className="nova-payment-methods">
             <legend>Hình thức</legend>
-            {(["CASH", "CARD"] as const).map((value) => (
+            {(["CASH", "CARD", "VNPAY"] as const).map((value) => (
               <label key={value} className={`nova-pill${method === value ? " nova-pill--active" : ""}`}>
                 <input type="radio" name="payment-method" value={value} checked={method === value} onChange={() => { setMethod(value); setFormError(""); }} className="nova-visually-hidden" />
                 {METHOD_LABEL[value]}
@@ -261,6 +349,18 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
             <span>Số tiền thu (để trống = thu hết {formatVnd(summary.remaining)})</span>
             <input inputMode="numeric" value={amountText} onChange={(event) => setAmountText(event.target.value)} placeholder={String(remaining)} />
           </label>
+          <div className="nova-payment-split" aria-label="Chia tiền">
+            <label className="nova-field">
+              <span>Chia đều cho (người)</span>
+              <input inputMode="numeric" value={splitPeople} onChange={(event) => setSplitPeople(event.target.value)} placeholder="vd 3" />
+            </label>
+            <Button variant="secondary" type="button" accessibleLabel="Tính số tiền mỗi người" disabled={busy || locked || splitPeople.trim() === ""} onClick={() => applySplit("people")}>Tính</Button>
+            <label className="nova-field">
+              <span>Hoặc theo %</span>
+              <input inputMode="numeric" value={splitPercent} onChange={(event) => setSplitPercent(event.target.value)} placeholder="vd 40" />
+            </label>
+            <Button variant="secondary" type="button" accessibleLabel="Tính số tiền theo phần trăm" disabled={busy || locked || splitPercent.trim() === ""} onClick={() => applySplit("percent")}>Tính</Button>
+          </div>
           {method === "CASH" ? (
             <>
               <label className="nova-field">
@@ -271,11 +371,13 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
                 {change === null ? "Tiền thối: —" : change < 0 ? "Khách đưa chưa đủ" : `Tiền thối: ${formatVnd(String(change))}`}
               </p>
             </>
-          ) : (
+          ) : method === "CARD" ? (
             <label className="nova-field">
               <span>Số hóa đơn trên máy POS (nếu có)</span>
               <input value={providerRef} maxLength={100} onChange={(event) => setProviderRef(event.target.value)} />
             </label>
+          ) : (
+            <p className="nova-field-hint">Tạo link VNPay (hạn 15 phút). Khách quét mã QR hoặc mở link để trả; chưa trả xong thì chưa tính là đã thu.</p>
           )}
           <label className="nova-field">
             <span>Ghi chú (không bắt buộc)</span>
@@ -283,21 +385,23 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
           </label>
           {method === "CARD" ? <p className="nova-field-hint">Chỉ ghi nhận sau khi máy POS đã quẹt thành công.</p> : null}
           {formError ? <div className="nova-alert" role="alert">{formError}</div> : null}
-          <Button variant="primary" type="submit" accessibleLabel="Ghi nhận thanh toán" busy={busy} disabled={locked}>Ghi nhận thanh toán</Button>
+          <Button variant="primary" type="submit" accessibleLabel={method === "VNPAY" ? "Tạo link VNPay" : "Ghi nhận thanh toán"} busy={busy} disabled={locked}>{method === "VNPAY" ? "Tạo link VNPay" : "Ghi nhận thanh toán"}</Button>
         </form>
       ) : formError ? <div className="nova-alert" role="alert">{formError}</div> : null}
 
       {dialog ? (
         <ConfirmDialog
-          title={dialog.kind === "cancel" ? "Hủy lần thanh toán?" : "Hoàn tiền?"}
-          confirmLabel={dialog.kind === "cancel" ? "Hủy lần thanh toán" : "Hoàn tiền"}
+          title={dialog.kind === "cancel" ? (WAITING.has(dialog.payment.status) ? "Hủy link VNPay?" : "Hủy lần thanh toán?") : "Hoàn tiền?"}
+          confirmLabel={dialog.kind === "cancel" ? (WAITING.has(dialog.payment.status) ? "Hủy link" : "Hủy lần thanh toán") : "Hoàn tiền"}
           variant="danger"
           busy={busy}
           onCancel={() => { if (!busy) setDialog(null); }}
           onConfirm={() => void confirmDialog()}
         >
           <p>
-            {dialog.kind === "cancel"
+            {dialog.kind === "cancel" && WAITING.has(dialog.payment.status)
+              ? `Link VNPay ${formatVnd(dialog.payment.amount)} sẽ không dùng được nữa. Sau đó có thể thu tiền mặt, thẻ hoặc tạo link mới.`
+              : dialog.kind === "cancel"
               ? `Lần thu ${formatVnd(dialog.payment.amount)} sẽ bị hủy và số còn lại của đơn tăng lên.`
               : `Hoàn lại cho khách, tối đa ${formatVnd(String(Number(dialog.payment.amount) - Number(dialog.payment.refunded_amount)))}.`}
           </p>

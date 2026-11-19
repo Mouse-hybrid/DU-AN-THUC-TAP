@@ -23,10 +23,18 @@ export function markClean(tableId: string, idempotencyKey: string): Promise<Mark
 export type TableTransferResponse = paths["/api/v1/tables/{table_id}/transfer"]["post"]["responses"][200]["content"]["application/json"];
 export type TableMergeResponse = paths["/api/v1/tables/{table_id}/merge"]["post"]["responses"][200]["content"]["application/json"];
 
-export function transferTable(tableId: string, targetTableId: string, idempotencyKey: string): Promise<TableTransferResponse> {
-  return apiRequest<TableTransferResponse, { target_table_id: string }>(`/tables/${encodeURIComponent(tableId)}/transfer`, {
+/** `capacityOverrideReason`: chỉ quyền OVERRIDE (Supervisor), khi bàn đích ít chỗ hơn số khách. */
+export function transferTable(
+  tableId: string,
+  targetTableId: string,
+  idempotencyKey: string,
+  capacityOverrideReason?: string,
+): Promise<TableTransferResponse> {
+  const body: { target_table_id: string; capacity_override_reason?: string } = { target_table_id: targetTableId };
+  if (capacityOverrideReason) body.capacity_override_reason = capacityOverrideReason;
+  return apiRequest<TableTransferResponse, typeof body>(`/tables/${encodeURIComponent(tableId)}/transfer`, {
     method: "POST",
-    body: { target_table_id: targetTableId },
+    body,
     idempotencyKey,
   });
 }

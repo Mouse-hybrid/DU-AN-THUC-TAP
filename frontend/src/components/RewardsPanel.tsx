@@ -6,10 +6,12 @@ import {
   createCustomer,
   findCustomersByPhone,
   getCustomer,
+  getPendingMember,
   listEligibleRewards,
   removeReward,
   type Customer,
   type EligibleReward,
+  type PendingMember,
 } from "../api/rewards";
 import type { FlashMessage } from "../auth/storage";
 import { rewardErrorMessage, type RewardAction } from "../utils/errorMessages";
@@ -50,6 +52,7 @@ export function RewardsPanel({ order, canCustomer, canReward, canOverride, locke
   const [overrideReason, setOverrideReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [pending, setPending] = useState<PendingMember | null>(null);
   const inFlight = useRef(false);
 
   const partiallyPaid = Number(order.amount_paid) > 0;
@@ -71,6 +74,20 @@ export function RewardsPanel({ order, canCustomer, canReward, canOverride, locke
       .catch((error: unknown) => { if (active) setCustomerError(rewardErrorMessage(error, "lookup")); });
     return () => { active = false; };
   }, [customerId, canCustomer]);
+
+  // Khách đã nhập số điện thoại trên trang QR: hiện để thu ngân gắn hoặc đăng ký.
+  const hasPending = Boolean(order.has_pending_member) && !customerId && canCustomer;
+  useEffect(() => {
+    let active = true;
+    if (!hasPending) {
+      setPending(null);
+      return undefined;
+    }
+    getPendingMember(order.id)
+      .then((data) => { if (active) setPending(data.phone ? data : null); })
+      .catch(() => { if (active) setPending(null); });
+    return () => { active = false; };
+  }, [hasPending, order.id]);
 
   const loadRewards = useCallback(async () => {
     if (!canReward) return;
@@ -206,6 +223,20 @@ export function RewardsPanel({ order, canCustomer, canReward, canOverride, locke
               ) : null}
             </div>
           ) : !closed ? (
+            <>
+            {pending ? (
+              <div className="nova-qr-pending" data-testid="pending-member">
+                <p><strong>Khách nhập số trên QR:</strong> {pending.phone}</p>
+                {pending.member_customer_id ? (
+                  <Button variant="primary" type="button" accessibleLabel="Gắn hội viên khách đã nhập trên QR" busy={busy === "attach"} disabled={frozen || busy !== null} onClick={() => attach({ id: pending.member_customer_id } as Customer)}>Gắn hội viên này</Button>
+                ) : (
+                  <>
+                    <p>Số này chưa là hội viên. Hỏi khách đồng ý lưu thông tin rồi đăng ký.</p>
+                    <Button variant="secondary" type="button" accessibleLabel="Dùng số khách đã nhập trên QR" disabled={frozen || busy !== null} onClick={() => { setPhone(pending.phone ?? ""); setFound(null); setNotFound(true); setFormError(""); }}>Dùng số này để đăng ký</Button>
+                  </>
+                )}
+              </div>
+            ) : null}
             <form className="nova-customer-lookup" onSubmit={(event) => { event.preventDefault(); lookup(); }} noValidate>
               <div className="nova-field">
                 <label htmlFor="nova-customer-phone">Số điện thoại khách</label>
@@ -213,6 +244,7 @@ export function RewardsPanel({ order, canCustomer, canReward, canOverride, locke
               </div>
               <Button variant="secondary" type="submit" accessibleLabel="Tìm khách theo số điện thoại" busy={busy === "lookup"} disabled={frozen || busy !== null || phone.trim() === ""}>Tìm khách</Button>
             </form>
+            </>
           ) : null}
           {formError && !overrideFor ? <p className="nova-field-error" role="alert">{formError}</p> : null}
           {found ? (
