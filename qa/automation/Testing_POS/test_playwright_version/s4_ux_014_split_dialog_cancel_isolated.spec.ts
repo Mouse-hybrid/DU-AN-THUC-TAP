@@ -268,7 +268,7 @@ test('S4-UX-014 | split dialog quantity controls and cancel leave bill intact',
         body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
         contentType: 'image/png',
       });
-      const cancel = dialog.getByRole('button', { name: 'Hủy', exact: true });
+      const cancel = dialog.getByRole('button', { name: 'Hủy thao tác', exact: true });
       report.ui_probe = {
         dialog_visible: await dialog.isVisible(),
         buttons: await dialog.locator('button').evaluateAll(rows =>
