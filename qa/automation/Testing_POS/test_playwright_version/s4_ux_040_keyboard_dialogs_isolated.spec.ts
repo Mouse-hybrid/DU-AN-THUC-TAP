@@ -197,6 +197,12 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
         await checked('POST', '/api/v1/orders/' + x.orderId +
           '/send-to-kitchen', 'waiter', 200);
       }
+      for (const [action, role] of [
+        ['start-cooking', 'kitchen'], ['mark-ready', 'kitchen'],
+        ['pickup', 'waiter'], ['served', 'waiter'],
+      ] as const)
+        await checked('POST', '/api/v1/orders/' + source.orderId +
+          '/items/' + source.itemId + '/' + action, role, 200);
       const before = await snapshot();
       const auditBefore = await mergeAudit();
       const splitAuditBefore = await splitAudit();
@@ -204,8 +210,11 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
         expect(before[index].table.status).toBe('OCCUPIED');
         expect(before[index].table.current_session?.id).toBe(owned[index].sessionId);
         expect(before[index].order.table_session_id).toBe(owned[index].sessionId);
-        expect(before[index].queue).toHaveLength(1);
+        expect(before[index].queue).toHaveLength(index === 0 ? 0 : 1);
       }
+      expect((await order(source)).items.find((row: any) =>
+        row.id === source.itemId)?.status).toBe('SERVED');
+      expect(await queue(source, 'DONE')).toHaveLength(1);
       report.tables = owned.map(x => ({ code: x.code,
         session_id: x.sessionId, order_id: x.orderId }));
       console.log('[S4-UX-040] Own Q3-1/Q3-2 occupied orders ' +
