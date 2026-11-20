@@ -72,6 +72,10 @@ def test_every_order_write_publishes_order_updated(client, seed, monkeypatch):
     assert ready["item_id"] == item_id
     assert ready["order_id"] == order_id
     assert ready["table_id"] == str(seed["table_id"])
+    # Màn phục vụ báo "Bàn T1: 1× Mon Test sẵn sàng" mà không gọi thêm API.
+    assert ready["table_code"] == "T1"
+    assert ready["menu_item_name"] == "Mon Test"
+    assert ready["quantity"] >= 1
     assert updates[-1]["status"] == "PAID"
     assert updates[1]["item_id"] is None
 

@@ -153,7 +153,12 @@ def lock_order_for_payment(session: Session, order_id: uuid.UUID, outlet_id: uui
 
 
 def _publish_order_updated(
-    current: CurrentStaff, order: Order, reason: str, *, item_id: uuid.UUID | None = None
+    current: CurrentStaff,
+    order: Order,
+    reason: str,
+    *,
+    item_id: uuid.UUID | None = None,
+    extra: dict | None = None,
 ) -> None:
     """Báo kênh `tables` (màn POS, chi tiết bàn) rằng 1 order vừa đổi — gọi SAU
     commit. Event chỉ là tín hiệu: client gọi lại GET /orders/{id} hoặc
@@ -171,6 +176,7 @@ def _publish_order_updated(
             "current_version": order.current_version,
             "reason": reason,
             "item_id": str(item_id) if item_id else None,
+            **(extra or {}),
         },
     )
 
@@ -1892,7 +1898,20 @@ def mark_ready_order_item(
         )
     )
     session.commit()
-    _publish_order_updated(current, order, "ITEM_READY", item_id=item.id)
+    # Kèm số bàn và tên món để màn phục vụ báo ngay "Bàn B5: 1× Phở bò sẵn sàng" mà không
+    # phải gọi thêm API.
+    menu_item = session.get(MenuItem, item.menu_item_id)
+    _publish_order_updated(
+        current,
+        order,
+        "ITEM_READY",
+        item_id=item.id,
+        extra={
+            "table_code": order.table_session.table.code,
+            "menu_item_name": menu_item.name if menu_item else None,
+            "quantity": item.quantity,
+        },
+    )
     manager.publish(
         current.outlet_id,
         "kitchen",

@@ -3132,3 +3132,21 @@ a.nova-button {
 .nova-points-minus { color: #a33a2b; font-weight: 700; }
 .nova-member-adjust { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; margin-bottom: 12px; }
 @media (max-width: 640px) { .nova-member-adjust { grid-template-columns: minmax(0, 1fr); } }
+
+/* Báo món sẵn sàng cho phục vụ */
+.nova-ready-badge { display: inline-block; align-self: flex-start; margin: 4px 0; padding: 4px 10px; border-radius: 999px; background: #F2A541; color: #2B1A04; font-size: 13px; font-weight: 700; animation: nova-ready-pulse 1.6s ease-in-out 3; }
+@keyframes nova-ready-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(242, 165, 65, 0.6); } 50% { box-shadow: 0 0 0 8px rgba(242, 165, 65, 0); } }
+button.nova-table-stat { font: inherit; text-align: left; cursor: pointer; }
+.nova-table-stat--ready { border: 2px solid #F2A541; background: #FFF6E8; }
+.nova-table-stat--ready strong { color: #8A4B08; }
+.nova-table-stat--active { box-shadow: 0 0 0 3px rgba(242, 165, 65, 0.45); }
+.nova-ready-stack { position: fixed; top: 76px; right: 16px; z-index: 60; display: grid; gap: 10px; width: min(360px, calc(100vw - 32px)); }
+.nova-ready-toast { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 12px 14px; border-radius: 14px; background: #FFF6E8; border: 2px solid #F2A541; box-shadow: 0 10px 28px rgba(16, 35, 31, 0.18); animation: nova-ready-in 220ms ease-out; }
+.nova-ready-toast button.nova-ready-open { all: unset; cursor: pointer; display: grid; gap: 2px; }
+.nova-ready-toast strong { color: #2B1A04; font-size: 15px; }
+.nova-ready-toast span { color: #5A3A06; font-size: 14px; }
+.nova-ready-toast .nova-ready-close { border: none; background: transparent; font-size: 18px; line-height: 1; cursor: pointer; color: #5A3A06; padding: 2px 4px; }
+@keyframes nova-ready-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.nova-sound-toggle { border: 1px solid var(--nova-line, #d7e4e1); background: #fff; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; color: #10231F; }
+.nova-sound-toggle[aria-pressed="false"] { color: #5b706c; }
+@media (min-width: 901px) { .nova-table-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); } }

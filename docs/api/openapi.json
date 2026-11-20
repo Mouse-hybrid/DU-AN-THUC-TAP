@@ -10399,6 +10399,11 @@
               }
             ],
             "title": "Opened At"
+          },
+          "ready_items": {
+            "type": "integer",
+            "title": "Ready Items",
+            "default": 0
           }
         },
         "type": "object",
