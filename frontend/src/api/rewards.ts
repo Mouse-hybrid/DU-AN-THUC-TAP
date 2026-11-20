@@ -58,3 +58,33 @@ export type PendingMember = components["schemas"]["PendingMemberOut"];
 export function getPendingMember(orderId: string): Promise<PendingMember> {
   return apiRequest<PendingMember>(`/orders/${encodeURIComponent(orderId)}/pending-member`);
 }
+
+export type PointsEntry = components["schemas"]["PointsEntryOut"];
+
+/** GET /customers: cả danh sách hội viên (quyền LOYALTY_MANAGE, mặc định quản lý). */
+export function listCustomers(limit = 200, offset = 0): Promise<Customer[]> {
+  return apiRequest<Customer[]>(`/customers?limit=${limit}&offset=${offset}`);
+}
+
+/** GET /customers/{id}/points: sổ điểm của một hội viên, mới nhất trước. */
+export function listPoints(customerId: string, limit = 200): Promise<PointsEntry[]> {
+  return apiRequest<PointsEntry[]>(`/customers/${encodeURIComponent(customerId)}/points?limit=${limit}`);
+}
+
+/** POST /customers/{id}/points/adjust: cộng (số dương) hoặc trừ (số âm) điểm, bắt buộc lý do. */
+export function adjustPoints(customerId: string, body: { points: number; reason: string }, idempotencyKey: string): Promise<PointsEntry> {
+  return apiRequest<PointsEntry, { points: number; reason: string }>(`/customers/${encodeURIComponent(customerId)}/points/adjust`, {
+    method: "POST",
+    body,
+    idempotencyKey,
+  });
+}
+
+/** PATCH /customers/{id}: sửa tên hoặc khóa/mở khóa hội viên. */
+export function updateCustomer(customerId: string, body: { full_name?: string | null; is_active?: boolean }, idempotencyKey: string): Promise<Customer> {
+  return apiRequest<Customer, { full_name?: string | null; is_active?: boolean }>(`/customers/${encodeURIComponent(customerId)}`, {
+    method: "PATCH",
+    body,
+    idempotencyKey,
+  });
+}
