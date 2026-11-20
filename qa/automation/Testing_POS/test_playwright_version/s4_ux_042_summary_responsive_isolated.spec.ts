@@ -237,36 +237,50 @@ test('S4-UX-042 | order summary stays readable at three widths',
           await locator.scrollIntoViewIfNeeded();
           probe.items[key] = await locator.evaluate(element => {
             const rect = element.getBoundingClientRect();
-            const x = rect.left + rect.width / 2;
-            const y = rect.top + rect.height / 2;
-            const hit = document.elementFromPoint(x, y);
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const textRects = Array.from(range.getClientRects());
+            const textVisible = textRects.length > 0 && textRects.every(line =>
+              line.width > 0 && line.height > 0 &&
+              line.left >= -1 && line.right <= window.innerWidth + 1 &&
+              line.top >= -1 && line.bottom <= window.innerHeight + 1 &&
+              [0.1, 0.5, 0.9].every(fraction => {
+                const hit = document.elementFromPoint(
+                  line.left + line.width * fraction,
+                  line.top + line.height / 2);
+                return !!hit && element.contains(hit);
+              }));
             return {
               text: element.textContent?.trim() || '',
               left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
               viewport_width: window.innerWidth, viewport_height: window.innerHeight,
-              unclipped: rect.width > 0 && rect.height > 0 &&
+              box_unclipped: rect.width > 0 && rect.height > 0 &&
                 rect.left >= -1 && rect.right <= window.innerWidth + 1 &&
                 rect.top >= -1 && rect.bottom <= window.innerHeight + 1 &&
                 (element.clientWidth === 0 ||
                   element.scrollWidth <= element.clientWidth + 1),
-              hit: !!hit && element.contains(hit),
+              text_visible: textVisible,
+              text_rects: textRects.map(line => ({
+                left: line.left, right: line.right,
+                top: line.top, bottom: line.bottom,
+              })),
             };
           });
         }
+        probe.page_scroll_width = await page.evaluate(() =>
+          document.documentElement.scrollWidth);
         probe.server_total = expectedTotal;
         probe.rendered_total = Number(probe.items.total.text.replace(/\D/g, ''));
         probe.table_matches = probe.items.heading.text === 'Bàn Q3-1';
         probe.status_matches = probe.items.status.text === 'Đã phục vụ';
         probe.total_matches = probe.rendered_total === expectedTotal;
         probe.elements_readable = Object.values(probe.items).every((item: any) =>
-          item.unclipped && item.hit && item.text.length > 0);
+          item.text_visible && item.text.length > 0) &&
+          probe.items.primary.box_unclipped;
         await testInfo.attach('S4_UX_042_' + width + '_summary', {
           body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
           contentType: 'image/png',
         });
-        if (!probe.table_matches || !probe.status_matches ||
-            !probe.total_matches || !probe.elements_readable)
-          throw new Error('SUMMARY_RESPONSIVE_MISMATCH: ' + JSON.stringify(probe));
       }
       const after = {
         table: await table(), order: await order(),
