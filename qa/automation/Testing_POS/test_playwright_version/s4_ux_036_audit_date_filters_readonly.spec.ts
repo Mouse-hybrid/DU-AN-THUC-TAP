@@ -15,7 +15,7 @@ test('S4-UX-036 | audit date filters use distinct ranges',
     const report: any = {
       run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-S4UX036',
       test_ref: 'S4-UX-036', checked_at: new Date().toISOString(),
-      scope: 'QA3 SUPERVISOR selects Today, 30 days, then 7 days in Audit UI; GET created_from, total and active button match each range; no UI business write, read-only.',
+      scope: 'QA3 SUPERVISOR selects Today, 30 days, then 7 days in Audit UI; GET created_from, total and active button match each range; record GET and loading-settle timings without an SLA threshold; no UI business write, read-only.',
       project: testInfo.project.name, secrets_recorded: false,
       ui_writes: [], ranges: [], checks: {}, cleanup_required: false,
     };
@@ -70,6 +70,7 @@ test('S4-UX-036 | audit date filters use distinct ranges',
           option.label + '\\s*$') }));
       for (const control of controls) await expect(control).toHaveCount(1);
       const totalCard = page.getByText('Tổng thao tác', { exact: true }).locator('..');
+      const loading = page.getByText('Đang tải nhật ký', { exact: true });
       const buttonStates = () => Promise.all(controls.map(control =>
         control.evaluate(el => ({
           text: el.textContent?.trim(),
@@ -87,6 +88,7 @@ test('S4-UX-036 | audit date filters use distinct ranges',
       for (let i = 0; i < options.length; i++) {
         const option = options[i];
         const observedStart = auditReads.length;
+        const clickedAt = Date.now();
         const match = page.waitForResponse(row => {
           if (row.request().method() !== 'GET' ||
               new URL(row.url()).pathname !== '/api/v1/audit-logs') return false;
@@ -97,6 +99,11 @@ test('S4-UX-036 | audit date filters use distinct ranges',
         }, { timeout: 10_000 }).catch(() => null);
         await controls[i].click({ timeout: 10_000 });
         const response = await match;
+        const getMs = response ? Date.now() - clickedAt : null;
+        await expect(loading).toBeHidden({ timeout: 30_000 })
+          .catch(() => {});
+        const loadingStillVisible = await loading.isVisible();
+        const settleMs = loadingStillVisible ? null : Date.now() - clickedAt;
         await page.waitForLoadState('networkidle', { timeout: 8_000 })
           .catch(() => {});
         const createdFrom = response ?
@@ -111,7 +118,9 @@ test('S4-UX-036 | audit date filters use distinct ranges',
         const active = selectedState(buttons, i);
         const range = { key: option.key, label: option.label,
           http: response?.status() ?? null, created_from: createdFrom,
-          total, active, buttons, observed_gets: auditReads.slice(observedStart) };
+          total, active, buttons, observed_gets: auditReads.slice(observedStart),
+          get_ms: getMs, ui_settle_ms: settleMs,
+          loading_still_visible: loadingStillVisible };
         report.ranges.push(range);
         await testInfo.attach('S4_UX_036_' + option.key, {
           body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
@@ -127,6 +136,8 @@ test('S4-UX-036 | audit date filters use distinct ranges',
           Date.parse(today.created_from) > Date.parse(seven.created_from) &&
           Date.parse(seven.created_from) > Date.parse(thirty.created_from),
         active_matches_range: report.ranges.every((row: any) => row.active),
+        ui_settled: report.ranges.every((row: any) =>
+          !row.loading_still_visible && Number.isFinite(row.ui_settle_ms)),
         totals_consistent: report.ranges.every((row: any) =>
           Number.isInteger(row.total) && row.total >= 0) &&
           today.total <= seven.total && seven.total <= thirty.total,
