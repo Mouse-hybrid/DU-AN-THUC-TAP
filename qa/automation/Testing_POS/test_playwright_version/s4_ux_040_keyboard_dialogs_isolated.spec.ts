@@ -15,7 +15,8 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
       'S2_STAGING_PIN and full POS_EXPECTED_COMMIT required');
     const tokens: Record<string, string> = {};
     const owned: Array<{code: string; tableId?: string; sessionId?: string;
-      orderId?: string; itemId?: string}> = [{ code: 'Q3-1' }, { code: 'Q3-2' }];
+      orderId?: string; itemId?: string; itemIds?: string[]}> =
+      [{ code: 'Q3-1' }, { code: 'Q3-2' }];
     const [source, target] = owned;
     const report: any = {
       run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-S4UX040',
@@ -101,9 +102,11 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
     }
     const menu = await checked('GET', '/api/v1/menu?available_only=true',
       'waiter', 200) as any[];
-    const starter = menu.find(row => row.is_available && row.station_id &&
+    const choices = menu.filter(row => row.is_available && row.station_id &&
       !row.has_modifiers && Number(row.price) > 0);
-    test.skip(!starter, 'PENDING_FIXTURE: mapped menu item required');
+    test.skip(choices.length < 2 || choices[0].name === choices[1].name,
+      'PENDING_FIXTURE: two distinct mapped menu items required');
+    const [starter, second] = choices;
     const uiWrites: string[] = report.ui_writes;
     page.on('request', req => {
       const path = new URL(req.url()).pathname;
@@ -179,6 +182,7 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
     async function snapshot() {
       return Promise.all(owned.map(async x => ({
         table: await table(x), order: await order(x), queue: await queue(x),
+        done: await queue(x, 'DONE'),
       })));
     }
     let failure: unknown;
@@ -188,21 +192,27 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
           '/open-session', 'waiter', 201, { guest_count: 1 })).id;
         x.orderId = (await checked('POST', '/api/v1/orders', 'waiter',
           201, { table_session_id: x.sessionId })).id;
+        const notes = x === source ? ['S4-UX-040 source keep',
+          'S4-UX-040 source move'] : ['S4-UX-040 target own'];
         const added = await checked('POST', '/api/v1/orders/' + x.orderId +
-          '/items', 'waiter', 201, { items: [{ menu_item_id: starter.id,
-            quantity: 1, note: 'S4-UX-040 ' + x.code + ' own' }] });
-        x.itemId = added.items.find((row: any) =>
-          row.note === 'S4-UX-040 ' + x.code + ' own')?.id;
-        expect(x.itemId).toBeTruthy();
+          '/items', 'waiter', 201, { items: notes.map((note, index) => ({
+            menu_item_id: index === 1 ? second.id : starter.id,
+            quantity: 1, note,
+          })) });
+        x.itemIds = notes.map(note =>
+          added.items.find((row: any) => row.note === note)?.id);
+        expect(x.itemIds.every(Boolean)).toBe(true);
+        x.itemId = x.itemIds[0];
         await checked('POST', '/api/v1/orders/' + x.orderId +
           '/send-to-kitchen', 'waiter', 200);
       }
-      for (const [action, role] of [
-        ['start-cooking', 'kitchen'], ['mark-ready', 'kitchen'],
-        ['pickup', 'waiter'], ['served', 'waiter'],
-      ] as const)
-        await checked('POST', '/api/v1/orders/' + source.orderId +
-          '/items/' + source.itemId + '/' + action, role, 200);
+      for (const itemId of source.itemIds!)
+        for (const [action, role] of [
+          ['start-cooking', 'kitchen'], ['mark-ready', 'kitchen'],
+          ['pickup', 'waiter'], ['served', 'waiter'],
+        ] as const)
+          await checked('POST', '/api/v1/orders/' + source.orderId +
+            '/items/' + itemId + '/' + action, role, 200);
       const before = await snapshot();
       const auditBefore = await mergeAudit();
       const splitAuditBefore = await splitAudit();
@@ -212,9 +222,10 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
         expect(before[index].order.table_session_id).toBe(owned[index].sessionId);
         expect(before[index].queue).toHaveLength(index === 0 ? 0 : 1);
       }
-      expect((await order(source)).items.find((row: any) =>
-        row.id === source.itemId)?.status).toBe('SERVED');
-      expect(await queue(source, 'DONE')).toHaveLength(1);
+      expect(before[0].order.items).toHaveLength(2);
+      expect(before[0].order.items.every((row: any) =>
+        row.status === 'SERVED')).toBe(true);
+      expect(before[0].done).toHaveLength(2);
       report.tables = owned.map(x => ({ code: x.code,
         session_id: x.sessionId, order_id: x.orderId }));
       console.log('[S4-UX-040] Own Q3-1/Q3-2 occupied orders ' +
@@ -308,7 +319,7 @@ test('S4-UX-040 | table and bill dialogs support keyboard focus and Escape',
         subtotal: row.order.subtotal,
         items: row.order.items,
         version: row.order.current_version,
-        tickets: row.queue.map((ticket: any) => ({
+        tickets: [...row.queue, ...row.done].map((ticket: any) => ({
           id: ticket.id, order_id: ticket.order_id,
           order_item_id: ticket.order_item_id, status: ticket.status,
           station_id: ticket.station_id,
