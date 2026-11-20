@@ -81,6 +81,8 @@ class TableDashboardItem(BaseModel):
     current_session_id: uuid.UUID | None = None
     guest_count: int | None = None
     opened_at: datetime | None = None
+    # Số phần món bếp đã làm xong, đang chờ phục vụ mang ra (món READY của phiên đang mở).
+    ready_items: int = 0
 
 
 class TableDetailOut(TableOut):

@@ -23,7 +23,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.v1.orders import _snapshot_order, build_order_detail
@@ -44,6 +44,7 @@ from app.db.base import get_session
 from app.db.models import (
     IdempotencyKey,
     Order,
+    OrderItem,
     OrderVersion,
     RestaurantTable,
     TableArea,
@@ -192,6 +193,18 @@ def table_dashboard(
         )
         open_sessions = {row.table_id: row for row in rows}
 
+    # Món chờ mang ra theo phiên: một truy vấn gộp cho cả sơ đồ, không hỏi từng bàn.
+    ready_by_session: dict[uuid.UUID, int] = {}
+    if open_sessions:
+        ready_rows = session.execute(
+            select(Order.table_session_id, func.coalesce(func.sum(OrderItem.quantity), 0))
+            .join(OrderItem, OrderItem.order_id == Order.id)
+            .where(Order.table_session_id.in_([s.id for s in open_sessions.values()]))
+            .where(OrderItem.status == "READY")
+            .group_by(Order.table_session_id)
+        ).all()
+        ready_by_session = {session_id: int(count) for session_id, count in ready_rows}
+
     items: list[TableDashboardItem] = []
     for table in tables:
         current_session = open_sessions.get(table.id)
@@ -207,6 +220,7 @@ def table_dashboard(
                 current_session_id=current_session.id if current_session else None,
                 guest_count=current_session.guest_count if current_session else None,
                 opened_at=current_session.opened_at if current_session else None,
+                ready_items=ready_by_session.get(current_session.id, 0) if current_session else 0,
             )
         )
     return items

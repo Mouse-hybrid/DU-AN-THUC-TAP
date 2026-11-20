@@ -20,7 +20,7 @@ import { useRealtime } from "../realtime/useRealtime";
 
 const TABLE_STATUSES = ["AVAILABLE", "OCCUPIED", "BILLING", "PAID", "CLEANING", "RESERVED", "DELAYED", "MERGED"] as const;
 type TableStatus = (typeof TABLE_STATUSES)[number];
-type StatusFilter = "ALL" | TableStatus;
+type StatusFilter = "ALL" | "READY_ITEMS" | TableStatus;
 
 interface TableCardProps {
   table: TableDashboardItem;
@@ -65,12 +65,15 @@ function TableCard({ table, mergedInto, cleaning, onSelect, onMarkClean }: Table
         className="nova-table-card-select"
         type="button"
         onClick={() => onSelect(table)}
-        aria-label={`Bàn ${table.code}, ${getStatusMeta(table.status).label}`}
+        aria-label={`Bàn ${table.code}, ${getStatusMeta(table.status).label}${table.ready_items > 0 ? `, ${table.ready_items} món sẵn sàng` : ""}`}
       >
         <span className="nova-table-card-topline">
           <strong className="nova-table-code">{table.code}</strong>
           <StatusBadge status={table.status} />
         </span>
+        {table.ready_items > 0 ? (
+          <span className="nova-ready-badge" data-testid="ready-badge">{table.ready_items} món sẵn sàng · ra bếp lấy</span>
+        ) : null}
         <TableFigure seats={table.seats} />
         <span className="nova-table-meta"><Icon name="users" />{table.seats} chỗ ngồi</span>
         <span className={`nova-table-session${table.opened_at ? "" : " nova-table-session--idle"}`}>
@@ -189,7 +192,7 @@ export function TablesPage() {
   }, [realtimeConnected, refreshInBackground]);
 
   const visibleTables = useMemo(
-    () => tables.filter((table) => (filter === "ALL" || table.status === filter)
+    () => tables.filter((table) => (filter === "ALL" || (filter === "READY_ITEMS" ? table.ready_items > 0 : table.status === filter))
       && (areaFilter === "ALL" || (areaFilter === "NONE" ? !table.area_id : table.area_id === areaFilter))),
     [areaFilter, filter, tables],
   );
@@ -274,6 +277,7 @@ export function TablesPage() {
               <label htmlFor="nova-status-filter">Trạng thái</label>
               <select id="nova-status-filter" value={filter} onChange={(event) => setFilter(event.target.value as StatusFilter)}>
                 <option value="ALL">Tất cả trạng thái</option>
+                <option value="READY_ITEMS">Có món sẵn sàng</option>
                 {TABLE_STATUSES.map((status) => <option key={status} value={status}>{getStatusMeta(status).label}</option>)}
               </select>
             </div>
@@ -296,6 +300,18 @@ export function TablesPage() {
 
         {state === "ready" && tables.length > 0 ? (
           <section className="nova-table-stats" aria-label="Thống kê bàn">
+            <button
+              type="button"
+              className={`nova-table-stat nova-table-stat--ready${filter === "READY_ITEMS" ? " nova-table-stat--active" : ""}`}
+              aria-pressed={filter === "READY_ITEMS"}
+              onClick={() => setFilter((current) => (current === "READY_ITEMS" ? "ALL" : "READY_ITEMS"))}
+            >
+              <strong aria-hidden="true">{tables.reduce((sum, table) => sum + table.ready_items, 0)}</strong>
+              <div>
+                <span>Món chờ mang ra</span>
+                <small>{tables.filter((table) => table.ready_items > 0).length} bàn · bấm để lọc</small>
+              </div>
+            </button>
             {TABLE_STATS.map((stat) => (
               <div key={stat.tone} className={`nova-table-stat nova-table-stat--${stat.tone}`}>
                 <strong aria-hidden="true">{tables.filter((table) => toneOf(table.status) === stat.tone).length}</strong>

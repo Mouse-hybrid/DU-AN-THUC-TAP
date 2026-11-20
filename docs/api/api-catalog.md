@@ -46,7 +46,7 @@ Từ 09/11 mọi response có header `X-Request-ID` (FE gửi kèm header này t
 
 | # | Method | Endpoint | Quyền | Màn hình dùng | Trạng thái |
 |---|---|---|---|---|---|
-| 6 | GET | `/api/v1/tables` | mọi role | 04 Sơ đồ bàn | ✅ 🧪 🖥️ |
+| 6 | GET | `/api/v1/tables` | mọi role | 04 Sơ đồ bàn. Từ 20/11 mỗi bàn có `ready_items`: số phần món bếp đã xong, chờ phục vụ mang ra | ✅ 🧪 🖥️ |
 | 7 | GET | `/api/v1/tables/{id}` | mọi role | 05 Chi tiết bàn | ✅ 🧪 |
 | 8 | POST | `/api/v1/tables/{id}/open-session` | S C W | 06 Mở bàn | ✅ 🧪 🖥️ |
 | 9 | POST | `/api/v1/tables/{id}/mark-clean` | S W | 04 Sơ đồ bàn (bàn CLEANING → AVAILABLE) | ✅ 🧪 |
@@ -381,7 +381,7 @@ lại event đã lỡ).
 |---|---|---|---|
 | `tables` | `TABLE_SESSION_OPENED` | `table_id`, `status`, `table_session_id` | Mở bàn |
 | `tables` | `TABLE_STATUS_CHANGED` | `table_id`, `status` | Bàn sang BILLING, CLEANING, AVAILABLE |
-| `tables` | `ORDER_UPDATED` (từ 15/10) | `order_id`, `table_id`, `table_session_id`, `status`, `current_version`, `reason`, `item_id` | **Mọi** thao tác ghi vào order. `reason`: `ORDER_CREATED`, `ITEMS_ADDED`, `ITEM_UPDATED`, `ITEM_REMOVED`, `SENT_TO_KITCHEN`, `ITEM_STARTED`, `ITEM_READY`, `ITEM_PICKED_UP`, `ITEM_SERVED`, `ITEM_VOIDED`, `ITEM_REFIRED`, `BILLING_REQUESTED`, `PAYMENT_RECORDED`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED`, `ORDER_PAID`, `ORDER_CLOSED`; `item_id` có khi thao tác trên 1 món |
+| `tables` | `ORDER_UPDATED` (từ 15/10) | `order_id`, `table_id`, `table_session_id`, `status`, `current_version`, `reason`, `item_id` | **Mọi** thao tác ghi vào order. `reason`: `ORDER_CREATED`, `ITEMS_ADDED`, `ITEM_UPDATED`, `ITEM_REMOVED`, `SENT_TO_KITCHEN`, `ITEM_STARTED`, `ITEM_READY`, `ITEM_PICKED_UP`, `ITEM_SERVED`, `ITEM_VOIDED`, `ITEM_REFIRED`, `BILLING_REQUESTED`, `PAYMENT_RECORDED`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED`, `ORDER_PAID`, `ORDER_CLOSED`; `item_id` có khi thao tác trên 1 món. Riêng `ITEM_READY` (từ 20/11) kèm `table_code`, `menu_item_name`, `quantity` để màn phục vụ báo ngay |
 | `kitchen` | `KITCHEN_QUEUE_UPDATED` | `order_id`, `items_sent` | Gửi bếp |
 | `kitchen` | `ORDER_ITEM_STATUS_CHANGED` / `ORDER_ITEM_VOIDED` / `ORDER_ITEM_REFIRED` | `order_id`, `item_id`, `status` | Bếp nấu/xong, phục vụ lấy/mang ra, hủy, làm lại |
 

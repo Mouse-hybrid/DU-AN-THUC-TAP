@@ -3253,6 +3253,11 @@ export interface components {
             guest_count?: number | null;
             /** Opened At */
             opened_at?: string | null;
+            /**
+             * Ready Items
+             * @default 0
+             */
+            ready_items: number;
         };
         /**
          * TableDetailOut

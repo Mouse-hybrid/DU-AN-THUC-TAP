@@ -4,6 +4,7 @@ import { usePermissions, type PermissionCode } from "../auth/permissions";
 import { clearAuth, getAuth } from "../auth/storage";
 import { initialsOf, roleLabel } from "../utils/roleLabels";
 import { Icon } from "./Icon";
+import { ReadyNotifier, ReadySoundToggle } from "./ReadyNotifier";
 
 interface AppShellProps {
   children: ReactNode;
@@ -50,6 +51,8 @@ export function AppShell({ children, topbar }: AppShellProps) {
   const onProfile = location.pathname.startsWith("/profile");
   const activeItem = onProfile ? undefined : navItems.find((item) => location.pathname.startsWith(item.prefix)) ?? navItems[0];
   const home = activeItem?.to ?? navItems[0]?.to ?? "/tables";
+  // Báo món sẵn sàng cho người phục vụ món (không cho bếp, không hiện trên màn bếp).
+  const showReadyNotices = can("SERVE_FOOD") && auth?.staff.role !== "KITCHEN" && !location.pathname.startsWith("/kitchen");
 
   function logout() {
     clearAuth();
@@ -86,6 +89,7 @@ export function AppShell({ children, topbar }: AppShellProps) {
         <header className="nova-topbar">
           {topbar}
           <div className="nova-user-actions">
+            {showReadyNotices ? <ReadySoundToggle /> : null}
             <Link
               className={`nova-user-chip${onProfile ? " nova-user-chip--active" : ""}`}
               to="/profile"
@@ -103,6 +107,7 @@ export function AppShell({ children, topbar }: AppShellProps) {
         </header>
         {children}
       </div>
+      {showReadyNotices ? <ReadyNotifier /> : null}
     </div>
   );
 }
