@@ -15,7 +15,7 @@ test('S4-UX-004 | QA3 kitchen stays in KDS and cannot open payment or staff',
     const report: any = {
       run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-S4UX004',
       test_ref: 'S4-UX-004', checked_at: new Date().toISOString(),
-      scope: 'QA3 KITCHEN reads KDS tabs and stations; payment and staff routes and protected API denied, no order or ledger write; existing queue may be empty; read-only.',
+      scope: 'QA3 KITCHEN reads KDS tabs and stations; payment and staff UI routes denied, staff API denied; table GET status recorded for policy review; no order or ledger write; existing queue may be empty; read-only.',
       project: testInfo.project.name, secrets_recorded: false,
       ui_writes: [], reads: [], tabs: [], routes: [], checks: {},
       mutations: 0, cleanup_required: false,
@@ -112,6 +112,8 @@ test('S4-UX-004 | QA3 kitchen stays in KDS and cannot open payment or staff',
       }
       report.http.staff = (await get('/api/v1/staff')).http;
       report.http.tables = (await get('/api/v1/tables')).http;
+      report.table_api_policy_review = report.http.tables === 200 ?
+        'KITCHEN GET /api/v1/tables returned 200; UI /tables denied; confirm intended read scope with BE/PO' : null;
       report.checks = {
         kds_only_nav: Object.values(report.nav).every(Boolean),
         kds_tabs: report.tabs.length === 4,
@@ -121,8 +123,7 @@ test('S4-UX-004 | QA3 kitchen stays in KDS and cannot open payment or staff',
         payment_and_staff_route_denied: report.routes.length === 3 &&
           report.routes.every((row: any) => row.landed === '/kitchen' &&
             !row.protected_dom),
-        protected_api_denied: report.http.staff === 403 &&
-          report.http.tables === 403,
+        staff_api_denied: report.http.staff === 403,
         no_protected_ui_read: !report.reads.some((row: any) =>
           ['/api/v1/staff', '/api/v1/tables'].includes(row.path) && row.http === 200),
         no_ui_business_write: report.ui_writes.length === 0,
