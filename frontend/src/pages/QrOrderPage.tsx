@@ -19,6 +19,7 @@ import { MenuThumb } from "../components/MenuThumb";
 import { ModifierDialog } from "../components/ModifierDialog";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatVnd } from "../utils/format";
+import { notePlaceholder } from "../utils/notePlaceholder";
 import { createIdempotencyKey } from "../utils/idempotency";
 
 interface CartLine {
@@ -300,7 +301,7 @@ export function QrOrderPage() {
                 </div>
                 <label className="nova-qr-note">
                   <span>Ghi chú cho bếp</span>
-                  <input type="text" value={line.note} maxLength={MAX_NOTE} placeholder="Ví dụ: ít cay, không hành" aria-label={`Ghi chú cho ${line.item.name}`} onChange={(event) => changeNote(line.key, event.target.value)} />
+                  <input type="text" value={line.note} maxLength={MAX_NOTE} placeholder={notePlaceholder(line.item.name, menu.categories.find((cat) => cat.id === line.item.category_id)?.name)} aria-label={`Ghi chú cho ${line.item.name}`} onChange={(event) => changeNote(line.key, event.target.value)} />
                 </label>
               </li>
             ))}
