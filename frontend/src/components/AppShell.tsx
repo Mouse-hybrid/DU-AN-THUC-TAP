@@ -35,6 +35,7 @@ function navItemsFor(role: string | undefined, can: (code: PermissionCode) => bo
       { to: "/admin/roles", prefix: "/admin/roles", label: "Vai trò", icon: "shield-check" },
     );
   }
+  if (can("LOYALTY_MANAGE")) items.push({ to: "/admin/members", prefix: "/admin/members", label: "Hội viên", icon: "user-round" });
   if (can("AUDIT_READ")) items.push({ to: "/admin/audit-logs", prefix: "/admin/audit-logs", label: "Nhật ký", icon: "scroll-text" });
   if (can("OUTLET_SETTINGS")) items.push({ to: "/admin/settings", prefix: "/admin/settings", label: "Cài đặt", icon: "key-round" });
   return items;

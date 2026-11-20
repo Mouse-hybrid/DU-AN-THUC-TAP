@@ -3123,3 +3123,12 @@ a.nova-button {
 .nova-settings-option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px 14px; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 12px; cursor: pointer; }
 .nova-settings-option--active { border-color: var(--nova-primary, #008573); background: #f2fbf8; }
 .nova-settings-option p { margin: 2px 0 0; color: #5b706c; font-size: 14px; }
+
+/* Màn Hội viên */
+.nova-member-phone { margin: 2px 0 0; color: #5b706c; font-size: 14px; }
+.nova-member-subtitle { margin: 16px 0 8px; font-size: 18px; }
+.nova-member-ledger { max-height: 320px; overflow: auto; border: 1px solid var(--nova-line, #d7e4e1); border-radius: 12px; }
+.nova-points-plus { color: #00705f; font-weight: 700; }
+.nova-points-minus { color: #a33a2b; font-weight: 700; }
+.nova-member-adjust { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; margin-bottom: 12px; }
+@media (max-width: 640px) { .nova-member-adjust { grid-template-columns: minmax(0, 1fr); } }

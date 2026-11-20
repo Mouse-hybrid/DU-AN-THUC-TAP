@@ -8,6 +8,7 @@ import { AdminAuditLogPage } from "./pages/AdminAuditLogPage";
 import { AdminMenuPage } from "./pages/AdminMenuPage";
 import { AdminRolesPage } from "./pages/AdminRolesPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
+import { AdminMembersPage } from "./pages/AdminMembersPage";
 import { AdminStaffPage } from "./pages/AdminStaffPage";
 import { KitchenItemDetailPage } from "./pages/KitchenItemDetailPage";
 import { KitchenPage } from "./pages/KitchenPage";
@@ -95,6 +96,10 @@ export default function App() {
         <Route
           path="/admin/roles"
           element={<ProtectedRoute area="admin" permission="STAFF_MANAGE"><AdminRolesPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/members"
+          element={<ProtectedRoute area="admin" permission="LOYALTY_MANAGE"><AdminMembersPage /></ProtectedRoute>}
         />
         <Route
           path="/admin/settings"
