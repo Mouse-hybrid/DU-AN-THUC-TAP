@@ -18,6 +18,8 @@ interface UseRealtimeOptions {
   onRefresh: () => void;
   /** Bỏ qua sự kiện không liên quan tới màn hiện tại (vd bàn khác). */
   filter?: (event: RealtimeEvent) => boolean;
+  /** Nhận từng sự kiện đã qua `filter`, ngay khi tới (không gộp như `onRefresh`). */
+  onEvent?: (event: RealtimeEvent) => void;
 }
 
 const PING_INTERVAL_MS = 25_000;
@@ -54,14 +56,16 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
  * giãn chu kỳ polling khi WebSocket đang chạy. Lỗi kết nối không bao giờ làm
  * hỏng màn — chỉ quay về polling và tự kết nối lại.
  */
-export function useRealtime({ channel, onRefresh, filter }: UseRealtimeOptions): boolean {
+export function useRealtime({ channel, onRefresh, filter, onEvent }: UseRealtimeOptions): boolean {
   const [connected, setConnected] = useState(false);
   const onRefreshRef = useRef(onRefresh);
   const filterRef = useRef(filter);
+  const onEventRef = useRef(onEvent);
 
   useEffect(() => {
     onRefreshRef.current = onRefresh;
     filterRef.current = filter;
+    onEventRef.current = onEvent;
   });
 
   useEffect(() => {
@@ -153,6 +157,7 @@ export function useRealtime({ channel, onRefresh, filter }: UseRealtimeOptions):
         if (!isRealtimeEvent(parsed) || parsed.type === "pong") return;
         const event = { ...parsed, data: parsed.data ?? {} };
         if (filterRef.current && !filterRef.current(event)) return;
+        onEventRef.current?.(event);
         scheduleRefresh();
       };
 
