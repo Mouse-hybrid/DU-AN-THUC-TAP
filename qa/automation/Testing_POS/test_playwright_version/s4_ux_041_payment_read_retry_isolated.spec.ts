@@ -20,7 +20,7 @@ test('S4-UX-041 | payment panel recovers from one failed read without duplicate 
     const report: any = {
       run_id: `RUN-${new Date().toISOString().replace(/\D/g, '')}-S4UX041`,
       test_ref: 'S4-UX-041', checked_at: new Date().toISOString(),
-      scope: 'QA3 CASHIER payment panel: one browser GET is held then aborted, loading and error appear, one Retry GET recovers the owned unpaid bill; no UI POST, false PAID, or ledger change; owned cleanup. KDS and other screens excluded.',
+      scope: 'QA3 CASHIER payment panel: first GET held, both automatic attempts fail, loading and error appear, one manual Retry GET recovers the owned unpaid bill; no UI POST, false PAID, or ledger change; owned cleanup. KDS and other screens excluded.',
       project: testInfo.project.name, secrets_recorded: false,
       checks: {}, ui_writes: [], cleanup_pass: false,
     };
@@ -223,8 +223,8 @@ test('S4-UX-041 | payment panel recovers from one failed read without duplicate 
           return;
         }
         browserReads.push('GET ' + paymentPath);
-        if (browserReads.length === 1) {
-          await gate;
+        if (browserReads.length <= 2) {
+          if (browserReads.length === 1) await gate;
           await route.abort('failed');
         } else await route.continue();
       });
@@ -239,6 +239,8 @@ test('S4-UX-041 | payment panel recovers from one failed read without duplicate 
         contentType: 'image/png',
       });
       releaseFirstRead();
+      await expect.poll(() => browserReads.length, { timeout: 10_000 }).toBe(2);
+      report.automatic_get_attempts = browserReads.length;
       await expect(cashier.getByText('Không thể tải thanh toán', { exact: true }))
         .toBeVisible({ timeout: 10_000 });
       const retry = cashier.getByRole('button', { name: 'Thử lại', exact: true });
@@ -267,7 +269,8 @@ test('S4-UX-041 | payment panel recovers from one failed read without duplicate 
       });
       const billAfter = await order();
       const ledgerAfter = await ledger();
-      report.checks.one_abort_one_retry = browserReads.length === 2 &&
+      report.checks.two_failed_auto_gets_one_manual_retry =
+        browserReads.length === 3 &&
         retried.status() === 200;
       report.checks.bill_unpaid = billAfter.status === 'BILLING' &&
         Number(billAfter.amount_due) === Number(billBefore.amount_due) &&
