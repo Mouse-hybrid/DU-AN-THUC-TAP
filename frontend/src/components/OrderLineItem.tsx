@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { MenuThumb } from "./MenuThumb";
 import { QuantityStepper } from "./QuantityStepper";
 import { StatusBadge } from "./StatusBadge";
+import { notePlaceholder } from "../utils/notePlaceholder";
 
 type OrderItem = components["schemas"]["OrderItemDetailOut"];
 
@@ -65,7 +66,7 @@ export function OrderLineItem({ item, editable, updating = false, removing = fal
               value={note}
               maxLength={500}
               disabled={updating || removing}
-              placeholder="Ví dụ: ít cay"
+              placeholder={notePlaceholder(item.menu_item_name)}
               onChange={(event) => setNote(event.target.value)}
             />
           </label>
