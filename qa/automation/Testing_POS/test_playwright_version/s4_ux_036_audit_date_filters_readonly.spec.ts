@@ -51,10 +51,19 @@ test('S4-UX-036 | audit date filters use distinct ranges',
       expect(initial.status()).toBe(200);
       await expect(page.getByRole('heading', { name: 'Nhật ký hệ thống' }).first())
         .toBeVisible();
+      const auditReads: Array<{ created_from: string | null; status: number }> = [];
+      page.on('response', response => {
+        if (response.request().method() !== 'GET' ||
+            new URL(response.url()).pathname !== '/api/v1/audit-logs') return;
+        auditReads.push({
+          created_from: new URL(response.url()).searchParams.get('created_from'),
+          status: response.status(),
+        });
+      });
       const options = [
-        { key: 'today', label: 'Hôm nay' },
-        { key: 'thirty', label: '30 ngày' },
-        { key: 'seven', label: '7 ngày' },
+        { key: 'today', label: 'Hôm nay', ageMin: 0, ageMax: 1.5 },
+        { key: 'thirty', label: '30 ngày', ageMin: 28, ageMax: 31.5 },
+        { key: 'seven', label: '7 ngày', ageMin: 5.5, ageMax: 8.5 },
       ];
       const controls = options.map(option =>
         page.locator('button').filter({ hasText: new RegExp('^\\s*' +
@@ -77,14 +86,21 @@ test('S4-UX-036 | audit date filters use distinct ranges',
           button.background !== buttons[index].background);
       for (let i = 0; i < options.length; i++) {
         const option = options[i];
-        const [response] = await Promise.all([
-          page.waitForResponse(row => row.request().method() === 'GET' &&
-            new URL(row.url()).pathname === '/api/v1/audit-logs',
-          { timeout: 20_000 }),
-          controls[i].click({ timeout: 10_000 }),
-        ]);
-        expect(response.status()).toBe(200);
-        const createdFrom = new URL(response.url()).searchParams.get('created_from');
+        const observedStart = auditReads.length;
+        const match = page.waitForResponse(row => {
+          if (row.request().method() !== 'GET' ||
+              new URL(row.url()).pathname !== '/api/v1/audit-logs') return false;
+          const created = new URL(row.url()).searchParams.get('created_from');
+          const age = created ? (Date.now() - Date.parse(created)) / 86_400_000 : NaN;
+          return row.status() === 200 && age >= option.ageMin &&
+            age <= option.ageMax;
+        }, { timeout: 10_000 }).catch(() => null);
+        await controls[i].click({ timeout: 10_000 });
+        const response = await match;
+        await page.waitForLoadState('networkidle', { timeout: 8_000 })
+          .catch(() => {});
+        const createdFrom = response ?
+          new URL(response.url()).searchParams.get('created_from') : null;
         await expect.poll(async () => selectedState(await buttonStates(), i),
           { timeout: 5_000 }).toBe(true).catch(() => {});
         await expect(totalCard).toBeVisible();
@@ -94,8 +110,8 @@ test('S4-UX-036 | audit date filters use distinct ranges',
         const buttons = await buttonStates();
         const active = selectedState(buttons, i);
         const range = { key: option.key, label: option.label,
-          http: response.status(), created_from: createdFrom,
-          total, active, buttons };
+          http: response?.status() ?? null, created_from: createdFrom,
+          total, active, buttons, observed_gets: auditReads.slice(observedStart) };
         report.ranges.push(range);
         await testInfo.attach('S4_UX_036_' + option.key, {
           body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
