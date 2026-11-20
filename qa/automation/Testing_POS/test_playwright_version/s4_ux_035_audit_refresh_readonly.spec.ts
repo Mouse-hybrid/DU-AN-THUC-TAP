@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 
 test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
   async ({ page, request }, testInfo) => {
-    test.setTimeout(90_000);
+    test.setTimeout(120_000);
     test.skip(testInfo.project.name !== 'chromium', 'Desktop Chromium scope');
     const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
     expect(base, 'QA3 staging only').toBe('http://160.191.47.17');
@@ -64,10 +64,25 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
     const ownHistory = await ownGet('/api/v1/audit-logs?limit=100', 'qa3');
     expect(ownHistory.http).toBe(200);
     const ownRows = rowsOf(ownHistory.body);
-    const marker = ownRows.find(row => row.entity_type === 'order' &&
-      typeof row.entity_id === 'string' && row.entity_id.length > 0);
+    // An audit row can outlive its order. Scope the probe to an order
+    // QA3 can still read, so a 404 from the filtered endpoint is meaningful.
+    const candidates = [...new Set(ownRows
+      .filter(row => row.entity_type === 'order' &&
+        typeof row.entity_id === 'string' && row.entity_id.length > 0)
+      .map(row => row.entity_id))].slice(0, 20);
+    let marker: any;
+    const orderProbes: Array<{ order_id: string; http: number }> = [];
+    for (const id of candidates) {
+      const candidate = await ownGet('/api/v1/orders/' + encodeURIComponent(id), 'qa3');
+      orderProbes.push({ order_id: id, http: candidate.http });
+      if (candidate.http === 200 && candidate.body?.id === id) {
+        marker = ownRows.find(row => row.entity_id === id);
+        break;
+      }
+    }
     report.outlet_probe = { qa3_rows: ownRows.length,
-      order_entity_found: !!marker, distinct_outlets: outlets.qa3 !== outlets.qa2 };
+      candidate_count: candidates.length, order_probes: orderProbes,
+      readable_order_found: !!marker, distinct_outlets: outlets.qa3 !== outlets.qa2 };
     const reads: Array<{status: number; path: string; createdFrom: string | null;
       rows: number | null}> = [];
     page.on('response', response => {
@@ -152,7 +167,7 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
       const tableRows = await page.locator('table tbody tr').count();
       report.ui = { initial_total: initialTotal, refreshed_total: refreshedTotal,
         visible_table_rows: tableRows, audit_gets: reads };
-      if (!marker) throw new Error('PENDING_FIXTURE: no QA3 order audit entity for outlet probe');
+      if (!marker) throw new Error('PENDING_FIXTURE: no readable QA3 order among recent audit rows');
       const id = encodeURIComponent(marker.entity_id);
       const orderAuditPath = `/api/v1/audit-logs?order_id=${id}&limit=100`;
       const ownEntity = await ownGet(orderAuditPath, 'qa3');
