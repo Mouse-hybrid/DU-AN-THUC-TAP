@@ -195,14 +195,27 @@ test('S4-UX-007 | waiter opens Q3-1, orders and sends one item in UI',
         response.request().method() === 'POST' &&
         new URL(response.url()).pathname === '/api/v1/orders',
       { timeout: 20_000 });
+      const itemResponse = page.waitForResponse(response =>
+        response.request().method() === 'POST' &&
+        /^\/api\/v1\/orders\/[^/]+\/items$/.test(
+          new URL(response.url()).pathname), { timeout: 20_000 });
       await page.getByRole('button',
         { name: 'Thêm ' + own.menuName + ' vào đơn' }).click();
       const created = await createdResponse;
       expect(created.status()).toBe(201);
       own.orderId = (await created.json()).id;
       expect(own.orderId).toBeTruthy();
+      const added = await itemResponse;
+      expect(new URL(added.url()).pathname).toBe(
+        '/api/v1/orders/' + own.orderId + '/items');
+      expect(added.status()).toBe(201);
+      await expect.poll(async () => (await order()).items.length,
+        { timeout: 15_000 }).toBe(1);
       const beforeSend = await order();
       own.itemId = beforeSend.items[0]?.id;
+      report.before_send = { order_status: beforeSend.status,
+        item_count: beforeSend.items.length,
+        item_status: beforeSend.items[0]?.status };
       report.checks.one_session_order_item =
         (await table()).current_session?.id === own.sessionId &&
         beforeSend.table_session_id === own.sessionId &&
@@ -227,6 +240,10 @@ test('S4-UX-007 | waiter opens Q3-1, orders and sends one item in UI',
         contentType: 'image/png',
       });
       const sentOrder = await order();
+      report.after_send = { order_status: sentOrder.status,
+        item_count: sentOrder.items.length,
+        item_status: sentOrder.items[0]?.status,
+        subtotal: sentOrder.subtotal };
       const ownTicket = (await queued()).filter(row =>
         row.order_id === own.orderId &&
         (row.order_item_id === own.itemId || row.item_id === own.itemId));
@@ -246,14 +263,16 @@ test('S4-UX-007 | waiter opens Q3-1, orders and sends one item in UI',
       report.checks.exact_ui_writes = report.ui_writes.filter((x: string) =>
         x.endsWith('/open-session')).length === 1 &&
         report.ui_writes.filter((x: string) => x === 'POST /api/v1/orders').length === 1 &&
+        report.ui_writes.filter((x: string) =>
+          x === 'POST /api/v1/orders/' + own.orderId + '/items').length === 1 &&
         report.ui_writes.filter((x: string) => x.endsWith('/send-to-kitchen')).length === 1 &&
-        report.ui_writes.length === 3;
+        report.ui_writes.length === 4;
       report.table_code = 'Q3-1';
       report.session_id = own.sessionId;
       report.order_id = own.orderId;
       report.item_id = own.itemId;
       report.ui_http = { open: opened.status(), order: created.status(),
-        send: sent.status() };
+        item: added.status(), send: sent.status() };
       if (!Object.values(report.checks).every(Boolean))
         throw new Error('Open/order/send UI mismatch: ' +
           JSON.stringify(report.checks));
