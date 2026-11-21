@@ -231,6 +231,7 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       ]);
       await expect.poll(() => firstServerStatus, { timeout: 20_000 }).toBe(201);
       const committed = await order();
+      const firstTable = await table();
       const firstItems = committed.items.filter((row: any) => row.source === 'QR');
       const firstQueue = await checked('GET', '/api/v1/kitchen/queue?status=QUEUED',
         'kitchen', 200) as any[];
@@ -286,6 +287,16 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       report.checks.qr_audit_once_each = qrAdds.length === 1 && qrSends.length === 1;
       const finalLedger = await checked('GET',
         `/api/v1/orders/${own.orderId}/payments`, 'cashier', 200);
+      const finalTable = await table();
+      const ownOrders = (rows: any[]) => rows.filter(row =>
+        row.table_session_id === own.sessionId);
+      report.checks.one_order_same_session =
+        ownOrders(firstTable.orders || []).length === 1 &&
+        ownOrders(finalTable.orders || []).length === 1 &&
+        ownOrders(finalTable.orders || [])[0]?.id === own.orderId;
+      report.checks.bill_unchanged = current.subtotal === committed.subtotal &&
+        current.current_version === committed.current_version &&
+        current.table_session_id === committed.table_session_id;
       report.checks.no_extra_ticket = firstQueue.filter(row => row.order_id === own.orderId)
         .length === tickets.length;
       report.checks.no_extra_audit = JSON.stringify(ownAudit) === JSON.stringify(firstAudit);
