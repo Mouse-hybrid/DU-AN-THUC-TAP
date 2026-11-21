@@ -24,6 +24,7 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       test_ref: 'P2-QR-014',
       checked_at: new Date().toISOString(), project: testInfo.project.name,
       scope: 'QA3 DIRECT customer UI loses the first successful POST response after server commit, retries, then reconciles one item, ticket, bill, payment ledger and QR audit; owned cleanup. Browser-only response loss; CONFIRM mode excluded.',
+      case_coverage: 'BROWSER_LOST_RESPONSE_RETRY',
       token_recorded: false, secrets_recorded: false, checks: {}, ui_writes: [],
       cleanup_pass: false,
     };
@@ -202,17 +203,31 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       let firstServerStatus: number | undefined;
       let firstServerFinished = false;
       const submitPath = `/api/v1/public/qr/${own.token}/orders`;
+      report.network_probe = { route_hits: 0, page_posts: 0,
+        page_failed: 0, page_finished: 0, first_server_http: null };
       page.on('request', req => {
-        if (req.method() === 'POST' &&
-          new URL(req.url()).pathname === submitPath)
+        if (req.method() === 'POST' && new URL(req.url()).pathname === submitPath) {
           writes.push(req.headers()['idempotency-key'] || '');
+          report.network_probe.page_posts++;
+          report.ui_writes.push('POST /api/v1/public/qr/<TOKEN>/orders');
+        }
+      });
+      page.on('requestfailed', req => {
+        if (req.method() === 'POST' && new URL(req.url()).pathname === submitPath)
+          report.network_probe.page_failed++;
+      });
+      page.on('requestfinished', req => {
+        if (req.method() === 'POST' && new URL(req.url()).pathname === submitPath)
+          report.network_probe.page_finished++;
       });
       await page.route(`**${submitPath}`, async route => {
+        report.network_probe.route_hits++;
         if (firstServerFinished) return route.continue();
         firstServerFinished = true;
         // The request reaches staging and commits; only its browser response is lost.
         const response = await route.fetch({ timeout: 20_000 });
         firstServerStatus = response.status();
+        report.network_probe.first_server_http = firstServerStatus;
         await route.abort('failed');
       });
       await page.goto(base + issued.path, { waitUntil: 'domcontentloaded' });
@@ -221,15 +236,11 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       await expect(menuRow).toHaveCount(1);
       await menuRow.getByRole('button', { name: `Thêm ${item.name}` }).click();
       await page.getByRole('textbox', { name: `Ghi chú cho ${item.name}` }).fill(own.note);
-      await Promise.all([
-        page.waitForEvent('requestfailed', {
-          predicate: req => req.method() === 'POST' &&
-            new URL(req.url()).pathname === submitPath,
-          timeout: 20_000,
-        }),
-        page.getByRole('button', { name: 'Gửi món vào bếp' }).click(),
-      ]);
-      await expect.poll(() => firstServerStatus, { timeout: 20_000 }).toBe(201);
+      await page.getByRole('button', { name: 'Gửi món vào bếp' }).click();
+      await expect.poll(() => firstServerStatus, {
+        timeout: 20_000,
+        message: 'First QR request must reach staging and return 201',
+      }).toBe(201);
       const committed = await order();
       const firstTable = await table();
       const firstItems = committed.items.filter((row: any) => row.source === 'QR');
@@ -325,7 +336,8 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
     try { report.build_after = await build(); } catch { report.build_after = null; }
     report.build_stable = report.build_after === before;
     report.result = !failure && !cleanupError && report.cleanup_pass &&
-      report.build_stable ? 'PASSED' : cleanupError ?
+      report.build_stable ? 'PASSED' : cleanupError ||
+        (report.network_probe && report.network_probe.first_server_http !== 201) ?
         'INCONCLUSIVE' : redact(failure).includes('PENDING_FIXTURE') ?
         'PENDING' : 'FAILED';
     if (failure) report.error = redact(failure);
