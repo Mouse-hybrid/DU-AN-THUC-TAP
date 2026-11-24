@@ -54,8 +54,11 @@ const version = async () => {
   if (build.environment !== 'staging') throw Error('Wrong environment');
   return build.commit;
 };
+const operationalRole = (f, task) => f.outlet === 'qa2' ? 'qa2_admin' :
+  'qa3_' + task;
 const table = f => must('GET', '/api/v1/tables/' + f.tableId, f.outlet + '_admin', 200);
-const order = f => must('GET', '/api/v1/orders/' + f.orderId, f.outlet + '_cashier', 200);
+const order = f => must('GET', '/api/v1/orders/' + f.orderId,
+  operationalRole(f, 'cashier'), 200);
 async function cleanup(f) {
   if (!f.sessionId) return true;
   const role = f.outlet + '_admin';
@@ -87,10 +90,10 @@ async function cleanup(f) {
       undefined, 'cleanup send');
   for (const item of (await order(f)).items) {
     for (const [state, action, actionRole] of [
-      ['SENT', 'start-cooking', f.outlet + '_kitchen'],
-      ['PREPARING', 'mark-ready', f.outlet + '_kitchen'],
-      ['READY', 'pickup', f.outlet + '_waiter'],
-      ['PICKED_UP', 'served', f.outlet + '_waiter'],
+      ['SENT', 'start-cooking', operationalRole(f, 'kitchen')],
+      ['PREPARING', 'mark-ready', operationalRole(f, 'kitchen')],
+      ['READY', 'pickup', operationalRole(f, 'waiter')],
+      ['PICKED_UP', 'served', operationalRole(f, 'waiter')],
     ]) {
       if ((await order(f)).items.find(row => row.id === item.id)?.status === state)
         await must('POST', '/api/v1/orders/' + f.orderId + '/items/' + item.id +
@@ -101,17 +104,19 @@ async function cleanup(f) {
     throw Error('CLEANUP REQUIRED: unserved item on ' + f.code);
   if (!['BILLING', 'PAID', 'CLOSED'].includes((await order(f)).status))
     await must('POST', '/api/v1/orders/' + f.orderId + '/request-billing',
-      f.outlet + '_waiter',
+      operationalRole(f, 'waiter'),
       200, undefined, 'cleanup billing');
   if ((await order(f)).status === 'BILLING')
-    await must('POST', '/api/v1/orders/' + f.orderId + '/pay', f.outlet + '_cashier',
+    await must('POST', '/api/v1/orders/' + f.orderId + '/pay',
+      operationalRole(f, 'cashier'),
       200, undefined, 'cleanup pay');
   if ((await order(f)).status === 'PAID')
-    await must('POST', '/api/v1/orders/' + f.orderId + '/close', f.outlet + '_cashier',
+    await must('POST', '/api/v1/orders/' + f.orderId + '/close',
+      operationalRole(f, 'cashier'),
       200, undefined, 'cleanup close');
   if ((await table(f)).status === 'CLEANING')
     await must('POST', '/api/v1/tables/' + f.tableId + '/mark-clean',
-      f.outlet + '_waiter', 200,
+      operationalRole(f, 'waiter'), 200,
       undefined, 'cleanup mark clean');
   const finalTable = await table(f);
   const queue = await must('GET', '/api/v1/kitchen/queue', role, 200);
@@ -128,8 +133,7 @@ try {
   for (const [name, role] of [
     ['qa3_admin', 'SUPERVISOR'], ['qa3_cashier', 'CASHIER'],
     ['qa3_waiter', 'WAITER'], ['qa3_kitchen', 'KITCHEN'],
-    ['qa2_admin', 'SUPERVISOR'], ['qa2_cashier', 'CASHIER'],
-    ['qa2_waiter', 'WAITER'], ['qa2_kitchen', 'KITCHEN'],
+    ['qa2_admin', 'SUPERVISOR'],
   ]) {
     const login = await must('POST', '/api/v1/auth/login', null, 200,
       { username: name, password: pin }, name + ' login');
