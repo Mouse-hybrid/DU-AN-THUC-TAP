@@ -214,7 +214,14 @@ test('S4-QR-CUSTOMER-DIRECT-UI | QA3 customer submits a noted item to kitchen',
         page.waitForResponse(response => response.request().method() === 'POST' &&
           new URL(response.url()).pathname === `/api/v1/public/qr/${own.token}/orders`,
           { timeout: 20_000 }),
-        page.getByRole('button', { name: 'Gửi món vào bếp' }).click(),
+        (async () => {
+          await page.getByRole('button', { name: 'Gửi món vào bếp' }).click();
+          const confirmTable = page.getByRole('dialog');
+          await expect(confirmTable).toContainText('Bạn đang ngồi ở bàn Q3-1?');
+          await confirmTable.getByRole('button', {
+            name: 'Đúng, bàn Q3-1', exact: true,
+          }).click();
+        })(),
       ]);
       report.ui_submit_http = submitted.status();
       report.ui_writes = ['POST /api/v1/public/qr/<TOKEN>/orders'];
