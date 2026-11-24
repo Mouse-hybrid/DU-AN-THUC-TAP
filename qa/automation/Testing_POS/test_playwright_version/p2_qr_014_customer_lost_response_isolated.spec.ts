@@ -204,8 +204,37 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       let firstServerFinished = false;
       const submitPath = `/api/v1/public/qr/${own.token}/orders`;
       report.network_probe = { route_hits: 0, page_posts: 0,
-        page_failed: 0, page_finished: 0, first_server_http: null };
+        page_failed: 0, page_finished: 0, first_server_http: null,
+        observed_post_paths: [] as string[], public_qr_responses: [] as string[],
+        page_errors: [] as string[], console_errors: [] as string[] };
+      const safePath = (url: string) => {
+        try {
+          return new URL(url).pathname.replace(/\/api\/v1\/public\/qr\/[^/]+/g,
+            '/api/v1/public/qr/<TOKEN>');
+        } catch { return '<INVALID_URL>'; }
+      };
+      page.on('pageerror', error => {
+        if (report.network_probe.page_errors.length < 5)
+          report.network_probe.page_errors.push(redact(error.message)
+            .replace(/\/qr\/[^/\s'\"]+/g, '/qr/<TOKEN>').slice(0, 350));
+      });
+      page.on('console', message => {
+        if (message.type() === 'error' &&
+            report.network_probe.console_errors.length < 5)
+          report.network_probe.console_errors.push(redact(message.text())
+            .replace(/\/qr\/[^/\s'\"]+/g, '/qr/<TOKEN>').slice(0, 350));
+      });
+      page.on('response', response => {
+        const path = safePath(response.url());
+        if (path.startsWith('/api/v1/public/qr/') &&
+            report.network_probe.public_qr_responses.length < 12)
+          report.network_probe.public_qr_responses.push(
+            response.request().method() + ' ' + path + ' HTTP ' + response.status());
+      });
       page.on('request', req => {
+        if (req.method() === 'POST' &&
+            report.network_probe.observed_post_paths.length < 12)
+          report.network_probe.observed_post_paths.push(safePath(req.url()));
         if (req.method() === 'POST' && new URL(req.url()).pathname === submitPath) {
           writes.push(req.headers()['idempotency-key'] || '');
           report.network_probe.page_posts++;
@@ -330,7 +359,31 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
         throw new Error('P2-QR-014 retry mismatch: ' +
           JSON.stringify(report.checks));
       report.business_execution = 'EXECUTED';
-    } catch (error) { failure = error; }
+    } catch (error) {
+      failure = error;
+      if (report.network_probe?.route_hits === 0) {
+        const button = page.getByRole('button', { name: 'Gửi món vào bếp' });
+        const safeText = async (locator: any) =>
+          (await locator.first().textContent({ timeout: 1_000 }).catch(() => null))
+            ?.trim().slice(0, 300) ?? null;
+        report.diagnostics = {
+          page_path: (() => {
+            try { return new URL(page.url()).pathname.replace(/\/qr\/[^/]+/,
+              '/qr/<TOKEN>'); } catch { return '<INVALID_URL>'; }
+          })(),
+          submit_visible: await button.isVisible().catch(() => false),
+          submit_enabled: await button.isEnabled().catch(() => false),
+          status_text: await safeText(page.getByRole('status')),
+          cart_text: await safeText(page.getByTestId('qr-cart')),
+          placed_text: await safeText(page.getByTestId('qr-placed')),
+          owned_order_items: await order().then((row: any) =>
+            row.items?.length ?? null).catch(() => null),
+        };
+        await testInfo.attach('P2_QR_014_failure_screen', {
+          body: await page.screenshot({ fullPage: true }), contentType: 'image/png',
+        }).catch(() => {});
+      }
+    }
     await context.close().catch(() => {});
     try { await cleanup(); } catch (error) { cleanupError = error; }
     try { report.build_after = await build(); } catch { report.build_after = null; }
@@ -355,4 +408,3 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
     if (failure) throw new Error(redact(failure));
     expect(report.build_stable).toBe(true);
   });
-
