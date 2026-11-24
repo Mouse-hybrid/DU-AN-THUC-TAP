@@ -184,18 +184,26 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
     });
     let failure: unknown;
 
-    async function unobscured(locator: any) {
+    async function unobscured(locator: any, fullBox = false) {
       await expect(locator).toBeVisible({ timeout: 12_000 });
       await locator.scrollIntoViewIfNeeded();
-      return locator.evaluate((element: Element) => {
+      return locator.evaluate((element: Element, requireFullBox: boolean) => {
         const box = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(box.left + box.width / 2,
-          box.top + box.height / 2);
-        return box.width > 0 && box.height > 0 &&
-          box.left >= -1 && box.right <= window.innerWidth + 1 &&
-          box.top >= -1 && box.bottom <= window.innerHeight + 1 &&
-          !!hit && element.contains(hit);
-      });
+        const inView = (rect: DOMRect) => rect.width > 0 && rect.height > 0 &&
+          rect.left >= -1 && rect.right <= window.innerWidth + 1 &&
+          rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
+        const hitInside = (rect: DOMRect) => {
+          const hit = document.elementFromPoint(rect.left + rect.width / 2,
+            rect.top + rect.height / 2);
+          return !!hit && element.contains(hit);
+        };
+        if (requireFullBox) return inView(box) && hitInside(box);
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const textRects = Array.from(range.getClientRects());
+        return textRects.length > 0 &&
+          textRects.every(rect => inView(rect) && hitInside(rect));
+      }, fullBox);
     }
     try {
       own.sessionId = (await checked('POST', '/api/v1/tables/' +
@@ -227,7 +235,7 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
         await page.goto('/tables', { waitUntil: 'domcontentloaded' });
         const tile = page.getByRole('button', { name: /^Bàn Q3-1,/ });
         await expect(tile).toContainText('Q3-1');
-        probe.table = await unobscured(tile);
+        probe.table = await unobscured(tile, true);
         await testInfo.attach('S4_UX_042_' + width + '_table', {
           body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
           contentType: 'image/png',
@@ -242,7 +250,7 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
         probe.sent_summary = await unobscured(sentStatus) &&
           await unobscured(sentTotal) &&
           await unobscured(page.getByRole('button',
-            { name: 'Yêu cầu thanh toán đơn', exact: true }));
+            { name: 'Yêu cầu thanh toán đơn', exact: true }), true);
         await testInfo.attach('S4_UX_042_' + width + '_sent', {
           body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
           contentType: 'image/png',
@@ -401,7 +409,7 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
         report.paid_viewports.push({
           width, status: await unobscured(paidStatus),
           total: await unobscured(paidTotal),
-          action: await unobscured(back),
+          action: await unobscured(back, true),
           page_scroll_width: await page.evaluate(() =>
             document.documentElement.scrollWidth),
         });
