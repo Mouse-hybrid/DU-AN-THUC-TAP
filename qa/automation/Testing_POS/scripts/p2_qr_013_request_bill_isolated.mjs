@@ -170,6 +170,7 @@ try {
   const denied = post(prefix + '/orders', null,
     { items: [{ menu_item_id: own.menuId, quantity: 1 }] });
   const finalOrder = order();
+  const afterLedger = ledger();
   const audit = requireHttp(get(`/api/v1/audit-logs?order_id=${own.orderId}&limit=100`,
     'admin'), 200, 'order audit');
   const otherAfter = table(own.otherTableId);
@@ -189,12 +190,21 @@ try {
     further_customer_submit_409: denied.http === 409 &&
       finalOrder.items.length === 1 && finalOrder.status === 'BILLING',
     ticket_unchanged: stableTickets(afterTickets) === stableTickets(beforeTickets),
-    ledger_unchanged: JSON.stringify(ledger()) === JSON.stringify(beforeLedger),
+    no_payment_recorded: beforeLedger.order_status === 'SENT' &&
+      afterLedger.order_status === 'BILLING' &&
+      JSON.stringify(afterLedger.payments) === JSON.stringify(beforeLedger.payments) &&
+      beforeLedger.payments.length === 0 &&
+      Number(afterLedger.summary.total) === Number(beforeLedger.summary.total) &&
+      Number(afterLedger.summary.paid) === Number(beforeLedger.summary.paid) &&
+      Number(afterLedger.summary.pending) === Number(beforeLedger.summary.pending) &&
+      Number(afterLedger.summary.remaining) === Number(beforeLedger.summary.remaining),
     qr_billing_audit_once: audit.filter(row => row.action === 'ORDER_BILLING_REQUESTED' &&
       row.entity_id === own.orderId && row.payload?.source === 'QR').length === 1,
     other_table_unchanged: sameOther(otherBefore) === sameOther(otherAfter),
   };
   report.http = { request_bill: requested.http, further_submit: denied.http };
+  report.payment_counts = { before: beforeLedger.payments.length,
+    after: afterLedger.payments.length };
   report.order_id = own.orderId;
   report.table_codes = ['Q3-1', 'Q3-2'];
   if (!Object.values(report.checks).every(Boolean))
