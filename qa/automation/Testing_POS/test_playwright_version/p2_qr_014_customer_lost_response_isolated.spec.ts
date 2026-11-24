@@ -266,6 +266,11 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       await menuRow.getByRole('button', { name: `Thêm ${item.name}` }).click();
       await page.getByRole('textbox', { name: `Ghi chú cho ${item.name}` }).fill(own.note);
       await page.getByRole('button', { name: 'Gửi món vào bếp' }).click();
+      const confirmTable = page.getByRole('dialog');
+      await expect(confirmTable).toContainText('Bạn đang ngồi ở bàn Q3-1?');
+      await confirmTable.getByRole('button', {
+        name: 'Đúng, bàn Q3-1', exact: true,
+      }).click();
       await expect.poll(() => firstServerStatus, {
         timeout: 20_000,
         message: 'First QR request must reach staging and return 201',
@@ -291,6 +296,10 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
           { timeout: 10_000 }).toBe(true);
         if (writes.length === 1 && await retry.isVisible()) await retry.click();
         else if (writes.length === 1 && await send.isEnabled()) await send.click();
+        const confirmRetry = page.getByRole('dialog').getByRole('button', {
+          name: 'Đúng, bàn Q3-1', exact: true,
+        });
+        if (await confirmRetry.isVisible()) await confirmRetry.click();
       }
       await expect.poll(() => writes.length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
       await expect(success).toBeVisible({ timeout: 20_000 });
@@ -354,6 +363,7 @@ test('P2-QR-014 | customer QR retry after lost response creates one item',
       report.first_server_http = firstServerStatus;
       report.same_idempotency_key = writes.length >= 2 &&
         writes.every(key => !!key && key === writes[0]);
+      report.checks.same_idempotency_key = report.same_idempotency_key;
       report.ui_request_count = writes.length;
       if (!Object.values(report.checks).every(Boolean))
         throw new Error('P2-QR-014 retry mismatch: ' +
