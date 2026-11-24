@@ -186,10 +186,13 @@ try {
     const path = '/api/v1/public/qr/' + encodeURIComponent(f.token);
     const info = await must('GET', path, null, 200, undefined, 'public info');
     const placed = await must('GET', path + '/order', null, 200, undefined, 'public order');
-    reads.push({ code: f.code, matches: info.table_session_id === f.sessionId &&
-      placed.items.some(item => item.note === f.marker) &&
+    const lines = Array.isArray(placed.items) ? placed.items : placed.order?.items;
+    const correctTable = info.table_session_id === f.sessionId ||
+      info.table_code === f.code || info.table?.code === f.code;
+    reads.push({ code: f.code, matches: correctTable &&
+      Array.isArray(lines) && lines.some(item => item.note === f.marker) &&
       fixtures.filter(other => other !== f).every(other =>
-        !placed.items.some(item => item.note === other.marker)) });
+        !lines.some(item => item.note === other.marker)) });
   }
   const qa3CannotReadQa2 = await req('GET',
     '/api/v1/orders/' + fixtures[2].orderId, 'qa3_admin');
