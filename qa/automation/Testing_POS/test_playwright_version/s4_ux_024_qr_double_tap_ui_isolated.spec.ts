@@ -210,12 +210,25 @@ test('S4-UX-024 | customer double taps QR submit without duplicate item',
       await expect(menuRow).toHaveCount(1);
       await menuRow.getByRole('button', { name: `Thêm ${item.name}` }).click();
       await page.getByRole('textbox', { name: `Ghi chú cho ${item.name}` }).fill(own.note);
+      await page.getByRole('button', { name: 'Gửi món vào bếp' }).click();
+      const confirmTable = page.getByRole('dialog');
+      await expect(confirmTable).toContainText('Bạn đang ngồi ở bàn Q3-1?');
+      const confirmButton = confirmTable.getByRole('button', {
+        name: 'Đúng, bàn Q3-1', exact: true,
+      });
+      await expect(confirmButton).toBeVisible();
+      const box = await confirmButton.boundingBox();
+      expect(box, 'QR table confirmation button bounds').not.toBeNull();
+      // Two real pointer clicks at the final submit control; the modal can
+      // unmount after the first click, so a locator dblclick may detach.
       const [submitted] = await Promise.all([
         page.waitForResponse(response => response.request().method() === 'POST' &&
           new URL(response.url()).pathname === `/api/v1/public/qr/${own.token}/orders`,
           { timeout: 20_000 }),
-        page.getByRole('button', { name: 'Gửi món vào bếp' }).dblclick({ delay: 0 }),
+        page.mouse.dblclick(box!.x + box!.width / 2,
+          box!.y + box!.height / 2, { delay: 0 }),
       ]);
+      report.double_tap_target = 'QR table confirmation';
       await expect(page.getByRole('button', { name: 'Gửi món vào bếp' })).toBeDisabled();
       report.ui_submit_http = submitted.status();
       report.ui_writes = ['POST /api/v1/public/qr/<TOKEN>/orders'];
@@ -281,7 +294,19 @@ test('S4-UX-024 | customer double taps QR submit without duplicate item',
         throw new Error('S4-UX-024 double tap mismatch: ' +
           JSON.stringify(report.checks));
       report.business_execution = 'EXECUTED';
-    } catch (error) { failure = error; }
+    } catch (error) {
+      failure = error;
+      report.failure_ui = {
+        dialogs: (await page.getByRole('dialog').allTextContents().catch(() => []))
+          .map(value => value.trim().slice(0, 250)),
+        cart_text: (await page.getByTestId('qr-cart').textContent()
+          .catch(() => null))?.trim().slice(0, 250) ?? null,
+      };
+      await page.screenshot({ fullPage: true }).then(body =>
+        testInfo.attach('S4_UX_024_failure_screen', {
+          body, contentType: 'image/png',
+        })).catch(() => {});
+    }
     await context.close().catch(() => {});
     try { await cleanup(); } catch (error) { cleanupError = error; }
     try { report.build_after = await build(); } catch { report.build_after = null; }
