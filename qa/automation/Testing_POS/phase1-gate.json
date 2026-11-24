@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "source_workbook": "AFG_POS_QAQC_116_Phase1_hien_hanh_20261124.xlsx",
+  "target_build": "7d732d4185cf8f3006dc293c7f3e1ce0c95d2ec6",
+  "total_testcases": 116,
+  "verified_cases": []
+}
