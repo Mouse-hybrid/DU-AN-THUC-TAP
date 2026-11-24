@@ -268,7 +268,39 @@ test('S4-QR-CUSTOMER-DIRECT-UI | QA3 customer submits a noted item to kitchen',
         throw new Error('QR customer DIRECT/KDS mismatch: ' +
           JSON.stringify(report.checks));
       report.business_execution = 'EXECUTED';
-    } catch (error) { failure = error; }
+    } catch (error) {
+      failure = error;
+      // Capture the customer UI before cleanup closes the page. No QR token or
+      // credentials are copied into the JSON evidence.
+      const readText = async (testId: string) =>
+        (await page.getByTestId(testId).first().textContent({ timeout: 1_000 })
+          .catch(() => null))?.trim().slice(0, 400) ?? null;
+      report.diagnostics = {
+        page_path: (() => {
+          try { return new URL(page.url()).pathname.replace(/\/qr\/[^/]+/,
+            '/qr/<TOKEN>'); } catch { return '<INVALID_URL>'; }
+        })(),
+        dialogs: (await page.getByRole('dialog').allTextContents().catch(() => []))
+          .map(value => value.trim().slice(0, 300)),
+        alerts: (await page.getByRole('alert').allTextContents().catch(() => []))
+          .map(value => value.trim().slice(0, 300)),
+        cart_text: await readText('qr-cart'),
+        placed_text: await readText('qr-placed'),
+        visible_buttons: await page.getByRole('button').evaluateAll(buttons =>
+          buttons.filter(button => !!(button as HTMLElement).offsetParent)
+            .map(button => ({
+              text: button.textContent?.trim().slice(0, 80) || '',
+              label: button.getAttribute('aria-label')?.slice(0, 80) || '',
+              disabled: (button as HTMLButtonElement).disabled,
+            })).slice(0, 20)).catch(() => []),
+        owned_order_items: await order().then((row: any) =>
+          row.items?.length ?? null).catch(() => null),
+      };
+      await page.screenshot({ fullPage: true }).then(body =>
+        testInfo.attach('S4_QR_CUSTOMER_after_submit_failure', {
+          body, contentType: 'image/png',
+        })).catch(() => {});
+    }
     await context.close().catch(() => {});
     try { await cleanup(); } catch (error) { cleanupError = error; }
     try { report.build_after = await build(); } catch { report.build_after = null; }
