@@ -19,7 +19,7 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
     const report: any = {
       run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-S4UX042FULL',
       test_ref: 'S4-UX-042', checked_at: new Date().toISOString(),
-      scope: 'QA3 owned 100,000 VND order: table, KDS, SENT/SERVED/PAID summary at 375/768/1366px; readable information, API reconciliation and owned cleanup. No UI business write.',
+      scope: 'QA3 owned 100,000 VND order: table, KDS, SENT/SERVED/PAID summary at 375x812/768x1024/1366x768; readable information, API reconciliation and owned cleanup. No UI business write.',
       case_coverage: 'TABLE_KDS_SENT_SERVED_PAID_RESPONSIVE',
       project: testInfo.project.name, secrets_recorded: false,
       ui_writes: [], viewports: [], sent_viewports: [], paid_viewports: [], checks: {}, cleanup_pass: false,
@@ -228,9 +228,13 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
       await page.getByLabel('Mật khẩu', { exact: true }).fill(pin!);
       await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
       await expect(page).toHaveURL(base + '/tables', { timeout: 15_000 });
-      for (const width of [375, 768, 1366]) {
-        await page.setViewportSize({ width, height: 812 });
-        const probe: any = { width };
+      for (const { width, height } of [
+        { width: 375, height: 812 },
+        { width: 768, height: 1024 },
+        { width: 1366, height: 768 },
+      ]) {
+        await page.setViewportSize({ width, height });
+        const probe: any = { width, height };
         report.sent_viewports.push(probe);
         await page.goto('/tables', { waitUntil: 'domcontentloaded' });
         const tile = page.getByRole('button', { name: /^Bàn Q3-1,/ });
@@ -283,8 +287,12 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
       expect(before.tickets).toHaveLength(2);
       const expectedTotalConfirmed = Number(before.order.subtotal);
       expect(expectedTotalConfirmed).toBe(expectedTotal);
-      for (const width of [375, 768, 1366]) {
-        await page.setViewportSize({ width, height: 812 });
+      for (const { width, height } of [
+        { width: 375, height: 812 },
+        { width: 768, height: 1024 },
+        { width: 1366, height: 768 },
+      ]) {
+        await page.setViewportSize({ width, height });
         await page.goto('/tables/' + own.tableId + '/summary',
           { waitUntil: 'domcontentloaded', timeout: 20_000 });
         const heading = page.getByRole('heading', { name: 'Bàn Q3-1', exact: true });
@@ -294,7 +302,7 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
         const primary = page.getByRole('button',
           { name: 'Yêu cầu thanh toán đơn', exact: true });
         const elements = { heading, status, total, primary };
-        const probe: any = { width, items: {} };
+        const probe: any = { width, height, items: {} };
         report.viewports.push(probe);
         for (const [key, locator] of Object.entries(elements)) {
           await expect(locator, width + 'px ' + key).toBeVisible({ timeout: 15_000 });
@@ -400,14 +408,18 @@ test('S4-UX-042 | table, KDS, SENT/SERVED/PAID responsive at three widths',
         { name: 'Làm mới tóm tắt đơn', exact: true }).click();
       const paidStatus = page.locator('.nova-order-header-actions .nova-status-badge');
       await expect(paidStatus).toHaveText('Đã thanh toán', { timeout: 12_000 });
-      for (const width of [375, 768, 1366]) {
-        await page.setViewportSize({ width, height: 812 });
+      for (const { width, height } of [
+        { width: 375, height: 812 },
+        { width: 768, height: 1024 },
+        { width: 1366, height: 768 },
+      ]) {
+        await page.setViewportSize({ width, height });
         const paidTotal = page.locator('.nova-order-total').filter({ hasText: 'Tạm tính' })
           .locator('strong');
         await expect(paidTotal).toContainText('100.000');
         const back = page.getByRole('link', { name: 'Về sơ đồ bàn' });
         report.paid_viewports.push({
-          width, status: await unobscured(paidStatus),
+          width, height, status: await unobscured(paidStatus),
           total: await unobscured(paidTotal),
           action: await unobscured(back, true),
           page_scroll_width: await page.evaluate(() =>
