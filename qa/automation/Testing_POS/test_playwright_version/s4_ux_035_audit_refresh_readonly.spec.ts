@@ -61,7 +61,8 @@ test('S4-UX-035 | QA3 supervisor opens and refreshes audit history',
     };
     const rowsOf = (body: any): any[] => Array.isArray(body) ? body :
       Array.isArray(body?.items) ? body.items : [];
-    const ownHistory = await ownGet('/api/v1/audit-logs?limit=100', 'qa3');
+    // Default audit sort is ascending; select recent QA3 orders for the outlet probe.
+    const ownHistory = await ownGet('/api/v1/audit-logs?sort=desc&limit=100', 'qa3');
     expect(ownHistory.http).toBe(200);
     const ownRows = rowsOf(ownHistory.body);
     // An audit row can outlive its order. Scope the probe to an order
