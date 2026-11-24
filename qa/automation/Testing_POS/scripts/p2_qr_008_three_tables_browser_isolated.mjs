@@ -22,6 +22,7 @@ const report = {
   run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2QR008',
   test_ref: 'P2-QR-008', checked_at: new Date().toISOString(),
   scope: 'Three owned QR table sessions (QA3 A/B, QA2 C): public /order and anonymous customer UI expose only the token table, staff cross-outlet GET denied; owned cleanup. No public order-ID route in contract.',
+  case_coverage: 'TOKEN_BOUND_CURRENT_ORDER_ONLY; direct order-B lookup with token A remains blocked by API contract',
   token_recorded: false, secrets_recorded: false, checks: {}, cleanup_pass: false,
 };
 const redact = error => {
@@ -245,11 +246,11 @@ report.cleanup_pass = cleanupStates.every(row => row.clean);
 try { report.build_after = await version(); } catch { report.build_after = null; }
 report.build_stable = before === report.build_after;
 report.result = !failure && !cleanupError && report.cleanup_pass && report.build_stable ?
-  'PASSED' : cleanupError || !report.cleanup_pass ? 'INCONCLUSIVE' :
+  'PASSED_BRANCH_ONLY' : cleanupError || !report.cleanup_pass ? 'INCONCLUSIVE' :
     failure?.startsWith('Error: PENDING_') ? 'PENDING' : 'FAILED';
 if (failure) report.error = failure;
 if (cleanupError) report.cleanup_required = cleanupError;
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
 console.log('[P2-QR-008] Result: ' + JSON.stringify(report));
-if (report.result !== 'PASSED') process.exitCode = 1;
+if (report.result !== 'PASSED_BRANCH_ONLY') process.exitCode = 1;
