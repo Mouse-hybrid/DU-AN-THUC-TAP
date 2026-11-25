@@ -1,4 +1,4 @@
-"""Giám sát (SDD R3, BRD "Monitoring & Alerting"): request_id, log JSON, số đo API, Sentry.
+"""Giám sát (Backlog R3, BRD "Monitoring & Alerting"): request_id, log JSON, số đo API, Sentry.
 
 - Mỗi request có `request_id` (nhận từ header `X-Request-ID` nếu hợp lệ, không thì tự sinh),
   trả lại ở header `X-Request-ID` và có trong mọi dòng log của request đó. Lỗi 500 trả kèm

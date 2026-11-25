@@ -1,4 +1,4 @@
-"""Giám sát (SDD R3): request_id, số đo API theo mẫu route, log JSON, lọc dữ liệu gửi Sentry,
+"""Giám sát (Backlog R3): request_id, số đo API theo mẫu route, log JSON, lọc dữ liệu gửi Sentry,
 báo cáo GET /ops/metrics và cảnh báo."""
 
 from __future__ import annotations

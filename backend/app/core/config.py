@@ -82,7 +82,7 @@ QR_MAX_PENDING_ITEMS = int(os.getenv("QR_MAX_PENDING_ITEMS", "30"))
 # Rewards đợt 3: số lần khách được gửi số điện thoại trong một phiên QR (chống dò số).
 QR_MEMBER_MAX_ATTEMPTS = int(os.getenv("QR_MEMBER_MAX_ATTEMPTS", "5"))
 
-# --- VNPay (SDD R2, specs/001-vnpay-sandbox) ------------------------------------
+# --- VNPay (Backlog R2, specs/001-vnpay-sandbox) ------------------------------------
 # Mã merchant và khóa ký chỉ đặt trong .env.staging trên server, không vào repo. Thiếu một
 # trong hai thì API VNPay trả 503, các hình thức thanh toán khác vẫn chạy.
 VNPAY_TMN_CODE = os.getenv("VNPAY_TMN_CODE", "").strip()
@@ -105,7 +105,7 @@ VNPAY_IPN_ENABLED = os.getenv("VNPAY_IPN_ENABLED", "false").lower() == "true"
 GIT_COMMIT = os.getenv("GIT_COMMIT", "unknown")
 BUILT_AT = os.getenv("BUILT_AT", "unknown")
 
-# --- Giám sát (SDD R3) -----------------------------------------------------------
+# --- Giám sát (Backlog R3) -----------------------------------------------------------
 # Sentry chỉ bật khi có DSN (lấy ở trang dự án Sentry, đặt trong .env.staging, không vào repo).
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))

@@ -9,7 +9,7 @@ Các nguyên tắc dưới đây đúc kết từ cách dự án đã làm ở P
 ## Nguyên tắc cốt lõi
 
 ### I. BRD là nguồn yêu cầu, PO là người chốt
-- Yêu cầu lấy từ Pos System BRD 1.0 và các quyết định PO đã chốt (ghi trong ADR, SDD, hoặc phiếu B1–B6).
+- Yêu cầu lấy từ Pos System BRD 1.0 và các quyết định PO đã chốt (ghi trong ADR, backlog, hoặc phiếu B1–B6).
 - Chỗ BRD chỉ có tiêu đề hoặc mơ hồ thì `spec.md` ghi `[NEEDS CLARIFICATION: …]`, không tự đoán.
 - Con số nghiệp vụ chưa chốt (thuế suất, ngưỡng, số lần thử…) đặt qua cấu hình, không viết cứng trong code.
 
@@ -65,7 +65,7 @@ Các nguyên tắc dưới đây đúc kết từ cách dự án đã làm ở P
 2. `plan.md` (kèm `research.md`, `data-model.md`, `contracts/`): làm thế nào. Qua Constitution Check.
 3. `tasks.md`: việc nhỏ, có thứ tự. Mỗi việc ghi file sẽ sửa.
 4. Code trên nhánh `feat/<tên>` tạo từ `main`, PR nhỏ, mô tả theo mẫu: Tóm tắt, Chi tiết, Hạn chế, Kiểm thử, Sau khi merge.
-5. Merge xong thì cập nhật trạng thái trong `docs/architecture/sdd/0001-backend-viec-con-lai.md`.
+5. Merge xong thì cập nhật trạng thái trong `docs/architecture/backlog/0001-backend-viec-con-lai.md`.
 
 ## Quản trị
 

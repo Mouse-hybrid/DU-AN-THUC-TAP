@@ -1,5 +1,5 @@
 name: Uptime staging
-# Canh bao "he thong ngung" (SDD R3): 15 phut goi /health cua staging (qua nginx toi API) tu may
+# Canh bao "he thong ngung" (Backlog R3): 15 phut goi /health cua staging (qua nginx toi API) tu may
 # cua GitHub (ngoai server, nen server sap han van bao duoc). Loi 3 lan lien tiep trong 1
 # lan chay thi job do, GitHub gui email cho nguoi sua cron gan nhat va hien do tren tab Actions.
 # Dia chi staging lay tu Settings -> Variables -> STAGING_URL, chua dat thi dung IP hien tai.

@@ -3,7 +3,7 @@
 - **Feature Branch**: `feat/rewards-dot-3`
 - **Created**: 2026-11-12
 - **Status**: Implemented (PR `feat/rewards-dot-3`, 12/11/2026)
-- **Hạng mục SDD**: R5 (Pha 2, P0)
+- **Hạng mục backlog**: R5 (Pha 2, P0)
 - **Input**: "Hoàn điểm khi hoàn tiền; điểm hết hạn theo luật; khách trên QR nhập số điện thoại để tích điểm (chỉ tích, không đổi)."
 
 ## User Scenarios & Testing
