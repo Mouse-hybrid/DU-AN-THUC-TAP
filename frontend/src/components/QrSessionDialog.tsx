@@ -6,6 +6,7 @@ import { createIdempotencyKey } from "../utils/idempotency";
 import { formatShortDateTime } from "../utils/format";
 import { Button } from "./Button";
 import { QrCode } from "./QrCode";
+import { copyText } from "../utils/clipboard";
 
 interface QrSessionDialogProps {
   tableId: string;
@@ -76,12 +77,21 @@ export function QrSessionDialog({ tableId, tableCode, onClose }: QrSessionDialog
   const link = session ? `${window.location.origin}${session.path}` : "";
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(link);
+    setError("");
+    if (await copyText(link)) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError("Không sao chép được. Hãy chép đường dẫn thủ công.");
+    } else {
+      // Bôi đen sẵn đường dẫn để người dùng chỉ cần bấm Ctrl+C (hoặc giữ để chép trên điện thoại).
+      const node = document.querySelector('[data-testid="qr-link"]');
+      const selection = window.getSelection();
+      if (node && selection) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      setError("Trình duyệt chặn sao chép tự động. Đường dẫn đã được bôi đen, bấm Ctrl+C để chép.");
     }
   }
 
