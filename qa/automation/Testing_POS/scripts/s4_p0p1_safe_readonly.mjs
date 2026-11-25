@@ -1,6 +1,6 @@
 // Fixture-free Phase 1 P0/P1 regression on one pinned staging build.
 // No credentials, customer data, or business mutations.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const base = (process.env.BASE_URL || 'http://160.191.47.17').replace(/\/+$/, '');
@@ -76,9 +76,12 @@ report.result = !failure && report.build_stable &&
   failure?.startsWith('Error: PENDING_BUILD') ? 'PENDING' : 'FAILED';
 if (failure) report.error = failure;
 mkdirSync(join(process.cwd(), 'evidence', 'REGRESSION'), { recursive: true });
-const output = join(process.cwd(), 'evidence', 'REGRESSION',
-  `P0P1_SAFE_${report.run_id}.json`);
+const evidenceName = `P0P1_SAFE_${report.run_id}.json`;
+const output = join(process.cwd(), 'evidence', 'REGRESSION', evidenceName);
 writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
+if (process.env.GITHUB_OUTPUT)
+  appendFileSync(process.env.GITHUB_OUTPUT,
+    `evidence_path=qa/automation/Testing_POS/evidence/REGRESSION/${evidenceName}\n`);
 console.log(JSON.stringify({ output, result: report.result,
   build_stable: report.build_stable, business_regression: report.business_regression,
   error: report.error }, null, 2));

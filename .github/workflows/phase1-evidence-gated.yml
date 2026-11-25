@@ -1,0 +1,140 @@
+name: Phase 1 evidence-gated QA
+
+on:
+  pull_request:
+    branches: [ONLY_TESTING]
+  push:
+    branches: [ONLY_TESTING]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Preflight or gated Phase 1 regression'
+        required: true
+        default: preflight
+        type: choice
+        options:
+          - preflight
+          - gated-regression
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase1-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    env:
+      BASE_URL: http://160.191.47.17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+      - run: npm ci
+      - name: Pin staging SHA
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const r = await fetch(`${process.env.BASE_URL}/version`, { signal: AbortSignal.timeout(20000) });
+          if (r.status !== 200) throw new Error(`Staging /version: HTTP ${r.status}`);
+          const v = await r.json();
+          if (v.environment !== 'staging' || !/^[0-9a-f]{40}$/.test(v.commit || ''))
+            throw new Error('Invalid staging environment or SHA');
+          appendFileSync(process.env.GITHUB_ENV, `POS_EXPECTED_COMMIT=${v.commit}\n`);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Staging SHA: \`${v.commit}\`\n`);
+          NODE
+      - name: Validate gate script
+        run: node --check scripts/check_phase1_gate.mjs
+      - name: Run fixture-free Phase 1 regression
+        id: preflight
+        run: node scripts/s4_p0p1_safe_readonly.mjs
+      - name: Upload read-only evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-preflight-${{ github.run_id }}
+          path: ${{ steps.preflight.outputs.evidence_path }}
+          if-no-files-found: warn
+          retention-days: 14
+
+  evidence-gate:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      open: ${{ steps.gate.outcome == 'success' }}
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin deployed SHA for gate
+        env:
+          BASE_URL: http://160.191.47.17
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const r = await fetch(`${process.env.BASE_URL}/version`, { signal: AbortSignal.timeout(20000) });
+          if (r.status !== 200) throw new Error(`Staging /version: HTTP ${r.status}`);
+          const v = await r.json();
+          if (v.environment !== 'staging' || !/^[0-9a-f]{40}$/.test(v.commit || ''))
+            throw new Error('Invalid staging environment or SHA');
+          appendFileSync(process.env.GITHUB_ENV, `POS_EXPECTED_COMMIT=${v.commit}\n`);
+          NODE
+      - name: Verify Phase 1 evidence
+        id: gate
+        continue-on-error: ${{ inputs.mode != 'gated-regression' }}
+        run: node scripts/check_phase1_gate.mjs phase1-gate.json
+
+  safe-api-regression:
+    if: needs.evidence-gate.outputs.open == 'true' && (github.event_name == 'push' || inputs.mode == 'gated-regression')
+    needs: evidence-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify target build before regression
+        env:
+          BASE_URL: http://160.191.47.17
+        run: node scripts/check_staging_build.mjs
+      - name: Run API smoke on staging
+        env:
+          BASE_URL: http://160.191.47.17
+        run: npx playwright test api-smoke.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Verify target build after regression
+        if: always()
+        env:
+          BASE_URL: http://160.191.47.17
+        run: node scripts/check_staging_build.mjs
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-api-${{ github.run_id }}
+          path: |
+            qa/automation/Testing_POS/playwright-report/
+            qa/automation/Testing_POS/test-results/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,31 @@
+{
+  "run_id": "RUN-20261124155520916-TCEXT019",
+  "test_ref": "TC_EXT_019",
+  "checked_at": "2026-11-24T15:55:20.919Z",
+  "scope": "Existing QA3 order GET 200; QA2 direct GET same order 404 with no data leak; read-only staging and stable build.",
+  "secrets_recorded": false,
+  "mutations": 0,
+  "checks": {
+    "distinct_outlets": true,
+    "own_order_readable": true,
+    "foreign_order_denied": true,
+    "foreign_no_order_leak": true,
+    "own_order_unchanged": true,
+    "own_audit_readable": true
+  },
+  "result": "PASSED",
+  "build_before": "7d732d4185cf8f3006dc293c7f3e1ce0c95d2ec6",
+  "order_id": "15f67405-8532-49ad-bd28-3a7cbc0cf8a7",
+  "outlet_ids": {
+    "qa3": "bf3373d1-afba-406a-8b5c-edbe5b076a67",
+    "qa2": "24dbd1db-2419-4d53-9826-8a386a363c93"
+  },
+  "http": {
+    "qa3_before": 200,
+    "qa2_cross_outlet": 404,
+    "qa3_after": 200
+  },
+  "candidate_count": 7,
+  "build_after": "7d732d4185cf8f3006dc293c7f3e1ce0c95d2ec6",
+  "build_stable": true
+}
