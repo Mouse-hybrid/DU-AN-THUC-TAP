@@ -55,13 +55,14 @@ jobs:
       - name: Validate gate script
         run: node --check scripts/check_phase1_gate.mjs
       - name: Run fixture-free Phase 1 regression
+        id: preflight
         run: node scripts/s4_p0p1_safe_readonly.mjs
       - name: Upload read-only evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phase1-preflight-${{ github.run_id }}
-          path: qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
+          path: ${{ steps.preflight.outputs.evidence_path }}
           if-no-files-found: warn
           retention-days: 14
 
@@ -79,9 +80,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify deployed SHA and Phase 1 evidence
-        id: gate
-        continue-on-error: ${{ inputs.mode != 'gated-regression' }}
+      - name: Pin deployed SHA for gate
         env:
           BASE_URL: http://160.191.47.17
         run: |
@@ -94,7 +93,10 @@ jobs:
             throw new Error('Invalid staging environment or SHA');
           appendFileSync(process.env.GITHUB_ENV, `POS_EXPECTED_COMMIT=${v.commit}\n`);
           NODE
-          node scripts/check_phase1_gate.mjs phase1-gate.json
+      - name: Verify Phase 1 evidence
+        id: gate
+        continue-on-error: ${{ inputs.mode != 'gated-regression' }}
+        run: node scripts/check_phase1_gate.mjs phase1-gate.json
 
   safe-api-regression:
     if: needs.evidence-gate.outputs.open == 'true' && (github.event_name == 'push' || inputs.mode == 'gated-regression')
