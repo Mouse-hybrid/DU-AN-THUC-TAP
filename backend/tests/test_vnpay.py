@@ -1,4 +1,4 @@
-"""VNPay sandbox (SDD R2, specs/001-vnpay-sandbox): tạo link có chữ ký, giữ chỗ số tiền, xác
+"""VNPay sandbox (Backlog R2, specs/001-vnpay-sandbox): tạo link có chữ ký, giữ chỗ số tiền, xác
 nhận qua Return URL + QueryDR, kiểm tra lại, đối soát, IPN, không đóng đơn hai lần.
 
 VNPay được giả lập: khóa giả + httpx.MockTransport cho QueryDR, không gọi mạng.

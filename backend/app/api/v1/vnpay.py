@@ -1,4 +1,4 @@
-"""Xác nhận kết quả VNPay (SDD R2, specs/001-vnpay-sandbox).
+"""Xác nhận kết quả VNPay (Backlog R2, specs/001-vnpay-sandbox).
 
 POST /api/v1/payments/{payment_id}/check — thu ngân bấm "Kiểm tra lại" (hỏi VNPay bằng QueryDR)
 GET  /api/v1/payments/vnpay/return       — trình duyệt khách quay về sau khi trả (công khai)

@@ -1,9 +1,10 @@
 # ADR 0004: Chốt 13 RFI Pha 2 và các câu hỏi mở theo BRD + HLR
 
 - Trạng thái: Accepted — BE chốt 17/11/2026 theo BRD và High Level Requirements (HLR). Gửi PO và mentor để nắm; nếu PO đổi ý ở mục nào thì sửa mục đó trong file này và ghi ngày.
+- Bổ sung: 25/11/2026, mục "Xác nhận VNPay khi QueryDR lỗi" (cuối file).
 - Ngày: 2026-11-17
 - Người đề xuất: Backend Developer (Linh), soạn cùng Claude
-- Nguồn: sheet "RFI & Gaps" trong bộ testcase Pha 2 của QA (chốt Sprint 4, 16/11, baseline `c7e9b0d`); BRD; `Plan/High Level Requirements.docx`; SDD `docs/architecture/sdd/0001-backend-viec-con-lai.md`
+- Nguồn: sheet "RFI & Gaps" trong bộ testcase Pha 2 của QA (chốt Sprint 4, 16/11, baseline `c7e9b0d`); BRD; `Plan/High Level Requirements.docx`; Backlog `docs/architecture/backlog/0001-backend-viec-con-lai.md`
 
 ## Bối cảnh
 
@@ -244,3 +245,45 @@ Nguyên tắc chốt:
   - khách không thao tác bàn (lệch ma trận BRD).
 - Nếu PO muốn khớp đúng tài liệu thì mở lại ở Pha 3.
 - Số liệu điểm thưởng (tỉ lệ tích/đổi, hạn 12 tháng) là đề xuất của BE theo mức phổ biến của F&B. Đổi số liệu chỉ cần sửa cấu hình, không cần sửa code.
+
+## Bổ sung 25/11/2026 — Xác nhận VNPay khi QueryDR lỗi
+
+### Bối cảnh
+- Thiết kế ban đầu (Backlog 0001, R2) ghi: không tin Return URL một mình, phải có QueryDR hoặc IPN xác nhận.
+- Từ 12/11, VNPay sandbox trả `{"vnp_ResponseCode":"99","vnp_Message":"Unexpected error"}`, không kèm chữ ký, cho mọi lần gọi QueryDR. Thử lại ngày 20/11 vẫn vậy. BE chuẩn bị báo VNPay kèm TxnRef.
+- IPN đang tắt trên staging vì cần HTTPS (Pha 4).
+- Nếu giữ nguyên quy tắc cũ thì không khoản VNPay nào trên staging được xác nhận, và QA không test được luồng VNPay.
+
+### Quyết định
+Thứ tự nguồn xác nhận một khoản VNPay:
+
+| Thứ tự | Nguồn | `source` trong audit | Khi nào dùng |
+|---|---|---|---|
+| 1 | QueryDR (server hỏi VNPay) | `return`, `check`, `reconcile` | Luôn thử trước |
+| 2 | IPN (VNPay gọi vào) | `ipn` | Khi bật `VNPAY_IPN_ENABLED` (cần HTTPS) |
+| 3 | Return URL đã kiểm chữ ký | `return_signed` | Chỉ khi QueryDR trả lỗi |
+
+Điều kiện để dùng nguồn 3:
+- Chữ ký HMAC-SHA512 của Return URL phải đúng. Sai chữ ký thì trả trang "Liên kết không hợp lệ", không ghi gì.
+- `vnp_TxnRef` phải khớp một khoản đang có. Không khớp thì cũng từ chối như trên.
+- Số tiền VNPay báo phải bằng số tiền của khoản. Lệch thì chuyển `UNKNOWN` và ghi `PAYMENT_AMOUNT_MISMATCH`, không đóng đơn.
+- Xác nhận vẫn idempotent: khoản đã có kết quả cuối thì không đổi nữa. Return URL gửi lại nhiều lần chỉ ghi một lần.
+
+Những việc nguồn 3 không làm được:
+- Khách đóng trình duyệt trước khi quay về Return URL thì không có gì để xác nhận. Job đối soát chạy 10 phút một lần cũng chỉ hỏi được QueryDR, nên khoản quá hạn sẽ chuyển `UNKNOWN`. Các lần sau job vẫn hỏi lại, nhưng QueryDR còn lỗi thì khoản nằm ở `UNKNOWN`.
+- Khoản `UNKNOWN` phải kiểm tay trên cổng quản trị VNPay. Quy trình xử lý tay (ai kiểm, ghi nhận thế nào) **chưa viết**; làm trước Pha 4.
+- Nút "Kiểm tra lại" của thu ngân chỉ dùng QueryDR. Khi QueryDR lỗi, nút báo 502 và màn hình vẫn tự cập nhật nếu khách đã quay về Return URL.
+
+### Lý do
+- Return URL do VNPay ký bằng secret chỉ VNPay và BE biết. Kẻ gian không sửa được số tiền hay kết quả mà giữ đúng chữ ký. QA đã có run kiểm tra Return bị sửa và bị từ chối.
+- Rủi ro còn lại là khách mở lại đúng link Return cũ. Rủi ro này đã được chặn vì xác nhận idempotent; QA đã có run replay Return.
+- Chọn cách này thì vẫn test được toàn bộ luồng VNPay trên sandbox mà không phải chờ VNPay sửa QueryDR.
+
+### Khi lên production (Pha 4)
+- Bật IPN (cần HTTPS). IPN là nguồn xác nhận chính khi khách đóng trình duyệt sớm.
+- Thử lại QueryDR trên tài khoản thật. QueryDR chạy được thì nguồn 3 gần như không còn được dùng. Giữ đường này làm dự phòng, theo dõi số lần `source: return_signed` trong nhật ký.
+- Nếu PO hoặc mentor muốn bỏ hẳn nguồn 3 trên production, chỉ cần thêm cờ cấu hình, không cần đổi luồng.
+
+### Ảnh hưởng tới testcase
+- Các run VNPay có `source: return_signed` trong audit là đúng thiết kế, không phải lỗi.
+- Ca kiểm tra IPN giữ Blocked tới Pha 4. Phía BE đã có test tự động cho IPN (`backend/tests/test_vnpay.py`).

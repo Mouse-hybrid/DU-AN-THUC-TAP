@@ -1,4 +1,4 @@
-"""Báo cáo giám sát cho Supervisor (SDD R3, BRD "Monitoring & Alerting").
+"""Báo cáo giám sát cho Supervisor (Backlog R3, BRD "Monitoring & Alerting").
 
 GET /api/v1/ops/metrics?hours=24
   - api: số request, tỉ lệ lỗi 5xx, độ trễ p50/p95 theo route, tính từ lúc tiến trình khởi

@@ -1,5 +1,5 @@
 name: Reconcile VNPay
-# Doi soat VNPay (SDD R2, specs/001-vnpay-sandbox US2): 10 phut mot lan hoi VNPay cho cac lan
+# Doi soat VNPay (Backlog R2, specs/001-vnpay-sandbox US2): 10 phut mot lan hoi VNPay cho cac lan
 # thanh toan VNPay dang cho da qua han link hoac chua ro ket qua. VNPay chua cau hinh trong
 # .env.staging thi script tu bo qua. Bam tay: Actions -> Reconcile VNPay -> Run workflow.
 

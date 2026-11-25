@@ -66,7 +66,7 @@
 
 - [x] T016 Thêm `POINTS_REVERSED`, `POINTS_REVERSAL_SHORTFALL` vào `EXCEPTION_ACTIONS`.
 - [x] T017 Sinh lại `docs/api/openapi.json`, `frontend/src/api/schema.d.ts`, `docs/erd.md`; cập nhật `docs/api/api-catalog.md` (mục A10, A12, A17).
-- [ ] T018 Cập nhật trạng thái R5 trong `docs/architecture/sdd/0001-backend-viec-con-lai.md`; báo FE hai thay đổi giao diện: ô nhập số trên trang QR, nhắc "Khách có nhập số điện thoại" ở màn thanh toán.
+- [ ] T018 Cập nhật trạng thái R5 trong `docs/architecture/backlog/0001-backend-viec-con-lai.md`; báo FE hai thay đổi giao diện: ô nhập số trên trang QR, nhắc "Khách có nhập số điện thoại" ở màn thanh toán.
 
 ## Thứ tự và phụ thuộc
 

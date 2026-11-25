@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Đối soát VNPay (SDD R2, specs/001-vnpay-sandbox US2): hỏi VNPay cho các lần thanh toán
+"""Đối soát VNPay (Backlog R2, specs/001-vnpay-sandbox US2): hỏi VNPay cho các lần thanh toán
 VNPay đang chờ đã quá hạn link (PENDING) hoặc chưa rõ kết quả (UNKNOWN), rồi ghi kết quả qua
 cùng hàm xác nhận với Return URL và nút "Kiểm tra lại" (app/api/v1/vnpay.py).
 

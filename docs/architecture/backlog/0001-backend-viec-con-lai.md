@@ -1,4 +1,4 @@
-# SDD 0001: Backend NOVA POS — các việc còn lại đến go-live
+# Backlog 0001: Backend NOVA POS — các việc còn lại đến go-live
 
 - Trạng thái: Đang thực hiện — cập nhật 12/11/2026
 - Người viết: Backend Developer (Linh), soạn cùng Claude
@@ -125,7 +125,7 @@ Mọi API mới tuân theo các quy ước đã dùng:
   - `POST /payments/{id}/check`: thu ngân bấm kiểm tra lại.
   - `GET /payments/vnpay/ipn`: trả `RspCode` theo tài liệu VNPay. Viết sẵn và test bằng khóa giả; chỉ bật khi có HTTPS.
 - **Quy tắc:**
-  - Không tin Return URL một mình; phải có QueryDR hoặc IPN xác nhận.
+  - Ưu tiên QueryDR hoặc IPN. QueryDR lỗi thì dùng Return URL đã kiểm chữ ký (đổi ngày 25/11/2026, xem ADR 0004 mục "Xác nhận VNPay khi QueryDR lỗi").
   - Xác nhận idempotent: nhiều đường xác nhận cùng tới thì đơn vẫn chỉ đóng một lần.
   - Số tiền lệch tổng đơn thì không đóng đơn.
   - Quá hạn mà QueryDR không trả kết quả thì chuyển `UNKNOWN`; hết hạn hẳn thì chuyển `EXPIRED`.

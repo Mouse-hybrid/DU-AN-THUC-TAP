@@ -1,4 +1,4 @@
-# Test chịu tải (SDD R4)
+# Test chịu tải (Backlog R4)
 
 Mục tiêu theo BRD: giờ cao điểm 200 người dùng đồng thời. **Đạt** khi:
 
