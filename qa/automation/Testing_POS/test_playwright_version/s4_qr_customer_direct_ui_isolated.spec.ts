@@ -233,8 +233,14 @@ test('S4-QR-CUSTOMER-DIRECT-UI | QA3 customer submits a noted item to kitchen',
       await expect(placed).toContainText(own.note);
       await expect(placed).toContainText('Đã gửi bếp');
       report.checks.customer_receipt_visible = true;
+      mkdirSync(join(process.cwd(), 'evidence'), { recursive: true });
+      const screenshotName = `S4_QR_CUSTOMER_DIRECT_UI_${report.run_id}.png`;
+      const screenshot = await page.screenshot({
+        path: join(process.cwd(), 'evidence', screenshotName), fullPage: true,
+      });
+      report.screenshot = screenshotName;
       await testInfo.attach('S4_QR_CUSTOMER_DIRECT_UI', {
-        body: await page.screenshot({ fullPage: true }), contentType: 'image/png',
+        body: screenshot, contentType: 'image/png',
       });
       const current = await order();
       const qrItems = current.items.filter((row: any) =>
