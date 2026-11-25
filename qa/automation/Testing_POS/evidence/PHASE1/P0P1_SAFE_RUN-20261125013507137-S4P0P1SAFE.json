@@ -1,0 +1,37 @@
+{
+  "run_id": "RUN-20261125013507137-S4P0P1SAFE",
+  "checked_at": "2026-11-25T01:35:07.138Z",
+  "scope": "Fixture-free Phase 1 TC_EXT_009 and TC_API_01_003 only; no Sprint 4 business execution",
+  "environment": "staging",
+  "expected_commit": "89d8889185d0a90ea3bd7cc1c01d41916495129a",
+  "secrets_recorded": false,
+  "mutations": 0,
+  "business_regression": [
+    {
+      "tc_id": "TC_EXT_009",
+      "priority": "Critical / P0",
+      "expected_http": 401,
+      "actual_http": 401,
+      "assertion": "No Authorization; no table list",
+      "result": "PASSED"
+    },
+    {
+      "tc_id": "TC_API_01_003",
+      "priority": "High / P1",
+      "expected_http": 422,
+      "actual_http": 422,
+      "assertion": "Required username missing; no access_token",
+      "result": "PASSED"
+    }
+  ],
+  "build_before": "89d8889185d0a90ea3bd7cc1c01d41916495129a",
+  "preflight": {
+    "version_http": 200,
+    "health_http": 200,
+    "openapi_http": 200,
+    "path_count": 79
+  },
+  "build_after": "89d8889185d0a90ea3bd7cc1c01d41916495129a",
+  "build_stable": true,
+  "result": "PASSED"
+}
