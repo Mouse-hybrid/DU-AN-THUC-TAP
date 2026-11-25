@@ -172,3 +172,26 @@ jobs:
         run: cp ~/secrets/pos-staging/.env.staging .env.staging
       - name: Deploy len staging (build, migrate, healthcheck)
         run: bash scripts/deploy-staging.sh
+      - name: Phase 1 post-deploy read-only verification
+        # CD verifies the deployed SHA and anonymous access before QA uses this build.
+        # The 116-case evidence gate lives in the separate QA pipeline and does not
+        # change the existing staging deployment policy.
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1
+          version=$(curl --fail --silent --show-error --max-time 15 "$base/version")
+          actual_sha=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["commit"])' <<<"$version")
+          [ "$actual_sha" = "$GITHUB_SHA" ] || {
+            echo "Post-deploy SHA mismatch: expected $GITHUB_SHA, got $actual_sha" >&2
+            exit 1
+          }
+          curl --fail --silent --show-error --max-time 15 "$base/health" >/dev/null
+          curl --fail --silent --show-error --max-time 15 "$base/ready" >/dev/null
+          curl --fail --silent --show-error --max-time 15 "$base/openapi.json" >/dev/null
+          auth_status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "$base/api/v1/tables")
+          [ "$auth_status" = 401 ] || {
+            echo "Anonymous table access returned HTTP $auth_status; expected 401" >&2
+            exit 1
+          }
+          echo "CD post-deploy verified SHA $actual_sha; health, ready, OpenAPI and anonymous guard."
+          echo "Phase 1 CD post-deploy: verified SHA \`$actual_sha\`, health/ready/OpenAPI, and anonymous table guard." >> "$GITHUB_STEP_SUMMARY"
