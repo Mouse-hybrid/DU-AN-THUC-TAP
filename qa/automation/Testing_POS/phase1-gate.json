@@ -3,5 +3,14 @@
   "source_workbook": "AFG_POS_QAQC_116_Phase1_hien_hanh_20261124.xlsx",
   "target_build": "89d8889185d0a90ea3bd7cc1c01d41916495129a",
   "total_testcases": 116,
-  "verified_cases": []
+  "verified_cases": [
+    {
+      "tc_id": "TC_EXT_009",
+      "evidence": "evidence/PHASE1/P0P1_SAFE_RUN-20261125013507137-S4P0P1SAFE.json"
+    },
+    {
+      "tc_id": "TC_API_01_003",
+      "evidence": "evidence/PHASE1/P0P1_SAFE_RUN-20261125013507137-S4P0P1SAFE.json"
+    }
+  ]
 }
