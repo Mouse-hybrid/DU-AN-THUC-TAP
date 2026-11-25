@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 // Sandbox card/OTP and signed URLs must not enter automatic video/trace artifacts.
 test.use({ video: 'off', trace: 'off', screenshot: 'off' });
 
-test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned reward points',
+test('P2-RWD-009 | failed VNPay Return and full refund preserve reward points',
   async ({ browser, request }, testInfo) => {
     test.setTimeout(21 * 60_000);
     test.skip(testInfo.project.name !== 'chromium', 'Headed desktop Chromium only');
@@ -21,15 +21,16 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
     const tokens: Record<string, string> = {};
     const own: { tableId?: string; tableCode?: string; sessionId?: string;
       orderId?: string; itemId?: string; menuId?: string; paymentId?: string;
+      cashPaymentId?: string;
       customerId?: string; customerName?: string; phone?: string;
       rewardId?: string; rewardName?: string; billAmount?: number; points?: number } = {};
     const report: any = {
-      run_id: `RUN-${new Date().toISOString().replace(/\D/g, '')}-PFP2RWD009RETURN`,
-      test_ref: 'PF-P2-RWD-009-FAILED-RETURN',
-      business_case: 'P2-RWD-009 remains Pending until PO confirms points policy and evidence scopes are reviewed', checked_at: new Date().toISOString(),
-      scope: 'QA3 owned POINTS reward with customer: VNPay sandbox cancellation via signed Return, points ledger/bill/audit unchanged; fresh link cancelled, owned cleanup; FE VNPay UI, expiry and IPN excluded',
-      project: testInfo.project.name, case_coverage: 'SIGNED_FAILED_RETURN_WITH_POINTS',
-      full_case_status: 'PENDING_PO_POINTS_FAILURE_POLICY', secrets_recorded: false,
+      run_id: `RUN-${new Date().toISOString().replace(/\D/g, '')}-P2RWD009`,
+      test_ref: 'P2-RWD-009',
+      business_case: 'ADR 0004 P2-RFI-RWD: failed payment does not consume points; full refund reverses earned and redeemed points', checked_at: new Date().toISOString(),
+      scope: 'One owned QA3 order with POINTS reward: signed failed VNPay Return, cancelled retry, CASH payment, full refund, points and business audit reconciliation, owned cleanup; expiry and IPN excluded',
+      project: testInfo.project.name, case_coverage: 'SIGNED_FAILED_RETURN_CASH_FULL_REFUND_SAME_ORDER',
+      secrets_recorded: false,
       card_recorded: false, signed_url_recorded: false, phone_recorded: false,
       checks: {}, cleanup_pass: false, business_execution: 'NOT_EXECUTED',
     };
@@ -152,12 +153,13 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
       current = await order();
       if (current.items.some((item: any) => item.status !== 'SERVED'))
         throw new Error('CLEANUP REQUIRED: item not SERVED');
-      if (current.applied_reward) {
+      if (current.applied_reward && !['PAID', 'CLOSED'].includes(current.status)) {
         await checked('DELETE',
           `/api/v1/orders/${own.orderId}/rewards/${current.applied_reward.id}`,
           'cashier', 200);
       }
-      if ((await order()).customer_id)
+      if ((await order()).customer_id &&
+          !['PAID', 'CLOSED'].includes((await order()).status))
         await checked('POST', `/api/v1/orders/${own.orderId}/customer`,
           'cashier', 200, { customer_id: null });
       if (!['BILLING', 'PAID', 'CLOSED'].includes(current.status))
@@ -174,6 +176,15 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
         }
         await checked('POST', `/api/v1/orders/${own.orderId}/pay`,
           'cashier', 200);
+      }
+      if (own.cashPaymentId && (await order()).status === 'PAID') {
+        const pointRows = await points();
+        if (!pointRows.some((row: any) =>
+          row.entry_type === 'REVERSAL' && row.order_id === own.orderId))
+          await checked('POST',
+            `/api/v1/payments/${own.cashPaymentId}/refunds`, 'admin', 201,
+            { reason: 'QA owned P2-RWD-009 cleanup refund' });
+        report.points_after_refund = await points();
       }
       if ((await order()).status === 'PAID')
         await checked('POST', `/api/v1/orders/${own.orderId}/close`,
@@ -231,11 +242,12 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
         if (!report.customer_inactive)
           throw new Error('CLEANUP REQUIRED: owned customer remains active');
         const currentPoints = await points();
-        report.cleanup_points_unchanged =
-          currentPoints.length === 1 &&
-          currentPoints[0]?.entry_type === 'ADJUST' &&
-          (await checked('GET', `/api/v1/customers/${own.customerId}`,
-            'admin', 200)).points_balance === own.points;
+        report.cleanup_points_unchanged = report.points_after_refund
+          ? JSON.stringify(currentPoints) === JSON.stringify(report.points_after_refund) &&
+            (await checked('GET', `/api/v1/customers/${own.customerId}`,
+              'admin', 200)).points_balance === own.points
+          : currentPoints.length === 1 &&
+            currentPoints[0]?.entry_type === 'ADJUST';
         if (!report.cleanup_points_unchanged)
           throw new Error('CLEANUP REQUIRED: points changed during cleanup');
       }
@@ -259,7 +271,8 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
       own.menuId = starter.id;
       const rules = await checked('GET', '/api/v1/loyalty-rules', 'admin', 200) as any[];
       const rule = rules[0];
-      if (!rule || Number(rule.redeem_value_per_point) <= 0 ||
+      if (!rule || Number(rule.earn_amount_per_point) <= 0 ||
+          Number(rule.redeem_value_per_point) <= 0 ||
           Number(rule.max_redeem_percent) <= 0)
         throw new Error('PENDING_FIXTURE: redeem rule unavailable');
       own.points = Math.floor(50_000 * Number(rule.max_redeem_percent) / 100 /
@@ -424,6 +437,53 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
       if (!Object.values(report.checks).every(Boolean))
         throw new Error('VNPay cancelled/retry result mismatch: ' +
           JSON.stringify(report.checks));
+      const expectedEarn = Math.floor(own.billAmount! /
+        Number(rule.earn_amount_per_point));
+      const paid = await call('POST',
+        `/api/v1/orders/${own.orderId}/payments`, 'cashier',
+        { method: 'CASH' });
+      expect(paid.http, 'CASH after failed Return').toBe(201);
+      const cashId = paid.body?.payment?.id;
+      expect(cashId, 'owned CASH payment ID').toBeTruthy();
+      own.cashPaymentId = cashId;
+      const paidPoints = await points();
+      const paidCustomer = await customer();
+      report.checks.cash_earn_redeem_once =
+        paid.body?.order_status === 'PAID' &&
+        paidCustomer.points_balance === expectedEarn &&
+        paidPoints.filter((row: any) => row.entry_type === 'REDEEM' &&
+          row.points === -own.points! && row.order_id === own.orderId).length === 1 &&
+        paidPoints.filter((row: any) => row.entry_type === 'EARN' &&
+          row.points === expectedEarn && row.order_id === own.orderId).length ===
+          (expectedEarn ? 1 : 0);
+      expect(report.checks.cash_earn_redeem_once,
+        'one earn and one redeem after CASH').toBe(true);
+      const refunded = await call('POST',
+        `/api/v1/payments/${cashId}/refunds`, 'admin',
+        { reason: 'QA owned P2-RWD-009 full refund' });
+      expect(refunded.http, 'owned full refund').toBe(201);
+      const refundedPoints = await points();
+      const refundedCustomer = await customer();
+      const refundedOrder = await order();
+      const refundedAudit = await checked('GET',
+        `/api/v1/audit-logs?order_id=${own.orderId}&limit=500`,
+        'admin', 200) as any[];
+      report.checks.full_refund_reverses_points_once =
+        refundedCustomer.points_balance === own.points &&
+        refundedPoints.filter((row: any) => row.entry_type === 'REVERSAL' &&
+          row.order_id === own.orderId &&
+          row.points === own.points! - expectedEarn).length === 1 &&
+        refundedOrder.applied_reward?.status === 'REVERSED' &&
+        refundedAudit.filter(row => row.action === 'POINTS_REVERSED').length === 1;
+      report.checks.one_paid_audit_after_cash =
+        refundedAudit.filter(row => row.action === 'ORDER_PAID').length === 1;
+      report.points_after_refund = refundedPoints;
+      report.cash_payment_http = paid.http;
+      report.refund_http = refunded.http;
+      report.business_execution = 'EXECUTED';
+      if (!Object.values(report.checks).every(Boolean))
+        throw new Error('P2-RWD-009 payment/points reconciliation mismatch: ' +
+          JSON.stringify(report.checks));
     } catch (error) { failure = error; }
     await context.close().catch(() => {});
     try { await cleanup(); } catch (error) { cleanupError = error; }
@@ -439,7 +499,7 @@ test('PF-P2-RWD-009-FAILED-RETURN | QA3 failed signed Return preserves owned rew
     if (cleanupError) report.cleanup_required = redact(cleanupError);
     const evidence = JSON.stringify(report, null, 2) + '\n';
     mkdirSync(join(process.cwd(), 'evidence'), { recursive: true });
-    const name = `PF_P2_RWD_009_RETURN_${report.run_id}.json`;
+    const name = `P2_RWD_009_${report.run_id}.json`;
     writeFileSync(join(process.cwd(), 'evidence', name), evidence);
     await testInfo.attach('P2_RWD_009_evidence', {
       body: evidence, contentType: 'application/json',
