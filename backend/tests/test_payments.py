@@ -1,4 +1,4 @@
-"""Thanh toán v2 (SDD R1): trả nhiều lần, nhiều hình thức, tiền thối, không trả vượt, hủy lần
+"""Thanh toán v2 (Backlog R1): trả nhiều lần, nhiều hình thức, tiền thối, không trả vượt, hủy lần
 ghi nhầm, hoàn tiền, đơn có ưu đãi và tích điểm, tương thích /pay."""
 
 from __future__ import annotations

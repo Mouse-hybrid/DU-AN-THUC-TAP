@@ -1,4 +1,5 @@
-"""scripts/loadtest_data.py (SDD R4): tạo dữ liệu outlet Load test, kiểm ghi trùng, dọn dữ liệu."""
+"""scripts/loadtest_data.py (Backlog R4): tạo dữ liệu outlet Load test, kiểm ghi trùng, dọn dữ
+liệu."""
 
 from __future__ import annotations
 

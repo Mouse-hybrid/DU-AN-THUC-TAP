@@ -1,4 +1,4 @@
-"""Test chịu tải (SDD R4, BRD "Peak dining hour ≥ 200"): mỗi người dùng ảo giữ một bàn LT-xxx
+"""Test chịu tải (Backlog R4, BRD "Peak dining hour ≥ 200"): mỗi người dùng ảo giữ một bàn LT-xxx
 và đi hết luồng mở bàn → gọi món (2–3 lần) → gửi bếp → bếp nấu, báo xong → phục vụ mang ra →
 yêu cầu thanh toán → thu tiền → dọn bàn, xen kẽ xem sơ đồ bàn và hàng đợi bếp như màn hình thật.
 

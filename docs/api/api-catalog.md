@@ -424,7 +424,7 @@ Không phải API nhưng phục vụ Pha 1: script reset dữ liệu staging + t
 
 | Nhóm (Board) | Endpoint đề xuất | Vì sao chưa làm |
 |---|---|---|
-| **Thanh toán đa phương thức** (BRD Payment) | Tiền mặt, thẻ, trả nhiều lần, hủy, hoàn tiền **đã có từ 09/11** (mục A17). Còn: VNPay sandbox (`GET /payments/vnpay/return`, `POST /payments/{id}/check`, `GET /payments/vnpay/ipn`) | Chờ tài khoản sandbox VNPay (SDD R2) |
+| **Thanh toán đa phương thức** (BRD Payment) | Tiền mặt, thẻ, trả nhiều lần, hủy, hoàn tiền **đã có từ 09/11** (mục A17). Còn: VNPay sandbox (`GET /payments/vnpay/return`, `POST /payments/{id}/check`, `GET /payments/vnpay/ipn`) | Chờ tài khoản sandbox VNPay (Backlog R2) |
 | **Merge / Split / Transfer bàn** | Chuyển bàn, gộp bàn, tách đơn **đã có từ 09/11** (mục A14–A16) | Còn bỏ gộp giữa chừng | BRD Permission Matrix có (W, S); không thuộc luồng gọi món cơ bản; HLR yêu cầu chuyển kèm order, bếp, thanh toán, audit |
 | ~~**Quản lý nhân sự / phân quyền**~~ | **Đã có từ 04/11** (xem mục A8) | Còn màn 93, 94 phía FE |
 | **Bảo mật đăng nhập** (SEC-02) | `POST /auth/pin-login`, khóa tài khoản sau N lần sai (không thêm endpoint), `POST /auth/refresh` | PIN policy/lockout chưa được BA/Security chốt |

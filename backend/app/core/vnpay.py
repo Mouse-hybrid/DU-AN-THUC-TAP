@@ -1,4 +1,4 @@
-"""Tích hợp VNPay phiên bản 2.1.0 (SDD R2, specs/001-vnpay-sandbox): tạo link thanh toán có chữ
+"""Tích hợp VNPay phiên bản 2.1.0 (Backlog R2, specs/001-vnpay-sandbox): tạo link thanh toán có chữ
 ký, kiểm chữ ký dữ liệu VNPay gửi về, tra cứu giao dịch (QueryDR).
 
 Tham số và cách ký theo tài liệu tích hợp VNPay mà nhóm đã đọc (research.md R-2, R-3). Chuỗi

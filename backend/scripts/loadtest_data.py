@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dữ liệu cho bài test chịu tải (SDD R4): một outlet riêng "Load test", không đụng dữ liệu QA.
+"""Dữ liệu cho bài test chịu tải (Backlog R4): một outlet riêng "Load test", không đụng dữ liệu QA.
 
   prepare --tables 200   tạo outlet, trạm bếp, 5 món, bàn LT-001..LT-200 và 4 tài khoản
                          lt_cashier, lt_waiter, lt_kitchen, lt_supervisor. Mật khẩu lấy từ env

@@ -1,4 +1,4 @@
-"""Thanh toán v2 (SDD R1): một đơn trả nhiều lần, nhiều hình thức, hủy lần ghi nhầm, hoàn tiền.
+"""Thanh toán v2 (Backlog R1): một đơn trả nhiều lần, nhiều hình thức, hủy lần ghi nhầm, hoàn tiền.
 
 POST /api/v1/orders/{order_id}/payments     — nhận 1 lần tiền (tiền mặt, thẻ); đủ tiền thì PAID
 GET  /api/v1/orders/{order_id}/payments     — các lần thanh toán + tổng đã thu, còn phải thu

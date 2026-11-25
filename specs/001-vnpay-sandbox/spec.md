@@ -3,7 +3,7 @@
 - **Feature Branch**: `feat/vnpay-sandbox`
 - **Created**: 2026-11-12
 - **Status**: Implemented — chờ chạy thử trên sandbox thật (PR `feat/vnpay-sandbox`, 12/11/2026)
-- **Hạng mục SDD**: R2 (Pha 2, P0)
+- **Hạng mục backlog**: R2 (Pha 2, P0)
 - **Input**: "Thanh toán QR qua VNPay, thử trên môi trường sandbox; staging chưa có HTTPS."
 
 ## User Scenarios & Testing
@@ -44,7 +44,7 @@ Khách nói đã trả nhưng màn hình thu ngân vẫn "đang chờ" (khách t
 
 Khi production có domain HTTPS, VNPay gọi thẳng vào hệ thống báo kết quả, không phụ thuộc trình duyệt khách.
 
-**Why this priority**: Chỉ bật được khi có HTTPS (SDD R13); code và test sẵn để không phải làm lại.
+**Why this priority**: Chỉ bật được khi có HTTPS (Backlog R13); code và test sẵn để không phải làm lại.
 
 **Independent Test**: Test tự động gọi endpoint IPN với chữ ký tạo bằng khóa giả.
 
