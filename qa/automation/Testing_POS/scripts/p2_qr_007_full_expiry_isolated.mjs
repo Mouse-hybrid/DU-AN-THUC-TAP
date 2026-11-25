@@ -8,9 +8,12 @@ const base = (process.env.POS_STAGING_URL || 'http://160.191.47.17').replace(/\/
 const pin = process.env.S2_STAGING_PIN;
 const expected = process.env.POS_EXPECTED_COMMIT;
 const output = process.argv[2];
+const tableCode = process.env.P2_QR_007_TABLE_CODE || 'Q3-3';
 if (base !== 'http://160.191.47.17') throw new Error('QA3 staging only');
 if (process.env.P2_QR_007_ALLOW_LONG_WAIT !== '1')
-  throw new Error('PENDING_LONG_WAIT: natural expiry occupies Q3-3 for about four hours; explicit opt-in required; no request sent');
+  throw new Error('PENDING_LONG_WAIT: natural expiry occupies the selected QA3 table for about four hours; explicit opt-in required; no request sent');
+if (!/^Q3-[123]$/.test(tableCode))
+  throw new Error('PENDING_FIXTURE: choose an isolated QA3 table Q3-1, Q3-2 or Q3-3; no request sent');
 if (!pin || !/^[a-f0-9]{40}$/.test(expected || '') || !output)
   throw new Error('S2_STAGING_PIN, full POS_EXPECTED_COMMIT and evidence output path required');
 
@@ -135,10 +138,11 @@ try {
     roles[role] = login.access_token;
   }
   const tables = requireHttp(get('/api/v1/tables', 'waiter'), 200, 'tables');
-  const source = tables.find(row => row.code === 'Q3-3');
+  const source = tables.find(row => row.code === tableCode);
   if (!source || source.status !== 'AVAILABLE')
-    throw new Error('PENDING_FIXTURE: Q3-3 must be AVAILABLE');
+    throw new Error(`PENDING_FIXTURE: ${tableCode} must be AVAILABLE`);
   own.tableId = source.id;
+  report.table_code = source.code;
   const menu = requireHttp(get('/api/v1/menu?available_only=true', 'waiter'), 200, 'menu');
   own.menuId = menu.find(item => item.is_available && item.station_id && !item.has_modifiers)?.id;
   if (!own.menuId) throw new Error('PENDING_FIXTURE: mapped menu item required');
@@ -198,7 +202,7 @@ try {
   requireHttp(get(expiringPath), 200, 'QR valid before natural expiry');
   report.expires_at = expiring.expires_at;
   report.wait_ms = remaining + 1_500;
-  console.log('[P2-QR-007] Owned Q3-3 QR remains open until expiry; keep this terminal running.');
+  console.log(`[P2-QR-007] Owned ${tableCode} QR remains open until expiry; keep this terminal running.`);
   const waited = await new Promise(resolve => {
     const timer = setTimeout(() => resolve(true), remaining + 1_500);
     const stop = () => { clearTimeout(timer); resolve(false); };
@@ -229,11 +233,11 @@ catch (error) { cleanupError = redact(error); }
 try { report.build_after = version(); } catch { report.build_after = null; }
 report.build_stable = before === report.build_after;
 report.result = !failure && !cleanupError && report.cleanup_pass && report.build_stable ?
-  'PASSED' : cleanupError ? 'INCONCLUSIVE' : failure?.startsWith('PENDING_') ?
+  'PASSED' : cleanupError ? 'INCONCLUSIVE' : /(?:^|:\s)PENDING_/.test(failure || '') ?
   'PENDING' : 'FAILED';
 if (failure) report.error = failure;
 if (cleanupError) report.cleanup_required = cleanupError;
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
 console.log('[P2-QR-007] Result: ' + JSON.stringify(report));
-if (report.result !== 'PASSED') process.exitCode = 1;
+if (report.result !== 'PASSED') process.exitCode = report.result === 'PENDING' ? 2 : 1;
