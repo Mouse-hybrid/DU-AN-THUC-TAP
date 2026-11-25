@@ -9,6 +9,8 @@ const pin = process.env.S2_STAGING_PIN;
 const expected = process.env.POS_EXPECTED_COMMIT;
 const output = process.argv[2];
 if (base !== 'http://160.191.47.17') throw new Error('QA3 staging only');
+if (process.env.P2_QR_007_ALLOW_LONG_WAIT !== '1')
+  throw new Error('PENDING_LONG_WAIT: natural expiry occupies Q3-3 for about four hours; explicit opt-in required; no request sent');
 if (!pin || !/^[a-f0-9]{40}$/.test(expected || '') || !output)
   throw new Error('S2_STAGING_PIN, full POS_EXPECTED_COMMIT and evidence output path required');
 
