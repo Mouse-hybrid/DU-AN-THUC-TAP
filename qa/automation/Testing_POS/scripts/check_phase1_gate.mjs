@@ -30,7 +30,13 @@ for (const row of manifest.verified_cases) {
   if (isAbsolute(rel) || rel === '..' || rel.startsWith('..' + sep) || !existsSync(path))
     fail(`${row.tc_id}: evidence missing or outside checkout`);
   const evidence = readJson(path);
-  if (evidence.test_ref !== row.tc_id || !evidence.run_id ||
+  const branch = Array.isArray(evidence.business_regression) ?
+    evidence.business_regression.filter(item => item.tc_id === row.tc_id) : [];
+  const coversCase = evidence.test_ref === row.tc_id ||
+    (!evidence.test_ref && branch.length === 1 && branch[0].result === 'PASSED' &&
+      Number.isInteger(branch[0].expected_http) &&
+      branch[0].actual_http === branch[0].expected_http);
+  if (!coversCase || !evidence.run_id ||
       evidence.result !== 'PASSED' || evidence.build_before !== expectedBuild ||
       evidence.build_after !== expectedBuild || evidence.build_stable !== true ||
       (evidence.cleanup_pass !== true && evidence.mutations !== 0) ||
