@@ -55,13 +55,14 @@ jobs:
       - name: Validate gate script
         run: node --check scripts/check_phase1_gate.mjs
       - name: Run fixture-free Phase 1 regression
+        id: preflight
         run: node scripts/s4_p0p1_safe_readonly.mjs
       - name: Upload read-only evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phase1-preflight-${{ github.run_id }}
-          path: qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
+          path: ${{ steps.preflight.outputs.evidence_path }}
           if-no-files-found: warn
           retention-days: 14
 
