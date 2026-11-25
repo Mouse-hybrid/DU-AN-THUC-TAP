@@ -1,6 +1,10 @@
 name: Phase 1 evidence-gated QA
 
 on:
+  pull_request:
+    branches: [ONLY_TESTING]
+  push:
+    branches: [ONLY_TESTING]
   workflow_dispatch:
     inputs:
       mode:
