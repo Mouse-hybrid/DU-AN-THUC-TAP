@@ -127,7 +127,11 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
   const showForm = canRecord && orderStatus === "BILLING" && remaining > 0 && !waitingLink;
 
   /** Chạy một thao tác ghi với chống bấm đúp; 404/409 thì tải lại dữ liệu để thấy số mới. */
-  async function run(task: (key: string) => Promise<string>, conflict: string): Promise<boolean> {
+  async function run(
+    task: (key: string) => Promise<string>,
+    conflict: string,
+    mapError?: (failure: unknown) => string | null,
+  ): Promise<boolean> {
     if (inFlight.current) return false;
     inFlight.current = true;
     setBusy(true);
@@ -139,7 +143,7 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
       if (failure instanceof ApiError && (failure.status === 404 || failure.status === 409)) {
         await Promise.all([load(), onChanged()]);
       }
-      const message = paymentErrorMessage(failure, conflict);
+      const message = mapError?.(failure) ?? paymentErrorMessage(failure, conflict);
       if (dialog) setDialogError(message);
       else setFormError(message);
       return false;
@@ -197,7 +201,12 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
       if (result.payment.status === "SUCCEEDED") return `VNPay xác nhận đã nhận ${formatVnd(result.payment.amount)}.`;
       if (WAITING.has(result.payment.status)) return "VNPay chưa có kết quả. Khách chưa trả xong hoặc cần thử lại sau.";
       return "Link VNPay không thành công. Có thể tạo link mới hoặc thu cách khác.";
-    }, "Trạng thái thanh toán vừa đổi. Dữ liệu đã được tải lại.");
+    }, "Trạng thái thanh toán vừa đổi. Dữ liệu đã được tải lại.", (failure) =>
+      // 502/503: chưa hỏi được VNPay (sandbox đang lỗi tra cứu). Không phải hệ thống hỏng,
+      // và kết quả khách trả vẫn về qua trang trả về của VNPay.
+      failure instanceof ApiError && (failure.status === 502 || failure.status === 503)
+        ? "Chưa hỏi được VNPay lúc này. Nếu khách đã trả xong, màn này vẫn tự cập nhật trong vài giây; chưa cần thu lại."
+        : null);
   }
 
   function applySplit(kind: "people" | "percent") {
