@@ -1,0 +1,704 @@
+{
+  "schema_version": 1,
+  "source_workbook": "AFG_POS_QAQC_116_Phase1_hien_hanh_20261124.xlsx",
+  "source_sha256": "5e76eaa79780fefd45800052165cd1f6e386b3484e96934b945c3013ac6728e3",
+  "snapshot_utc": "2026-11-25T01:55:14.360977+00:00",
+  "cases": [
+    {
+      "tc_id": "TC_API_01_001",
+      "source_row": 4,
+      "status": "Passed",
+      "actual_result_sha256": "65f3f7484cc81fd531a8e8246d8a9db154c33bccd89449b3095f20162640c5f8"
+    },
+    {
+      "tc_id": "TC_API_01_002",
+      "source_row": 5,
+      "status": "Passed",
+      "actual_result_sha256": "05f11307df4b18b98efec5e0191f8d9d8bc3753f04d861238f48e64175500233"
+    },
+    {
+      "tc_id": "TC_API_01_003",
+      "source_row": 6,
+      "status": "Passed",
+      "actual_result_sha256": "91e7a4edf95d3f92a7d07a4568734ce57865749e71d4011030f8e3f3c5a63965"
+    },
+    {
+      "tc_id": "TC_API_02_001",
+      "source_row": 7,
+      "status": "Passed",
+      "actual_result_sha256": "f339a6cb9ef6c12103038bf93252027b7ec73f066688400096b4ae6838c179fd"
+    },
+    {
+      "tc_id": "TC_API_02_002",
+      "source_row": 8,
+      "status": "Passed",
+      "actual_result_sha256": "ef33266b538da33ca725e8dff9fa2d79f10ab55439bfa8eb24f1186205abff6c"
+    },
+    {
+      "tc_id": "TC_API_02_003",
+      "source_row": 9,
+      "status": "Passed",
+      "actual_result_sha256": "808525b42f64ec6ca25c1436222582fd000ef4101f0f8cfef193fb9a49b49692"
+    },
+    {
+      "tc_id": "TC_API_02_004",
+      "source_row": 10,
+      "status": "Passed",
+      "actual_result_sha256": "8f538e2d68060463aea677e5e145499a05a78ebe7c1d09c89b5b6ebab3308413"
+    },
+    {
+      "tc_id": "TC_API_03_001",
+      "source_row": 11,
+      "status": "Passed",
+      "actual_result_sha256": "9d6b1e03b9c03c4968a0558d2581b89fb0868ecef82f9eec50d96f029e8261eb"
+    },
+    {
+      "tc_id": "TC_API_03_002",
+      "source_row": 12,
+      "status": "Passed",
+      "actual_result_sha256": "8ac52f6d9b2bd6cc99af3226ab4bc354973793c43cd7196d241af3c3ae6ad314"
+    },
+    {
+      "tc_id": "TC_API_03_003",
+      "source_row": 13,
+      "status": "Passed",
+      "actual_result_sha256": "10149a66b9e8204b207c5fa81f52b958811543740f63ffada45f7cc0d0fffa11"
+    },
+    {
+      "tc_id": "TC_API_03_004",
+      "source_row": 14,
+      "status": "Blocked",
+      "actual_result_sha256": "bff3bb926f251400c306a50ab3569416f1d2253eaf2c054780a77e8e6da41a23"
+    },
+    {
+      "tc_id": "TC_API_03_005",
+      "source_row": 15,
+      "status": "Passed",
+      "actual_result_sha256": "0a3380b4e0de6d559b20f3197b2df06fc27ae9d1b20eeb9001d7d3e9a5e31f04"
+    },
+    {
+      "tc_id": "TC_ORD_001_001",
+      "source_row": 16,
+      "status": "Passed",
+      "actual_result_sha256": "a687d6cf4399f6b753afb27ce04265a52305e503a3324550e1d0439cf9e858ab"
+    },
+    {
+      "tc_id": "TC_ORD_001_002",
+      "source_row": 17,
+      "status": "Passed",
+      "actual_result_sha256": "3c699077c95228689142e1fabcc1c7666869727529af34ebd48c83ce9a669c39"
+    },
+    {
+      "tc_id": "TC_ORD_001_007",
+      "source_row": 18,
+      "status": "Passed",
+      "actual_result_sha256": "0f0a6d0c387a115cd789ce18ca0c8d8b962930aa64aaace8278533771f4600ee"
+    },
+    {
+      "tc_id": "TC_ORD_001_011",
+      "source_row": 19,
+      "status": "Passed",
+      "actual_result_sha256": "cb6b1417d6151011838f76ed3dc4efcfe463c54f0dbd1a1827d5c64b64be6a70"
+    },
+    {
+      "tc_id": "TC_API_05_001",
+      "source_row": 20,
+      "status": "Passed",
+      "actual_result_sha256": "b8ff44f48451849bedbebb580babd70a6352d03699646bdec2162ebb2daf48ba"
+    },
+    {
+      "tc_id": "TC_API_05_002",
+      "source_row": 21,
+      "status": "Passed",
+      "actual_result_sha256": "2a683229bd2bc3a64abd69e6e6e3e8911a022d49af3469f039bfd90567b3b8c6"
+    },
+    {
+      "tc_id": "TC_API_05_003",
+      "source_row": 22,
+      "status": "Passed",
+      "actual_result_sha256": "e95a9100a59505e980e2779e61aebb9733fe92cee280b1c08b093b1f636d47ed"
+    },
+    {
+      "tc_id": "TC_API_05_004",
+      "source_row": 23,
+      "status": "Passed",
+      "actual_result_sha256": "c998aef60f6e2882069484b10a323e2a8cf7659df3e0168d771e121e762ed055"
+    },
+    {
+      "tc_id": "TC_API_05_005",
+      "source_row": 24,
+      "status": "Passed",
+      "actual_result_sha256": "cf934d1b0e3f2dd023f4b5c9d8d9755fc667de84b6c0ed5884e2abb8f20425ae"
+    },
+    {
+      "tc_id": "TC_API_06_001",
+      "source_row": 25,
+      "status": "Passed",
+      "actual_result_sha256": "653e9b5bcadda8cab98a28212c3a9bdf2181d0922855bf25cb13857505066098"
+    },
+    {
+      "tc_id": "TC_API_06_002",
+      "source_row": 26,
+      "status": "Passed",
+      "actual_result_sha256": "055a8b6cb73631a3a1fe3823e5cf4f17a09c093d7fb250c4ac8190cff3a84842"
+    },
+    {
+      "tc_id": "TC_API_06_003",
+      "source_row": 27,
+      "status": "Passed",
+      "actual_result_sha256": "92a7f47298c0b47ddf43870042049c6b0f7498d2dd39b3848132ce49990917bf"
+    },
+    {
+      "tc_id": "TC_API_07_001",
+      "source_row": 28,
+      "status": "Passed",
+      "actual_result_sha256": "1f6f1e03111859a36a55be53dfbedcd3ae4f6616549b88f029b4542c35ba0e31"
+    },
+    {
+      "tc_id": "TC_API_07_002",
+      "source_row": 29,
+      "status": "Passed",
+      "actual_result_sha256": "dad69b8ecc50cc1235350f3bc556525e11da2d8f009ec80b040c3a1fa24afa08"
+    },
+    {
+      "tc_id": "TC_PAY_002_001",
+      "source_row": 30,
+      "status": "Passed",
+      "actual_result_sha256": "9df0dbe9046edf6bb81a4f30796e442f88013f2d41f31637840f4cbca8c69ab4"
+    },
+    {
+      "tc_id": "TC_PAY_002_007",
+      "source_row": 31,
+      "status": "Passed",
+      "actual_result_sha256": "826d704a3f336e853e37f7159669d8b632e4c2c624d2a1fe9a3067aaead86a50"
+    },
+    {
+      "tc_id": "TC_PAY_002_011",
+      "source_row": 32,
+      "status": "Passed",
+      "actual_result_sha256": "c4d1e0e81bc9795cabef28ad768652ec2cd230c9f002bf940024c0bcce80e038"
+    },
+    {
+      "tc_id": "TC_API_09_001",
+      "source_row": 33,
+      "status": "Passed",
+      "actual_result_sha256": "49542d874e29c87b6f20babbec73a8c28a36d5dd72babdd71965ce478ef70270"
+    },
+    {
+      "tc_id": "TC_API_09_002",
+      "source_row": 34,
+      "status": "Passed",
+      "actual_result_sha256": "8756759f788f75c90e6134164438979f65674daec1d119d559569edb67841ef0"
+    },
+    {
+      "tc_id": "TC_AUTH_003_001",
+      "source_row": 35,
+      "status": "Passed",
+      "actual_result_sha256": "7f220445e6b45c1f358a47cfec48b72c7d323067fdf90569e5c77d20188dc360"
+    },
+    {
+      "tc_id": "TC_AUTH_003_002",
+      "source_row": 36,
+      "status": "Passed",
+      "actual_result_sha256": "07013dca6f582d1ed2400fdfa38af7a94f7ab70ec78bc6a41ee2bce67cd3cd83"
+    },
+    {
+      "tc_id": "TC_KDS_005_001",
+      "source_row": 37,
+      "status": "Passed",
+      "actual_result_sha256": "a255be7d0e6fab5855d6d02688ea9661c26ebceecc381873cb677969671414b6"
+    },
+    {
+      "tc_id": "TC_KDS_005_007",
+      "source_row": 38,
+      "status": "Passed",
+      "actual_result_sha256": "e8a19685de78003aeb011b011b20d5c64d4cf89f60f859279401397134b0c091"
+    },
+    {
+      "tc_id": "TC_KDS_005_011",
+      "source_row": 39,
+      "status": "Passed",
+      "actual_result_sha256": "2630bce9ef5d61762203244cc1872e5d81cd4282c580e008e3f6f2431c705147"
+    },
+    {
+      "tc_id": "TC_API_12_001",
+      "source_row": 40,
+      "status": "Not Executed",
+      "actual_result_sha256": "ed35d60a969e311bb055081af14e3d212f97465f5787162c22de87738c1d9575"
+    },
+    {
+      "tc_id": "TC_API_12_002",
+      "source_row": 41,
+      "status": "Passed",
+      "actual_result_sha256": "7136ba6dfa7f42d0a0ad8156e445cddb727b7f3656f737347a19c8fa9218f65c"
+    },
+    {
+      "tc_id": "TC_API_13_001",
+      "source_row": 42,
+      "status": "Passed",
+      "actual_result_sha256": "3df866e7145f576817e813975f77d87c8d025d124cfc8d1edb2beb6202f51fd1"
+    },
+    {
+      "tc_id": "TC_API_13_002",
+      "source_row": 43,
+      "status": "Passed",
+      "actual_result_sha256": "dab184087ec18be48e3e835e8d9a404058450186adcf0c4d3eb2b6b5dd87e495"
+    },
+    {
+      "tc_id": "TC_API_14_001",
+      "source_row": 44,
+      "status": "Passed",
+      "actual_result_sha256": "316f465f4e10b976aab7af6de3d7875065a0c26eeb04dc6bc0db9f440c97c8a0"
+    },
+    {
+      "tc_id": "TC_API_14_002",
+      "source_row": 45,
+      "status": "Passed",
+      "actual_result_sha256": "f488faf79dc212173c86714f5af7a685ed0cc98d10eb5b9a13760c88be30d888"
+    },
+    {
+      "tc_id": "TC_API_15_001",
+      "source_row": 46,
+      "status": "Passed",
+      "actual_result_sha256": "327b0ca97cb5245fe2237313a937268d3161ddb27120db8842344d59564d42d8"
+    },
+    {
+      "tc_id": "TC_API_15_002",
+      "source_row": 47,
+      "status": "Passed",
+      "actual_result_sha256": "aaf8da5a84833c1aedb91d45280c9ca90432089ae78bc1eb4051ccf4c629e325"
+    },
+    {
+      "tc_id": "TC_TECH_001",
+      "source_row": 48,
+      "status": "Passed",
+      "actual_result_sha256": "3f7db616d11dd5a38159ef263801decc4977f8af5ba51bf120a45c61934ce261"
+    },
+    {
+      "tc_id": "TC_TECH_002",
+      "source_row": 49,
+      "status": "Passed",
+      "actual_result_sha256": "f3c9a9d1d472f567e6e9748c34906cd05f8dd8f3de9901c7fa3f8a1e6f13bd53"
+    },
+    {
+      "tc_id": "TC_TECH_003",
+      "source_row": 50,
+      "status": "Passed",
+      "actual_result_sha256": "4e438abbe628ad633e008dde62c84ab038b574d1c8cae40482ed4d5456a3b16c"
+    },
+    {
+      "tc_id": "TC_API_01_004",
+      "source_row": 51,
+      "status": "Passed",
+      "actual_result_sha256": "575a0a623d4c6dcbf628490d805a779f83afc6d5cea9a4227874b40b1ebc3e53"
+    },
+    {
+      "tc_id": "TC_API_04_004",
+      "source_row": 52,
+      "status": "Passed",
+      "actual_result_sha256": "074836cec70824b983f8129ec2c9522b29f2f007f8a609ddf4cadac072ef6705"
+    },
+    {
+      "tc_id": "TC_API_05_006",
+      "source_row": 53,
+      "status": "Passed",
+      "actual_result_sha256": "cd20afcc894e45e6b9106e28481625aae9f59d28910d05068d62ebfd64f9f583"
+    },
+    {
+      "tc_id": "TC_API_16_001",
+      "source_row": 54,
+      "status": "Passed",
+      "actual_result_sha256": "37ee9a9eab771c889dd43925dee8877ea54ce2f23a6d96853a0486d4f1752063"
+    },
+    {
+      "tc_id": "TC_API_16_002",
+      "source_row": 55,
+      "status": "Passed",
+      "actual_result_sha256": "ca6d8edf09dc656ad61e9f4228c9e548789693dd31ca8578a1db6349dda66f46"
+    },
+    {
+      "tc_id": "TC_API_17_001",
+      "source_row": 56,
+      "status": "Passed",
+      "actual_result_sha256": "37cf70fa1ad6fad9cc8a257443ba0548ac8ecee69d3afac0260473d37283da10"
+    },
+    {
+      "tc_id": "TC_API_17_002",
+      "source_row": 57,
+      "status": "Passed",
+      "actual_result_sha256": "d9a444d048c180d24814a4daf23e0e303be8c3407eec1f41c55b99a1c388ec33"
+    },
+    {
+      "tc_id": "TC_API_18_001",
+      "source_row": 58,
+      "status": "Passed",
+      "actual_result_sha256": "613049caa82513975ab8d981d6f247e1335391a504ac93dff94ec804bb081d02"
+    },
+    {
+      "tc_id": "TC_API_18_002",
+      "source_row": 59,
+      "status": "Passed",
+      "actual_result_sha256": "6b8e441fb8c2f8c1947ebd943a30b4a29e2af80fc8ae5afaf337a632b270f215"
+    },
+    {
+      "tc_id": "TC_API_19_001",
+      "source_row": 60,
+      "status": "Passed",
+      "actual_result_sha256": "92806833355dd92afdc37bc5e18175932cbb53e50609837e8e20cfd8dbd1633b"
+    },
+    {
+      "tc_id": "TC_API_19_002",
+      "source_row": 61,
+      "status": "Passed",
+      "actual_result_sha256": "98c5fb32c1d6053274cacb817809db00245ddb5f4f08b3f73202ecefff29f201"
+    },
+    {
+      "tc_id": "TC_API_20_001",
+      "source_row": 62,
+      "status": "Passed",
+      "actual_result_sha256": "60a7a5a7096473b21a002c4ab6e0385cc927ab9e0d5402fb3c3a7463354d599e"
+    },
+    {
+      "tc_id": "TC_API_20_002",
+      "source_row": 63,
+      "status": "Passed",
+      "actual_result_sha256": "c9fcf6071867de8adc8c20cabbe20ff9c8fe0670af2a05c50c611f282e31f8ca"
+    },
+    {
+      "tc_id": "TC_API_21_001",
+      "source_row": 64,
+      "status": "Passed",
+      "actual_result_sha256": "b82e6163f740109f817833de1366c0982a65476f2d43c6fe2dc86a130ddb1d8b"
+    },
+    {
+      "tc_id": "TC_API_21_002",
+      "source_row": 65,
+      "status": "Passed",
+      "actual_result_sha256": "15fc289d270852f11e905732295b0c802c13ff775256bde4d104e462dc8d5c9f"
+    },
+    {
+      "tc_id": "TC_API_16_003",
+      "source_row": 66,
+      "status": "Passed",
+      "actual_result_sha256": "32e5f1f06e9b032d5a71bde79b9a123440f04ec84fcc1a8ed10bf4918ca081c6"
+    },
+    {
+      "tc_id": "TC_API_17_003",
+      "source_row": 67,
+      "status": "Passed",
+      "actual_result_sha256": "ccf1061eac08bdcb7f10029207e17087670415b0f1815d963229da316af6bd84"
+    },
+    {
+      "tc_id": "TC_API_18_003",
+      "source_row": 68,
+      "status": "Passed",
+      "actual_result_sha256": "af99d93228a308748257806ceb2fc76a29b0fefa683aa5883fa5d8bae7d7f959"
+    },
+    {
+      "tc_id": "TC_API_19_003",
+      "source_row": 69,
+      "status": "Passed",
+      "actual_result_sha256": "89fded538c806d616f8d7e32adc05bfa636bc6d3baac8589dc609d25fed152b3"
+    },
+    {
+      "tc_id": "TC_API_20_003",
+      "source_row": 70,
+      "status": "Passed",
+      "actual_result_sha256": "16eb34aae1afbe8c8c4f5e29ab526ae27fa529550ca47db25266fa6bde240aae"
+    },
+    {
+      "tc_id": "TC_API_21_003",
+      "source_row": 71,
+      "status": "Passed",
+      "actual_result_sha256": "259f44557245942d43e794184e39cbabb1d535016de1c36504320514872ede80"
+    },
+    {
+      "tc_id": "TC_PM_02",
+      "source_row": 72,
+      "status": "Passed",
+      "actual_result_sha256": "e55b3a0b44d070f0e8094afb62280995ebf84bbd4cc71fb9064e58d49f8688c5"
+    },
+    {
+      "tc_id": "TC_PM_03",
+      "source_row": 73,
+      "status": "Passed",
+      "actual_result_sha256": "4ae76144d3f76da31ae9dafd93dd35e94b509431f88dc22d7c77a666be3fc0a3"
+    },
+    {
+      "tc_id": "TC_PM_04",
+      "source_row": 74,
+      "status": "Passed",
+      "actual_result_sha256": "621ae0c0cfe825dd96856417c31120577cbe764d2455c4714f1885cd73e50cdd"
+    },
+    {
+      "tc_id": "TC_PM_07",
+      "source_row": 75,
+      "status": "Passed",
+      "actual_result_sha256": "61c01fc9d01e5f7577cf6454fd635e9bec3fe0fb38671ba29a856fe5e1e674d3"
+    },
+    {
+      "tc_id": "TC_PM_08",
+      "source_row": 76,
+      "status": "Passed",
+      "actual_result_sha256": "3ad1631e3eb970b25771191aac1e9a7275a189d601476243eb5713f939a46221"
+    },
+    {
+      "tc_id": "TC_PM_10",
+      "source_row": 77,
+      "status": "Passed",
+      "actual_result_sha256": "3d0077de44c242f73aa1fafdae28d2a22fe3e1e7b192666e9739614c22a69fa1"
+    },
+    {
+      "tc_id": "TC_PM_11",
+      "source_row": 78,
+      "status": "Passed",
+      "actual_result_sha256": "30cde9e6a88e34c976413656cd2eb87855bac1836de69f0d62a073606ac9d6d3"
+    },
+    {
+      "tc_id": "TC_PM_12",
+      "source_row": 79,
+      "status": "Passed",
+      "actual_result_sha256": "600bd3819b49532f3ef06dca689b1371ad312863c8259fa354d60402b9efe204"
+    },
+    {
+      "tc_id": "TC_PM_13",
+      "source_row": 80,
+      "status": "Passed",
+      "actual_result_sha256": "62148a82bb19bbba2b8d9bfb9e42d00cc5ecaa886dcddf4d161864f63514d707"
+    },
+    {
+      "tc_id": "TC_PM_14",
+      "source_row": 81,
+      "status": "Passed",
+      "actual_result_sha256": "aa37be2781b095f60c3f44de4fe0576d0672e6d81b2a196e836d830e2cc4b386"
+    },
+    {
+      "tc_id": "TC_PM_15",
+      "source_row": 82,
+      "status": "Passed",
+      "actual_result_sha256": "e362a274da6c47f0fe0d79da93fafccde3b9007de84c7881b489aab0bcad629e"
+    },
+    {
+      "tc_id": "TC_PM_16",
+      "source_row": 83,
+      "status": "Passed",
+      "actual_result_sha256": "d9621d302dc4677f9ac513e36d83e129e981f2722626480ee9a0ad4a85743f8f"
+    },
+    {
+      "tc_id": "TC_PM_17",
+      "source_row": 84,
+      "status": "Passed",
+      "actual_result_sha256": "ce9c40ea285d477f23c30825dcffeca769b5a441bd399fe5eb3e8dd403f1d9a5"
+    },
+    {
+      "tc_id": "TC_PM_18",
+      "source_row": 85,
+      "status": "Passed",
+      "actual_result_sha256": "509c394e215fc9e0275b72292a14aea595e5d6b60d9ca7ead6a35c6c3c847cb8"
+    },
+    {
+      "tc_id": "TC_PM_19",
+      "source_row": 86,
+      "status": "Passed",
+      "actual_result_sha256": "9bef8b74a2459ffa9cd36db92b2c50d0507cd62e6ebe3194bb80c498aeb4bc14"
+    },
+    {
+      "tc_id": "TC_PM_20",
+      "source_row": 87,
+      "status": "Passed",
+      "actual_result_sha256": "5ddc17261dd2252df4cbab912162195d94ec8912a3ccbaca9abfb8c751f4100d"
+    },
+    {
+      "tc_id": "TC_PM_21",
+      "source_row": 88,
+      "status": "Passed",
+      "actual_result_sha256": "1066829ebb63806fabdf4117bc7c7cb55627d8af0aff9d9b11a88de21f104448"
+    },
+    {
+      "tc_id": "TC_PM_22",
+      "source_row": 89,
+      "status": "Passed",
+      "actual_result_sha256": "e58c4a9c87c547ddd94f0b13269ba08b135da5b5484e3035935ecfdb1e8ccd69"
+    },
+    {
+      "tc_id": "TC_PM_23",
+      "source_row": 90,
+      "status": "Passed",
+      "actual_result_sha256": "6f073c180ae244b96bd617ffdcddabf1286339dd865a6f00ecd8da5a22fe2a12"
+    },
+    {
+      "tc_id": "TC_PM_24",
+      "source_row": 91,
+      "status": "Passed",
+      "actual_result_sha256": "4ec7d1155b4b4b36999b7dd3c517de338905ce64f140209e75327c4aed142e4c"
+    },
+    {
+      "tc_id": "TC_PM_25",
+      "source_row": 92,
+      "status": "Passed",
+      "actual_result_sha256": "2df55085b22562e51682924b0b300e0c351cf16c974e0354a73cd0add49a01ec"
+    },
+    {
+      "tc_id": "TC_PM_27",
+      "source_row": 93,
+      "status": "Passed",
+      "actual_result_sha256": "039f8272d8d8df03dddb895e908e384f9e2df9db78f5a17ea9e501acff3d8840"
+    },
+    {
+      "tc_id": "TC_PM_32",
+      "source_row": 94,
+      "status": "Passed",
+      "actual_result_sha256": "bbe4744891eb88118bd6f5dcfa28ad226824a8411cb5373b59db21af5ad53e0b"
+    },
+    {
+      "tc_id": "TC_PM_34",
+      "source_row": 95,
+      "status": "Passed",
+      "actual_result_sha256": "70c06e29259b7e6de9d54c65b1dea683556d2e9a71e427205c97d34173267d22"
+    },
+    {
+      "tc_id": "TC_PM_35",
+      "source_row": 96,
+      "status": "Passed",
+      "actual_result_sha256": "f2dbd50406694ac48403aae3d12be3ac346fed299c5934756221e19ab95ba1d1"
+    },
+    {
+      "tc_id": "TC_PM_37",
+      "source_row": 97,
+      "status": "Passed",
+      "actual_result_sha256": "276e551f6f0982e3a48ee043821c04bc1dd2b870a3ed5f684da8a2412b1a5064"
+    },
+    {
+      "tc_id": "TC_PM_41",
+      "source_row": 98,
+      "status": "Passed",
+      "actual_result_sha256": "2c425ccaff610ccd903ac3d3d77a593f72909dfc01ddee6315bfef322e897cb7"
+    },
+    {
+      "tc_id": "TC_PM_47",
+      "source_row": 99,
+      "status": "Passed",
+      "actual_result_sha256": "33121a9f587df546e2a21615c5e12800790f173916971cf2bce92af8ed9616e1"
+    },
+    {
+      "tc_id": "TC_EXT_001",
+      "source_row": 100,
+      "status": "Passed",
+      "actual_result_sha256": "6c00953cdd60acbea54fe952db1a317c1a121d1ddfe7e425c1bf534f34ad0980"
+    },
+    {
+      "tc_id": "TC_EXT_002",
+      "source_row": 101,
+      "status": "Passed",
+      "actual_result_sha256": "62ea3fed949beda2523c06ef319469bcf4273cae31c7faa05f4d385bea1b6c70"
+    },
+    {
+      "tc_id": "TC_EXT_003",
+      "source_row": 102,
+      "status": "Passed",
+      "actual_result_sha256": "38c26a1cdd50a94f9df5a11aa9921cd57da16729bcb51108b50664e67fb28143"
+    },
+    {
+      "tc_id": "TC_EXT_004",
+      "source_row": 103,
+      "status": "Passed",
+      "actual_result_sha256": "eae86d8f6255cefe5c06ca0f0caf72a5b77b0bd392e906a90f726c675321d329"
+    },
+    {
+      "tc_id": "TC_EXT_005",
+      "source_row": 104,
+      "status": "Passed",
+      "actual_result_sha256": "7e09af418022efab06276e23310bd7d8ad56b7bcfe7a29e4dd59be00edaf6562"
+    },
+    {
+      "tc_id": "TC_EXT_006",
+      "source_row": 105,
+      "status": "Passed",
+      "actual_result_sha256": "4e241a74cf37f5d519783c3aab37ed79e21cbaff45910da837af96703fe27262"
+    },
+    {
+      "tc_id": "TC_EXT_007",
+      "source_row": 106,
+      "status": "Passed",
+      "actual_result_sha256": "ed60b2e19945fb462f670c1e1f3c397200e7a5008b3cc1a45674d88472a897a9"
+    },
+    {
+      "tc_id": "TC_EXT_008",
+      "source_row": 107,
+      "status": "Passed",
+      "actual_result_sha256": "9aae2df59c31089da1a892a754734ddac96d76619575e2d6cfd6de6b6fd66407"
+    },
+    {
+      "tc_id": "TC_EXT_009",
+      "source_row": 108,
+      "status": "Passed",
+      "actual_result_sha256": "c3a3d3bb9450deb2875252def69cfc612a6679b95922cb9059273fe30a106ef1"
+    },
+    {
+      "tc_id": "TC_EXT_010",
+      "source_row": 109,
+      "status": "Passed",
+      "actual_result_sha256": "e76f1b6859c0b7d87e2cb63a9634339f59ef6e6ab7d4cbc48868e056bf08f491"
+    },
+    {
+      "tc_id": "TC_EXT_011",
+      "source_row": 110,
+      "status": "Passed",
+      "actual_result_sha256": "edb73090d4054fce8615c76685b024b59f6a7a12be5075d2a067cf33abf76309"
+    },
+    {
+      "tc_id": "TC_EXT_012",
+      "source_row": 111,
+      "status": "Passed",
+      "actual_result_sha256": "6699596f8317e852e1b2078c782b299b9fe73a10866627315e1ec550791b44fc"
+    },
+    {
+      "tc_id": "TC_EXT_013",
+      "source_row": 112,
+      "status": "Passed",
+      "actual_result_sha256": "b3c004469f3afa541ece724013991f050eefcdcc3295c657ce5eba6105312ccb"
+    },
+    {
+      "tc_id": "TC_EXT_014",
+      "source_row": 113,
+      "status": "Passed",
+      "actual_result_sha256": "34ac2f139dfd98981913d04aa8f113bc7a369d2ad85a07e1bbd485916ef44d4a"
+    },
+    {
+      "tc_id": "TC_EXT_015",
+      "source_row": 114,
+      "status": "Passed",
+      "actual_result_sha256": "4705af9e9df4d67e52addd8279bf9dd64615956c201805567c14980e1bf8c746"
+    },
+    {
+      "tc_id": "TC_EXT_016",
+      "source_row": 115,
+      "status": "Passed",
+      "actual_result_sha256": "1209c1f623751fd17c7d0041effa01f0f1fed5ca6d6465252ab83f264ecf74fe"
+    },
+    {
+      "tc_id": "TC_EXT_017",
+      "source_row": 116,
+      "status": "Pending",
+      "actual_result_sha256": "a037518b5475dba74811ea8f1e3c0e98caf5cf77fbb0828feb0f4dc9f792ffb9"
+    },
+    {
+      "tc_id": "TC_EXT_018",
+      "source_row": 117,
+      "status": "Failed",
+      "actual_result_sha256": "d2b5b2374cb5a439ca219c2232616f73f3426f39882a7e8b4f0d4646948b028f"
+    },
+    {
+      "tc_id": "TC_EXT_019",
+      "source_row": 118,
+      "status": "Blocked",
+      "actual_result_sha256": "80058c6b7083e46273917915180fc2d8bf7fc18a2b5c5a5bf617e48df6e511ca"
+    },
+    {
+      "tc_id": "TC_EXT_020",
+      "source_row": 119,
+      "status": "Passed",
+      "actual_result_sha256": "479e7c5883277ce171f816f2e5c9bd201a9b9c035dc1416610c8d03adcd2f5b3"
+    }
+  ]
+}
