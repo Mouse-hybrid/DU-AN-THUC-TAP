@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "source_workbook": "AFG_POS_QAQC_116_Phase1_hien_hanh_20261124.xlsx",
-  "source_sha256": "5e76eaa79780fefd45800052165cd1f6e386b3484e96934b945c3013ac6728e3",
-  "snapshot_utc": "2026-11-25T01:55:14.360977+00:00",
+  "source_workbook": "AFG_POS_QAQC_116_phase1(2).xlsx",
+  "source_sha256": "ed49d41423d044a91d40994f61d95679aa10a2ca437fb791e7ac1be508c90816",
+  "snapshot_utc": "2026-11-26T12:07:41.930881+00:00",
   "cases": [
     {
       "tc_id": "TC_API_01_001",
@@ -32,13 +32,13 @@
       "tc_id": "TC_API_02_002",
       "source_row": 8,
       "status": "Passed",
-      "actual_result_sha256": "ef33266b538da33ca725e8dff9fa2d79f10ab55439bfa8eb24f1186205abff6c"
+      "actual_result_sha256": "4fdb3514bf49b53c487c400e21a7dd4afce744eb6f46c90adf7d3bd51b410b8b"
     },
     {
       "tc_id": "TC_API_02_003",
       "source_row": 9,
       "status": "Passed",
-      "actual_result_sha256": "808525b42f64ec6ca25c1436222582fd000ef4101f0f8cfef193fb9a49b49692"
+      "actual_result_sha256": "07e1321398dc865d165146d66ce2cab2c34d3e6f39d0926c3d95274db52a7c6b"
     },
     {
       "tc_id": "TC_API_02_004",
@@ -67,8 +67,8 @@
     {
       "tc_id": "TC_API_03_004",
       "source_row": 14,
-      "status": "Blocked",
-      "actual_result_sha256": "bff3bb926f251400c306a50ab3569416f1d2253eaf2c054780a77e8e6da41a23"
+      "status": "Passed",
+      "actual_result_sha256": "27181ff2fff89163ef27acc220727258524795e1205f48f8b412aed27cf634dc"
     },
     {
       "tc_id": "TC_API_03_005",
@@ -224,7 +224,7 @@
       "tc_id": "TC_API_12_001",
       "source_row": 40,
       "status": "Not Executed",
-      "actual_result_sha256": "ed35d60a969e311bb055081af14e3d212f97465f5787162c22de87738c1d9575"
+      "actual_result_sha256": null
     },
     {
       "tc_id": "TC_API_12_002",
@@ -362,13 +362,13 @@
       "tc_id": "TC_API_20_002",
       "source_row": 63,
       "status": "Passed",
-      "actual_result_sha256": "c9fcf6071867de8adc8c20cabbe20ff9c8fe0670af2a05c50c611f282e31f8ca"
+      "actual_result_sha256": "0d4a2d7b22e1d978baee37fce05d585cb2b193a2561e210de5795e89d1097b75"
     },
     {
       "tc_id": "TC_API_21_001",
       "source_row": 64,
       "status": "Passed",
-      "actual_result_sha256": "b82e6163f740109f817833de1366c0982a65476f2d43c6fe2dc86a130ddb1d8b"
+      "actual_result_sha256": "b82f5c912dd111861934e0cbb713ac97c7d81f983a6811f5fbc07f5dd2bd18d3"
     },
     {
       "tc_id": "TC_API_21_002",
@@ -679,20 +679,20 @@
     {
       "tc_id": "TC_EXT_017",
       "source_row": 116,
-      "status": "Pending",
-      "actual_result_sha256": "a037518b5475dba74811ea8f1e3c0e98caf5cf77fbb0828feb0f4dc9f792ffb9"
+      "status": "Passed",
+      "actual_result_sha256": "d6430fc97f7389910ea236a12091cf3cb5ca949aa33ef8472d7a247cd19729d8"
     },
     {
       "tc_id": "TC_EXT_018",
       "source_row": 117,
       "status": "Failed",
-      "actual_result_sha256": "d2b5b2374cb5a439ca219c2232616f73f3426f39882a7e8b4f0d4646948b028f"
+      "actual_result_sha256": null
     },
     {
       "tc_id": "TC_EXT_019",
       "source_row": 118,
-      "status": "Blocked",
-      "actual_result_sha256": "80058c6b7083e46273917915180fc2d8bf7fc18a2b5c5a5bf617e48df6e511ca"
+      "status": "Passed",
+      "actual_result_sha256": "30a8b6fcb2a2937b99adf019fa1e15409ba5c6e7c703f2e4b99298243fa3a93a"
     },
     {
       "tc_id": "TC_EXT_020",
