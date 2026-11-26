@@ -1,0 +1,97 @@
+name: QA CD post-deploy three gates
+
+on:
+  workflow_run:
+    workflows: [Backend CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-staging:
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: qa-cd-postdeploy-staging
+      cancel-in-progress: false
+    env:
+      BASE_URL: http://160.191.47.17
+      POS_EXPECTED_COMMIT: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Check out deployed source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: deployed
+          persist-credentials: false
+      - name: Check out QA gates
+        uses: actions/checkout@v4
+        with:
+          ref: ONLY_TESTING
+          path: qa-gates
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deployed SHA and unauthenticated guards
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const base = process.env.BASE_URL;
+          const read = async path => fetch(base + path, { signal: AbortSignal.timeout(20000) });
+          const version = await read('/version');
+          if (version.status !== 200) throw Error(`version HTTP ${version.status}`);
+          const build = await version.json();
+          if (build.environment !== 'staging' || build.commit !== process.env.POS_EXPECTED_COMMIT)
+            throw Error('Staging has not deployed this Backend CI SHA');
+          for (const path of ['/health', '/ready', '/openapi.json']) {
+            const response = await read(path);
+            if (response.status !== 200) throw Error(`${path} HTTP ${response.status}`);
+          }
+          const protectedResponse = await read('/api/v1/tables');
+          if (protectedResponse.status !== 401) throw Error('Anonymous table guard changed');
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `Post-deploy staging SHA verified: \`${build.commit}\`; health, ready, contract and guard OK.\n`);
+          NODE
+      - name: Check Phase 2 and UX/UI historical evidence thresholds
+        working-directory: qa-gates/qa/automation/Testing_POS/scripts
+        run: node check_phase2_ux_gate.mjs
+      - name: Run Phase 1 current-build smoke
+        id: smoke
+        working-directory: qa-gates/qa/automation/Testing_POS
+        run: node scripts/s4_p0p1_safe_readonly.mjs
+      - name: Check Phase 1 historical baseline plus current-build smoke
+        working-directory: qa-gates/qa/automation/Testing_POS
+        env:
+          SMOKE_PATH: ${{ steps.smoke.outputs.evidence_path }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const manifest = JSON.parse(readFileSync('phase1-gate.json', 'utf8'));
+          const prefix = 'qa/automation/Testing_POS/';
+          if (!process.env.SMOKE_PATH?.startsWith(prefix)) throw Error('Missing Phase 1 smoke artifact');
+          const path = process.env.SMOKE_PATH.slice(prefix.length);
+          manifest.target_build = process.env.POS_EXPECTED_COMMIT;
+          manifest.verified_cases = manifest.fresh_smoke_required.map(tc_id => ({ tc_id, evidence: path }));
+          writeFileSync('phase1-gate-cd.json', JSON.stringify(manifest));
+          NODE
+          node scripts/check_phase1_gate.mjs phase1-gate-cd.json
+      - name: Check SHA again after all gates
+        run: |
+          node --input-type=module <<'NODE'
+          const r = await fetch(`${process.env.BASE_URL}/version`, { signal: AbortSignal.timeout(20000) });
+          if (r.status !== 200 || (await r.json()).commit !== process.env.POS_EXPECTED_COMMIT)
+            throw Error('Staging changed during post-deploy verification');
+          NODE
+          echo 'Phase 2 and UX/UI thresholds refer to historical evidence; authenticated cases were not rerun by CD.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Phase 1 current-build smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-gates-postdeploy-${{ github.run_id }}
+          path: qa-gates/qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
+          if-no-files-found: warn
+          retention-days: 14
