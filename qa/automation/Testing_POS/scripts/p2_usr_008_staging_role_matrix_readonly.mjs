@@ -1,15 +1,16 @@
 // P2-USR-008 staging side: QA3 effective permission matrix and safe HTTP guards.
 // Pair with backend/tests/test_permissions.py and a same-build customer QR UI run.
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const base = (process.env.POS_STAGING_URL || 'http://160.191.47.17').replace(/\/+$/, '');
 const pin = process.env.S2_STAGING_PIN || process.env.P2_QA_SEED_PASSWORD;
 const expected = process.env.POS_EXPECTED_COMMIT;
 const output = process.argv[2];
+const customerEvidencePath = process.argv[3];
 if (base !== 'http://160.191.47.17' || !pin ||
-    !/^[a-f0-9]{40}$/.test(expected || '') || !output)
+    !/^[a-f0-9]{40}$/.test(expected || '') || !output || !customerEvidencePath)
   throw Error('QA staging, private PIN, pinned full SHA and output required');
 
 const floor = ['CASHIER', 'WAITER', 'SUPERVISOR'];
@@ -38,9 +39,9 @@ const users = [
 const tokens = {};
 const report = {
   run_id: 'RUN-' + new Date().toISOString().replace(/\D/g, '') + '-P2USR008',
-  test_ref: 'PF-P2-USR-008-STAGING', checked_at: new Date().toISOString(),
-  scope: 'Read-only QA3 effective 21-permission matrix; live POS/KDS/staff guards and non-mutating create-order and QR-management denials. Customer QR write and full positive action matrix require separate evidence.',
-  case_coverage: 'QA3_EFFECTIVE_MATRIX_AND_SAFE_HTTP_GUARDS',
+  test_ref: 'P2-USR-008', checked_at: new Date().toISOString(),
+  scope: 'QA3 effective 21-permission contract and 84 runtime authorization cells with invalid fixture IDs, plus same-build customer QR positive evidence; no runtime business write in this run.',
+  case_coverage: 'QA3_21_PERMISSION_RUNTIME_MATRIX_AND_CUSTOMER_QR_EVIDENCE',
   secrets_recorded: false, mutations: 0, checks: {}, rows: [],
 };
 const redact = error => {
@@ -121,15 +122,64 @@ try {
     kitchen_issue_qr: kitchenQR.http, anonymous_kds: anonKds.http };
   report.checks.runtime_write_denials = kitchenCreate.http === 403 &&
     anonCreate.http === 401 && kitchenQR.http === 403 && anonKds.http === 401;
+  // Every declared permission has a representative runtime endpoint. Use invalid
+  // entity IDs or invalid bodies so allowed roles fail validation, never mutate data.
+  const absent = randomUUID();
+  const cases = {
+    ORDER_WRITE: ['POST', '/api/v1/orders'],
+    SEND_TO_KITCHEN: ['POST', `/api/v1/orders/${absent}/send-to-kitchen`],
+    REQUEST_BILLING: ['POST', `/api/v1/orders/${absent}/request-billing`],
+    PROCESS_PAYMENT: ['POST', `/api/v1/orders/${absent}/payments`],
+    OVERRIDE: ['POST', `/api/v1/orders/${absent}/items/${absent}/void`],
+    VIEW_KDS: ['GET', '/api/v1/kitchen/queue'],
+    KITCHEN_ACTION: ['POST', `/api/v1/orders/${absent}/items/${absent}/start-cooking`],
+    SERVE_FOOD: ['POST', `/api/v1/orders/${absent}/items/${absent}/served`],
+    TABLE_OPEN: ['POST', `/api/v1/tables/${absent}/open-session`],
+    TABLE_MARK_CLEAN: ['POST', `/api/v1/tables/${absent}/mark-clean`],
+    TABLE_LAYOUT_MANAGE: ['PATCH', `/api/v1/tables/${absent}`],
+    TABLE_TRANSFER: ['POST', `/api/v1/tables/${absent}/transfer`],
+    QR_SESSION_MANAGE: ['POST', `/api/v1/tables/${absent}/qr-session`],
+    MENU_WRITE: ['POST', '/api/v1/menu'],
+    AUDIT_READ: ['GET', '/api/v1/audit-logs?limit=1'],
+    STAFF_MANAGE: ['POST', '/api/v1/staff'],
+    CUSTOMER_ACCESS: ['GET', `/api/v1/customers/${absent}`],
+    REWARD_APPLY: ['GET', `/api/v1/orders/${absent}/eligible-rewards`],
+    LOYALTY_MANAGE: ['GET', '/api/v1/loyalty-rules'],
+    PAYMENT_REFUND: ['POST', `/api/v1/payments/${absent}/refunds`],
+    OUTLET_SETTINGS: ['GET', '/api/v1/outlet/settings'],
+  };
+  if (Object.keys(cases).length !== Object.keys(expectedRoles).length)
+    throw Error('Permission coverage incomplete');
+  report.matrix = [];
+  for (const [permission, [method, path]] of Object.entries(cases)) {
+    for (const [role, , name] of users) {
+      const response = await call(method, path, role, method === 'GET' ? undefined : {});
+      const allowed = expectedRoles[permission].includes(name);
+      const matches = allowed ? response.http !== 401 && response.http !== 403 && response.http < 500
+        : response.http === 403;
+      report.matrix.push({ permission, role: name, http: response.http, matches });
+    }
+  }
+  report.checks.runtime_matrix_all_cells = report.matrix.length === 84 &&
+    report.matrix.every(row => row.matches);
+  const customer = JSON.parse(readFileSync(customerEvidencePath, 'utf8'));
+  report.customer_evidence = { run_id: customer.run_id, test_ref: customer.test_ref,
+    staging_commit: customer.staging_commit, result: customer.result };
+  report.checks.customer_qr_positive =
+    customer.test_ref === 'S4-QR-CUSTOMER-DIRECT-UI' && customer.result === 'PASSED' &&
+    customer.staging_commit === before && customer.build_stable === true &&
+    customer.cleanup_pass === true && customer.ui_submit_http === 201 &&
+    customer.checks?.customer_receipt_visible === true &&
+    customer.checks?.direct_sent === true;
   if (!Object.values(report.checks).every(Boolean))
-    throw Error('QA3 role matrix or HTTP guard mismatch');
+    throw Error('QA3 role matrix or customer evidence mismatch');
 } catch (error) { failure = redact(error?.message || error); }
 try { report.build_after = await build(); } catch { report.build_after = null; }
 report.build_stable = before === expected && report.build_after === before;
-report.result = !failure && report.build_stable ? 'PASSED_BRANCH_ONLY' :
+report.result = !failure && report.build_stable ? 'PASSED' :
   /^PENDING_/.test(failure || '') ? 'PENDING' : 'FAILED';
 if (failure) report.error = failure;
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
 console.log('[P2-USR-008] Result: ' + JSON.stringify(report));
-if (report.result !== 'PASSED_BRANCH_ONLY') process.exitCode = 1;
+if (report.result !== 'PASSED') process.exitCode = 1;
