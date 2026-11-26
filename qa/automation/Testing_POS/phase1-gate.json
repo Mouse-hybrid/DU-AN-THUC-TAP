@@ -1,19 +1,13 @@
 {
   "schema_version": 2,
-  "source_workbook": "AFG_POS_QAQC_116_Phase1_hien_hanh_20261124.xlsx",
-  "source_workbook_sha256": "5e76eaa79780fefd45800052165cd1f6e386b3484e96934b945c3013ac6728e3",
+  "source_workbook": "AFG_POS_QAQC_116_phase1(2).xlsx",
+  "source_workbook_sha256": "ed49d41423d044a91d40994f61d95679aa10a2ca437fb791e7ac1be508c90816",
   "baseline_file": "phase1-historical-baseline.json",
-  "target_build": "89d8889185d0a90ea3bd7cc1c01d41916495129a",
+  "target_build": "b99723ba4d3452cb7079d13e9f4879223d243ddd",
   "total_testcases": 116,
-  "fresh_smoke_required": ["TC_EXT_009", "TC_API_01_003"],
-  "verified_cases": [
-    {
-      "tc_id": "TC_EXT_009",
-      "evidence": "evidence/PHASE1/P0P1_SAFE_RUN-20261125013507137-S4P0P1SAFE.json"
-    },
-    {
-      "tc_id": "TC_API_01_003",
-      "evidence": "evidence/PHASE1/P0P1_SAFE_RUN-20261125013507137-S4P0P1SAFE.json"
-    }
-  ]
+  "fresh_smoke_required": [
+    "TC_EXT_009",
+    "TC_API_01_003"
+  ],
+  "verified_cases": []
 }
