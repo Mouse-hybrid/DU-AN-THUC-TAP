@@ -1,0 +1,31 @@
+name: Phase 2 and UX UI evidence gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ONLY_TESTING]
+    paths:
+      - qa/automation/Testing_POS/scripts/phase2_ux_gate_manifest.json
+      - qa/automation/Testing_POS/scripts/check_phase2_ux_gate.mjs
+      - .github/workflows/phase2-ux-evidence-gate.yml
+  pull_request:
+    paths:
+      - qa/automation/Testing_POS/scripts/phase2_ux_gate_manifest.json
+      - qa/automation/Testing_POS/scripts/check_phase2_ux_gate.mjs
+      - .github/workflows/phase2-ux-evidence-gate.yml
+
+jobs:
+  evidence-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS/scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Phase 2 and UX/UI case evidence
+        run: node check_phase2_ux_gate.mjs
