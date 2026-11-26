@@ -72,6 +72,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       open: ${{ steps.gate.outcome == 'success' }}
+      build: ${{ steps.pin.outputs.sha }}
     defaults:
       run:
         working-directory: qa/automation/Testing_POS
@@ -81,6 +82,7 @@ jobs:
         with:
           node-version: '22'
       - name: Pin deployed SHA for gate
+        id: pin
         env:
           BASE_URL: http://160.191.47.17
         run: |
@@ -92,17 +94,47 @@ jobs:
           if (v.environment !== 'staging' || !/^[0-9a-f]{40}$/.test(v.commit || ''))
             throw new Error('Invalid staging environment or SHA');
           appendFileSync(process.env.GITHUB_ENV, `POS_EXPECTED_COMMIT=${v.commit}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `sha=${v.commit}\n`);
+          NODE
+      - name: Run fresh fixture-free smoke on pinned build
+        id: fresh
+        env:
+          BASE_URL: http://160.191.47.17
+        run: node scripts/s4_p0p1_safe_readonly.mjs
+      - name: Bind fresh smoke evidence to current build
+        env:
+          EVIDENCE_PATH: ${{ steps.fresh.outputs.evidence_path }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const manifest = JSON.parse(readFileSync('phase1-gate.json', 'utf8'));
+          const prefix = 'qa/automation/Testing_POS/';
+          if (!process.env.EVIDENCE_PATH?.startsWith(prefix))
+            throw Error('Fresh smoke evidence path missing');
+          const evidence = process.env.EVIDENCE_PATH.slice(prefix.length);
+          manifest.target_build = process.env.POS_EXPECTED_COMMIT;
+          manifest.verified_cases = manifest.fresh_smoke_required.map(tc_id => ({ tc_id, evidence }));
+          writeFileSync('phase1-gate-runtime.json', JSON.stringify(manifest));
           NODE
       - name: Verify Phase 1 evidence
         id: gate
-        continue-on-error: ${{ inputs.mode != 'gated-regression' }}
-        run: node scripts/check_phase1_gate.mjs phase1-gate.json
+        run: node scripts/check_phase1_gate.mjs phase1-gate-runtime.json
+      - name: Upload current-build Phase 1 gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-gate-${{ github.run_id }}
+          path: ${{ steps.fresh.outputs.evidence_path }}
+          if-no-files-found: warn
+          retention-days: 14
 
   safe-api-regression:
     if: needs.evidence-gate.outputs.open == 'true' && (github.event_name == 'push' || inputs.mode == 'gated-regression')
     needs: evidence-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      POS_EXPECTED_COMMIT: ${{ needs.evidence-gate.outputs.build }}
     defaults:
       run:
         working-directory: qa/automation/Testing_POS
