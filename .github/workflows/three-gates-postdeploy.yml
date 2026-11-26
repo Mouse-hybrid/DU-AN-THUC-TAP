@@ -59,6 +59,22 @@ jobs:
       - name: Check Phase 2 and UX/UI historical evidence thresholds
         working-directory: qa-gates/qa/automation/Testing_POS/scripts
         run: node check_phase2_ux_gate.mjs
+      - name: Smoke Phase 2 QR guard and UX routes on deployed build
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const base = process.env.BASE_URL;
+          const read = path => fetch(base + path, { signal: AbortSignal.timeout(20000) });
+          const qr = await read('/api/v1/public/qr/invalid-cd-token');
+          if (qr.status !== 401) throw Error(`Invalid QR token HTTP ${qr.status}`);
+          for (const path of ['/login', '/qr/invalid-cd-token']) {
+            const response = await read(path);
+            if (response.status !== 200 || !response.headers.get('content-type')?.includes('text/html'))
+              throw Error(`${path}: UX route did not serve HTML`);
+          }
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            'Current-build Phase 2 QR guard and UX route smoke Passed (read-only).\n');
+          NODE
       - name: Run Phase 1 current-build smoke
         id: smoke
         working-directory: qa-gates/qa/automation/Testing_POS
