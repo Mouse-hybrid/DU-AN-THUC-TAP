@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
-const { target_build: expected } = JSON.parse(readFileSync('phase1-gate.json', 'utf8'));
+const expected = process.env.POS_EXPECTED_COMMIT ||
+  JSON.parse(readFileSync('phase1-gate.json', 'utf8')).target_build;
 if (!/^[0-9a-f]{40}$/.test(expected || '')) throw new Error('Invalid target build');
 const response = await fetch(`${process.env.BASE_URL || 'http://160.191.47.17'}/version`, {
   signal: AbortSignal.timeout(20_000),
