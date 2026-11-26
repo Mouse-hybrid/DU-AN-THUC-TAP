@@ -24,7 +24,8 @@ test('P2-QR-009 | customer cannot modify a sent QR item',
       test_ref: 'P2-QR-009',
       checked_at: new Date().toISOString(), project: testInfo.project.name,
       scope: 'QA3 DIRECT customer UI submits one item; token attempts PATCH and DELETE on that sent item are denied, leaving order/ledger/business audit unchanged; KDS and owned cleanup.',
-      case_coverage: 'CUSTOMER_TOKEN_MODIFY_CANCEL_DENIAL; STAFF_EXCEPTION_POLICY_PENDING',
+      case_coverage: 'ADR_0004_PHASE2_CUSTOMER_MODIFY_CANCEL_DENIAL',
+      business_case: 'ADR 0004: customer cannot modify sent QR item; staff PIN override belongs to Phase 3',
       token_recorded: false, secrets_recorded: false, checks: {}, ui_writes: [],
       cleanup_pass: false,
     };
@@ -341,7 +342,7 @@ test('P2-QR-009 | customer cannot modify a sent QR item',
     try { report.build_after = await build(); } catch { report.build_after = null; }
     report.build_stable = report.build_after === before;
     report.result = !failure && !cleanupError && report.cleanup_pass &&
-      report.build_stable ? 'PASSED_BRANCH_ONLY' : cleanupError ?
+      report.build_stable ? 'PASSED' : cleanupError ?
         'INCONCLUSIVE' : redact(failure).includes('PENDING_FIXTURE') ?
         'PENDING' : 'FAILED';
     if (failure) report.error = redact(failure);
