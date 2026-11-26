@@ -1,0 +1,588 @@
+{
+  "schema": 1,
+  "baseline": "2026-11-26",
+  "build": "b99723ba4d3452cb7079d13e9f4879223d243ddd",
+  "suites": [
+    {
+      "suite": "phase2",
+      "source_filename": "AFG_POS_QAQC_71_Phase2_Bug_Report_update(2)(4).xlsx",
+      "source_sha256": "94713354bb71f35895fd921a47d0bc6c904867eec5aa7cb0ea6bed7f599edfd2",
+      "source_adjustment": "P2-USR-008 user run 2026-11-26, evidence verified",
+      "cases": [
+        {
+          "id": "P2-PAY-001",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\qa\\automation\\Testing_POS\\evidence\\P2_PAY_001_2026-11-09.json"
+        },
+        {
+          "id": "P2-PAY-002",
+          "status": "Passed",
+          "evidence": "RUN-20261125111826557-P2PAY002"
+        },
+        {
+          "id": "P2-PAY-003",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_PAY_003_RUN-20261117113146419-P2PAY003.json; Playwright attachment P2_PAY_003_signed_return"
+        },
+        {
+          "id": "P2-PAY-004",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_PAY_004_RUN-20261117114558286-P2PAY004.json"
+        },
+        {
+          "id": "P2-PAY-005",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_PAY_005_RUN-20261117115611718-P2PAY005.json"
+        },
+        {
+          "id": "P2-PAY-006",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_PAY_006_RUN-20261117121627763-P2PAY006.json"
+        },
+        {
+          "id": "P2-PAY-007",
+          "status": "Passed",
+          "evidence": "RUN-20261125113815322-P2PAY007"
+        },
+        {
+          "id": "P2-PAY-008",
+          "status": "Skipped",
+          "evidence": "evidence\\PF_P2_PAY_008_2026-11-12.json"
+        },
+        {
+          "id": "P2-PAY-009",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_PAY_009_20261124.json; evidence\\PF_P2_PAY_008_2026-11-12.json"
+        },
+        {
+          "id": "P2-PAY-010",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_PAY_010_SERVED_20261116_c7e9b0d6.json; Playwright report attachment P2_PAY_010_SERVED_UI_evidence"
+        },
+        {
+          "id": "P2-PAY-011",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\qa\\automation\\Testing_POS\\evidence\\P2_PAY_011_RETEST_2026-11-13_c7e9b0d.json"
+        },
+        {
+          "id": "P2-TBL-001",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_001_RETEST_2026-11-11_fe618838.json"
+        },
+        {
+          "id": "P2-TBL-002",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_TBL_002_20261116_082911_c7e9b0d6.json"
+        },
+        {
+          "id": "P2-TBL-003",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_003_2026-11-09.json; run RUN-20261109041012399-P2TBL003; staging c1ae919a."
+        },
+        {
+          "id": "P2-TBL-004",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_004_2026-11-09_17e22915.json; run RUN-20261109041501756-P2TBL004; staging 17e22915."
+        },
+        {
+          "id": "P2-TBL-005",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_005_2026-11-09.json; run RUN-20261109041920110-P2TBL005; staging 17e22915."
+        },
+        {
+          "id": "P2-TBL-006",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_006_2026-11-09_9a4cd5c.json; run RUN-20261109043100886-P2TBL006; staging 9a4cd5c"
+        },
+        {
+          "id": "P2-TBL-007",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_007_2026-11-09.json; run RUN-20261109044808751-P2TBL007; staging 9a4cd5c."
+        },
+        {
+          "id": "P2-TBL-008",
+          "status": "Passed",
+          "evidence": "evidence\\P2_TBL_008_2026-11-09_fe618838.json; run RUN-20261109111742387-P2TBL008; staging fe618838."
+        },
+        {
+          "id": "P2-TBL-009",
+          "status": "Passed",
+          "evidence": "RUN-20261109121627225-P2TBL009."
+        },
+        {
+          "id": "P2-TBL-010",
+          "status": "Passed",
+          "evidence": "RUN-20261109123202705-P2TBL010. Chưa kiểm thử giao diện UI."
+        },
+        {
+          "id": "P2-TBL-011",
+          "status": "Passed",
+          "evidence": "P2_TBL_011_20261125.json, run RUN-20261125115234738-P2TBL011, SHA b99723ba4d3452cb7079d13e9f4879223d243ddd"
+        },
+        {
+          "id": "P2-TBL-012",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\qa\\automation\\Testing_POS\\evidence\\P2_TBL_012_2026-11-09.json"
+        },
+        {
+          "id": "P2-USR-001",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT4\\P2_USR_001_CREATE_STAFF_2026-11-04.json. Staff QA đã khóa còn lưu trong staging."
+        },
+        {
+          "id": "P2-USR-002",
+          "status": "Pending",
+          "evidence": "evidence\\PF_P2_USR_002_PATCH_LOCK_2026-11-13_c7e9b0d.json"
+        },
+        {
+          "id": "P2-USR-003",
+          "status": "Passed",
+          "evidence": "evidence D:\\POS_SYSTEM_QA\\evidence\\SPRINT4\\P2_USR_003_ROLE_CHANGE_2026-11-04.json. Staff QA đã khóa còn lưu trong staging."
+        },
+        {
+          "id": "P2-USR-004",
+          "status": "Passed",
+          "evidence": "evidence/P2_USR_004_FULL_20261124.json"
+        },
+        {
+          "id": "P2-USR-005",
+          "status": "Pending",
+          "evidence": "evidence/PF_P2_USR_005_2026-11-11.json"
+        },
+        {
+          "id": "P2-USR-006",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-USR-007",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-USR-008",
+          "status": "Passed",
+          "evidence": "RUN-20261126022523322-P2USR008; RUN-20261125113410057-S4QRCUSTOMERDIRECT; staging b99723ba4d3452cb7079d13e9f4879223d243ddd"
+        },
+        {
+          "id": "P2-USR-009",
+          "status": "Passed",
+          "evidence": "evidence\\P2_USR_009_RETEST_2026-11-13_c7e9b0d.json"
+        },
+        {
+          "id": "P2-AUD-001",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT4\\P2_AUD_001_002_003_READONLY_2026-11-13_124223.json"
+        },
+        {
+          "id": "P2-AUD-002",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT4\\P2_AUD_002_EQUAL_TIMESTAMP_2026-11-05.json\nBug Report: không thêm bug cho ca này."
+        },
+        {
+          "id": "P2-AUD-003",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT4\\P2_AUD_001_002_003_READONLY_2026-11-13_124223.json"
+        },
+        {
+          "id": "P2-AUD-004",
+          "status": "Passed",
+          "evidence": "evidence\\P2_AUD_004_RETEST_2026-11-11.json"
+        },
+        {
+          "id": "P2-AUD-005",
+          "status": "Skipped",
+          "evidence": ".\\evidence\\PF_P2_AUD_005_PROBE_2026-11-11.json"
+        },
+        {
+          "id": "P2-QR-001",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_QR_001_TOKEN_BINDING_2026-11-06_084624.json"
+        },
+        {
+          "id": "P2-QR-002",
+          "status": "Passed",
+          "evidence": "evidence\\P2_QR_002_FULL_20261124.json; evidence\\P2_QR_002_RUN-20261124103023579-P2QR002.png"
+        },
+        {
+          "id": "P2-QR-003",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_QR_003_004_005_BUSINESS_2026-11-06_084617.json\n"
+        },
+        {
+          "id": "P2-QR-004",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_QR_003_004_005_BUSINESS_2026-11-06_084617.json\n"
+        },
+        {
+          "id": "P2-QR-005",
+          "status": "Passed",
+          "evidence": "evidence\\P2_USR_005_AUDIT_20261124.json; evidence\\PF_P2_USR_005_2026-11-11.json"
+        },
+        {
+          "id": "P2-QR-006",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_QR_006_CONCURRENT_2026-11-06_082550.json"
+        },
+        {
+          "id": "P2-QR-007",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-QR-008",
+          "status": "Skipped",
+          "evidence": "evidence\\PF_P2_QR_008_2026-11-12.json; evidence\\P2_QR_008_FULL_20261124_R2.json"
+        },
+        {
+          "id": "P2-QR-009",
+          "status": "Passed",
+          "evidence": "RUN-20261126021020565-P2QR009"
+        },
+        {
+          "id": "P2-QR-010",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\qa\\automation\\Testing_POS\\evidence\\P2_QR_010_PRICE_DISCOUNT_2026-11-13.json"
+        },
+        {
+          "id": "P2-QR-011",
+          "status": "Passed",
+          "evidence": "P2_QR_011_2026-11-09.json; SHA c1ae919a0599be1b50ed2f2d146403cf0418a5c9. Phạm vi API và KDS; chưa kiểm UI khách."
+        },
+        {
+          "id": "P2-QR-012",
+          "status": "Passed",
+          "evidence": "P2_QR_012_2026-11-09.json; Playwright HTML report;."
+        },
+        {
+          "id": "P2-QR-013",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_QR_013_20261124_R2.json"
+        },
+        {
+          "id": "P2-QR-014",
+          "status": "Passed",
+          "evidence": "evidence\\P2_QR_014_RUN-20261124045155995-P2QR014.json"
+        },
+        {
+          "id": "P2-QR-015",
+          "status": "Passed",
+          "evidence": "evidence\\P2_QR_015_3SAMPLES_20261124.json"
+        },
+        {
+          "id": "P2-RWD-001",
+          "status": "Passed",
+          "evidence": "evidence\\PF_P2_RWD_001_PII_AUDIT_2026-11-11.json"
+        },
+        {
+          "id": "P2-RWD-002",
+          "status": "Passed",
+          "evidence": "evidence\\P2_RWD_002_2026-11-11.json"
+        },
+        {
+          "id": "P2-RWD-003",
+          "status": "Passed",
+          "evidence": "evidence\\P2_RWD_003_010_RETEST_2026-11-13_c7e9b0d.json"
+        },
+        {
+          "id": "P2-RWD-004",
+          "status": "Passed",
+          "evidence": "P2_RWD_004_20261125.json, SHA b99723ba4d3452cb7079d13e9f4879223d243ddd"
+        },
+        {
+          "id": "P2-RWD-005",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_RWD_005_APPLY_2026-11-06_111908.json"
+        },
+        {
+          "id": "P2-RWD-006",
+          "status": "Passed",
+          "evidence": "evidence\\P2_RWD_006_RETEST_2026-11-13_c7e9b0d.json"
+        },
+        {
+          "id": "P2-RWD-007",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_RWD_007_REMOVE_2026-11-06_104957.json"
+        },
+        {
+          "id": "P2-RWD-008",
+          "status": "Passed",
+          "evidence": "D:\\POS_SYSTEM_QA\\evidence\\SPRINT3\\P2_RWD_008_PAID_GUARD_2026-11-05.json"
+        },
+        {
+          "id": "P2-RWD-009",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_RWD_009_RUN-20261125122446306-P2RWD009.json"
+        },
+        {
+          "id": "P2-RWD-010",
+          "status": "Passed",
+          "evidence": "evidence\\P2_RWD_003_010_RETEST_2026-11-13_c7e9b0d.json"
+        },
+        {
+          "id": "P2-RWD-011",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_RWD_011_2026-11-13_c7e9b0d.json; RUN-20261113055825744-P2RWD011"
+        },
+        {
+          "id": "P2-MON-001",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-MON-002",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-MON-003",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-MON-004",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-MON-005",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_MON_005_20261116_c7e9b0d6.json"
+        },
+        {
+          "id": "P2-ORD-001",
+          "status": "Skipped",
+          "evidence": ""
+        },
+        {
+          "id": "P2-ORD-002",
+          "status": "Passed",
+          "evidence": "evidence\\PF_P2_ORD_002_2026-11-12.json"
+        },
+        {
+          "id": "P2-ORD-003",
+          "status": "Skipped",
+          "evidence": "evidence\\P2_ORD_003_FULL_20261124.json"
+        }
+      ]
+    },
+    {
+      "suite": "ux_ui",
+      "source_filename": "POS_QAQC_UX_UI_Testcases(4).xlsx",
+      "source_sha256": "8e1626d14f71616d6148e16a1beb423ee208d38e54185c0736ca6fd64344a300",
+      "source_adjustment": null,
+      "cases": [
+        {
+          "id": "S4-UX-001",
+          "status": "Passed",
+          "evidence": "https://github.com/Mouse-hybrid/DU-AN-THUC-TAP/blob/ONLY_TESTING/qa/automation/Testing_POS/evidence/S4_UX_001_CI_20261116_ff92a0c5.json\nhttps://github.com/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/43888824727 (artifact playwright-report; hạn 30/11/2026)"
+        },
+        {
+          "id": "S4-UX-002",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_002_RUN-20261120051120452-S4UX002.json"
+        },
+        {
+          "id": "S4-UX-003",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_003_RUN-20261120050616698-S4UX003.json"
+        },
+        {
+          "id": "S4-UX-004",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_004_RUN-20261120052017040-S4UX004.json"
+        },
+        {
+          "id": "S4-UX-005",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_005_RUN-20261120145509534-S4UX005.json"
+        },
+        {
+          "id": "S4-UX-006",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_006_RUN-20261120132418317-S4UX006.json"
+        },
+        {
+          "id": "S4-UX-007",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_007_RUN-20261120140155657-S4UX007.json"
+        },
+        {
+          "id": "S4-UX-008",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_008_RUN-20261124050759633-S4UX008.json"
+        },
+        {
+          "id": "S4-UX-009",
+          "status": "Pending",
+          "evidence": "Playwright test-results\\s4_table_transfer_ui_isola-8c342-transfers-an-occupied-table-chromium\\test-failed-1.png; video.webm; console JSON của run."
+        },
+        {
+          "id": "S4-UX-010",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_010_RUN-20261118134107190-S4UX010.json; Playwright HTML report"
+        },
+        {
+          "id": "S4-UX-011",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_011_RUN-20261120025516008-S4UX011.json"
+        },
+        {
+          "id": "S4-UX-012",
+          "status": "Passed",
+          "evidence": "Playwright HTML report PF-S4-TABLE-MERGE-UI; console JSON RUN-20261115140126607-S4MERGEUI."
+        },
+        {
+          "id": "S4-UX-013",
+          "status": "Passed",
+          "evidence": ".\\evidence\\P2_QR_013_20261124_R2.json; .\\evidence\\P2_QR_013_20261124.json"
+        },
+        {
+          "id": "S4-UX-014",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_014_RUN-20261119034847918-S4UX014.json"
+        },
+        {
+          "id": "S4-UX-015",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_015_RUN-20261120141129253-S4UX015.json"
+        },
+        {
+          "id": "S4-UX-016",
+          "status": "Passed",
+          "evidence": "Playwright test-results\\p2_pay_010_served_ui_doubl-aa4c8--taps-split-of-served-items-chromium; console JSON RUN-20261116023257532-P2PAY010SERVEDUI."
+        },
+        {
+          "id": "S4-UX-017",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_017_RUN-20261118133238609-S4UX017.json; Playwright HTML report"
+        },
+        {
+          "id": "S4-UX-018",
+          "status": "Passed",
+          "evidence": "RUN-20261118032224636-S4UX018 | .\\evidence\\S4_UX_018_RUN-20261118032224636-S4UX018.json | SHA 7ae0b57895607f3e7e6b57e3aaecda8c68e1738b"
+        },
+        {
+          "id": "S4-UX-019",
+          "status": "Passed",
+          "evidence": "RUN-20261118032811250-S4UX019 | .\\evidence\\S4_UX_019_RUN-20261118032811250-S4UX019.json | SHA 7ae0b57895607f3e7e6b57e3aaecda8c68e1738b"
+        },
+        {
+          "id": "S4-UX-020",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_020_RUN-20261118114715772-S4UX020.json; Playwright HTML report S4-UX-020"
+        },
+        {
+          "id": "S4-UX-021",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_021_RUN-20261118123252883-S4UX021.json; Playwright HTML report"
+        },
+        {
+          "id": "S4-UX-022",
+          "status": "Passed",
+          "evidence": "RUN-20261118031016765-S4UX022 | .\\evidence\\S4_UX_022_RUN-20261118031016765-S4UX022.json | SHA 7ae0b57895607f3e7e6b57e3aaecda8c68e1738b"
+        },
+        {
+          "id": "S4-UX-023",
+          "status": "Passed",
+          "evidence": "RUN-20261118023755501-S4UX023 | .\\evidence\\S4_UX_023_RUN-20261118023755501-S4UX023.json | Playwright report: ảnh customer receipt, WAITER bill và KDS | SHA 7ae0b57895607f3e7e6b57e3aaecda8c68e1738b"
+        },
+        {
+          "id": "S4-UX-024",
+          "status": "Passed",
+          "evidence": "RUN-20261118024433138-S4UX024 | .\\evidence\\S4_UX_024_RUN-20261118024433138-S4UX024.json | SHA 7ae0b57895607f3e7e6b57e3aaecda8c68e1738b"
+        },
+        {
+          "id": "S4-UX-025",
+          "status": "Passed",
+          "evidence": "RUN-20261118024837592-S4UX025 | .\\evidence\\S4_UX_025_RUN-20261118024837592-S4UX025.json | SHA 7ae0b57895607f3e7e6b57e3aaecda8c68e1738b"
+        },
+        {
+          "id": "S4-UX-026",
+          "status": "Passed",
+          "evidence": "Playwright HTML report PF-S4-REWARD-MIN-ORDER-UI; console JSON RUN-20261115143436415-S4REWARDMINUI."
+        },
+        {
+          "id": "S4-UX-027",
+          "status": "Passed",
+          "evidence": "Playwright HTML report PF-S4-REWARD-APPLY-REMOVE-UI; console JSON RUN-20261115145836983-S4REWARDUI."
+        },
+        {
+          "id": "S4-UX-028",
+          "status": "Not Executed",
+          "evidence": ""
+        },
+        {
+          "id": "S4-UX-029",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_029_RUN-20261118131758571-S4UX029.json; Playwright HTML report"
+        },
+        {
+          "id": "S4-UX-030",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_030_RUN-20261124051204540-S4UX030.json"
+        },
+        {
+          "id": "S4-UX-031",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_031_RUN-20261117021516854-S4UX031.json; Playwright HTML report (before_payment, paid); run Pending: .\\evidence\\S4_UX_031_RUN-20261117020536601-S4UX031.json"
+        },
+        {
+          "id": "S4-UX-032",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_032_RUN-20261117032851050-S4UX032.json; Playwright HTML report (child/source before/paid)"
+        },
+        {
+          "id": "S4-UX-033",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_033_RUN-20261117040325070-S4UX033.json; Playwright HTML report (zero_amount_result)"
+        },
+        {
+          "id": "S4-UX-034",
+          "status": "Pending",
+          "evidence": "evidence\\S4_UX_034_RUN-20261124105830374-S4UX034.json"
+        },
+        {
+          "id": "S4-UX-035",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_035_RUN-20261124051710963-S4UX035.json; .\\evidence\\S4_UX_035_RUN-20261124051400865-S4UX035.json"
+        },
+        {
+          "id": "S4-UX-036",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_036_RUN-20261120045536633-S4UX036.json"
+        },
+        {
+          "id": "S4-UX-037",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_037_RUN-20261120144727750-S4UX037.json"
+        },
+        {
+          "id": "S4-UX-038",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_038_RUN-20261120050206921-S4UX038.json"
+        },
+        {
+          "id": "S4-UX-039",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_039_RUN-20261120030011169-S4UX039.json"
+        },
+        {
+          "id": "S4-UX-040",
+          "status": "Failed",
+          "evidence": ".\\evidence\\S4_UX_040_RUN-20261120032520095-S4UX040.json"
+        },
+        {
+          "id": "S4-UX-041",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_041_RUN-20261120041553112-S4UX041.json"
+        },
+        {
+          "id": "S4-UX-042",
+          "status": "Passed",
+          "evidence": ".\\evidence\\S4_UX_042_FULL_RUN-20261124054956818-S4UX042FULL.json"
+        }
+      ]
+    }
+  ]
+}
