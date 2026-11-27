@@ -1,0 +1,35 @@
+{
+  "run_id": "RUN-20261127100906511-S4TRANSFERUI",
+  "test_ref": "PF-S4-TABLE-TRANSFER-UI",
+  "checked_at": "2026-11-27T10:09:11.259Z",
+  "staging_commit": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "build_before": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "scope": "QA3 desktop UI transfer Q3-1 to Q3-2; session/order/ticket/audit and BR-TT-010 source AVAILABLE; owned cleanup",
+  "requirement_ref": "BR-TT-010",
+  "project": "chromium",
+  "secrets_recorded": false,
+  "ui_transfer_http": 200,
+  "checks": {
+    "one_ui_transfer_write": true,
+    "same_session": true,
+    "same_order": true,
+    "ticket_follows_target": true,
+    "target_occupied": true,
+    "source_available_br_tt_010": true,
+    "audit_once": true
+  },
+  "cleanup_pass": true,
+  "observed_table_states": {
+    "source": "AVAILABLE",
+    "target": "OCCUPIED"
+  },
+  "build_after": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "build_stable": true,
+  "session_id": "b2609978-7f6f-42ec-ad74-e85e4695fe10",
+  "order_id": "2d2633a7-5a62-4a67-a395-748acee2b4ec",
+  "ui_writes": [
+    "POST /api/v1/tables/57badca1-710d-4fd0-9abe-8dfe8a8e490b/transfer"
+  ],
+  "business_execution": "EXECUTED",
+  "result": "PASSED"
+}

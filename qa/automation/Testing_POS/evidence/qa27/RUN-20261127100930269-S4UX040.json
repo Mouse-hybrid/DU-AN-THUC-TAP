@@ -1,0 +1,60 @@
+{
+  "run_id": "RUN-20261127100930269-S4UX040",
+  "test_ref": "S4-UX-040",
+  "checked_at": "2026-11-27T10:09:30.270Z",
+  "scope": "QA3 desktop merge and split dialogs: Enter opens, focus stays within dialog, accessible controls, Escape closes and focus returns; no UI write, both owned sessions/orders/tickets/audit unchanged and cleanup. No merge or split submission.",
+  "project": "chromium",
+  "secrets_recorded": false,
+  "ui_writes": [],
+  "dialogs": [
+    {
+      "kind": "table_merge",
+      "initial_focus_inside": false,
+      "named_controls": true,
+      "tab_focus_inside": true,
+      "escape_closed": true,
+      "focus_returned": false
+    },
+    {
+      "kind": "bill_split",
+      "initial_focus_inside": false,
+      "named_controls": true,
+      "tab_focus_inside": true,
+      "escape_closed": true,
+      "focus_returned": false
+    }
+  ],
+  "checks": {
+    "merge_initial_focus": false,
+    "merge_named_controls": true,
+    "merge_tab_inside": true,
+    "merge_escape_and_focus_return": false,
+    "split_initial_focus": false,
+    "split_named_controls": true,
+    "split_tab_inside": true,
+    "split_escape_and_focus_return": false,
+    "no_ui_business_write": true,
+    "two_sessions_orders_tickets_unchanged": true,
+    "merge_audit_unchanged": true,
+    "split_audit_unchanged": true
+  },
+  "cleanup_pass": true,
+  "staging_commit": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "tables": [
+    {
+      "code": "Q3-1",
+      "session_id": "899a1773-bc68-4a4c-b19e-899952871105",
+      "order_id": "3943097a-1790-406f-be93-9ab171c1c2b5"
+    },
+    {
+      "code": "Q3-2",
+      "session_id": "e868be3c-cd0e-4e14-ad81-e4293cfaa4a4",
+      "order_id": "6958838d-1259-41db-a881-f9abdfc63619"
+    }
+  ],
+  "build_after": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "build_stable": true,
+  "business_execution": "EXECUTED_UI_NO_WRITE",
+  "result": "FAILED",
+  "error": "Error: Keyboard dialog UI/state mismatch: {\"merge_initial_focus\":false,\"merge_named_controls\":true,\"merge_tab_inside\":true,\"merge_escape_and_focus_return\":false,\"split_initial_focus\":false,\"split_named_controls\":true,\"split_tab_inside\":true,\"split_escape_and_focus_return\":false,\"no_ui_business_write\":true,\"two_sessions_orders_tickets_unchanged\":true,\"merge_audit_unchanged\":true,\"split_audit_unchanged\":true}"
+}
