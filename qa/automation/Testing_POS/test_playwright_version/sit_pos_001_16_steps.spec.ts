@@ -432,12 +432,12 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         await page.goto(own.paymentUrl, { waitUntil: 'commit', timeout: 60_000 });
         navigation.page_committed = true;
         await page.getByText('Thẻ nội địa và tài khoản ngân hàng').click();
-        const bankSearch = page.getByPlaceholder('Tìm kiếm...', { exact: true });
-        await bankSearch.fill('NCB');
-        const bankChoice = page.locator('button[name="paymethod"]:visible')
-          .filter({ hasText: /^\s*$/ });
-        await expect(bankChoice).toHaveCount(1);
-        await bankChoice.click();
+        const bankMethods = page.locator('button[name="paymethod"]');
+        const bankCodes = await bankMethods.evaluateAll(nodes =>
+          nodes.map(node => node.getAttribute('value')));
+        report.sandbox_bank_codes = bankCodes;
+        expect(bankCodes.filter(code => code === 'NCB'), 'Exactly one NCB form method').toHaveLength(1);
+        await page.locator('button[name="paymethod"][value="NCB"]').click();
         await page.getByRole('textbox', { name: /số thẻ/i }).fill('9704198526191432198');
         await page.getByRole('textbox', { name: /tên chủ thẻ/i }).fill('NGUYEN VAN A');
         await page.getByRole('textbox', { name: /ngày phát hành/i }).fill('07/15');
@@ -454,7 +454,9 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
           .evaluateAll(nodes => nodes.slice(0, 30).map(node => ({
             tag: node.tagName, type: node.getAttribute('type'),
             alt: node.getAttribute('alt'), title: node.getAttribute('title'),
-            name: node.getAttribute('name'), label: node.getAttribute('aria-label'),
+            name: node.getAttribute('name'), id: node.getAttribute('id'),
+            method_value: node.tagName === 'BUTTON' && node.getAttribute('name') === 'paymethod' ? node.getAttribute('value') : null,
+            label: node.getAttribute('aria-label'),
             placeholder: node.getAttribute('placeholder'),
             text: node.tagName === 'BUTTON' ? node.textContent?.trim().slice(0, 60) : null,
           }))).then(rows => JSON.parse(safe(JSON.stringify(rows))))
