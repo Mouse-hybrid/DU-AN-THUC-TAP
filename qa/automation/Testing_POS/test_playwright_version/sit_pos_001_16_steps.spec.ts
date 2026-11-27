@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 test.use({ video: 'off', trace: 'off', screenshot: 'off' });
 
 test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, request }) => {
-  test.setTimeout(30 * 60_000);
+  test.setTimeout(8 * 60_000);
   const base = (process.env.BASE_URL || '').replace(/\/+$/, '');
   const pin = process.env.S2_STAGING_PIN;
   const expected = process.env.POS_EXPECTED_COMMIT;
@@ -29,7 +29,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
   const safe = (value: unknown) => {
     let text = String(value instanceof Error ? value.message : value);
     for (const secret of [pin, own.token, own.phone, own.paymentUrl,
-      '9704198526191432198', ...Object.values(tokens)])
+      '9704198526191432198', '123456', ...Object.values(tokens)])
       if (secret) text = text.replaceAll(secret, '<REDACTED>');
     return text.replace(/https?:\/\/[^\s]+vnp_SecureHash[^\s]+/gi, '<REDACTED_SIGNED_URL>')
       .replace(/\/api\/v1\/public\/qr\/[^\s/'"?]+/g, '/api/v1/public/qr/<TOKEN>');
@@ -73,6 +73,8 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
     const context = await browser.newContext({ baseURL: base, viewport: { width: 1366, height: 768 },
       recordVideo: undefined });
     const page = await context.newPage();
+    page.setDefaultTimeout(15_000);
+    page.setDefaultNavigationTimeout(30_000);
     await page.goto('/login', { waitUntil: 'domcontentloaded' });
     await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username);
     await page.getByLabel('Mật khẩu', { exact: true }).fill(pin!);
@@ -411,6 +413,8 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       // VNPay publishes this NCB card/OTP strictly for sandbox use.
       const payment = await browser.newContext({ acceptDownloads: false });
       const page = await payment.newPage();
+      page.setDefaultTimeout(15_000);
+      page.setDefaultNavigationTimeout(30_000);
       const navigation = { request_started: false, document_http: [] as number[],
         page_committed: false, signed_return_seen: false };
       report.vnpay_navigation = navigation;
@@ -441,6 +445,14 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         checked(/Thanh toán thành công/i.test(await page.locator('body').innerText()),
           'Signed VNPay Return succeeded');
       } catch (error) {
+        report.sandbox_controls = await page.locator('input:not([type="hidden"]), button, select')
+          .evaluateAll(nodes => nodes.slice(0, 30).map(node => ({
+            tag: node.tagName, type: node.getAttribute('type'),
+            name: node.getAttribute('name'), label: node.getAttribute('aria-label'),
+            placeholder: node.getAttribute('placeholder'),
+            text: node.tagName === 'BUTTON' ? node.textContent?.trim().slice(0, 60) : null,
+          }))).then(rows => JSON.parse(safe(JSON.stringify(rows))))
+          .catch(() => []);
         const paymentBeforeCleanup = (await ledger()).payments?.find((p: any) => p.id === own.paymentId);
         report.payment.vnpay_before_cleanup = paymentBeforeCleanup?.status ?? null;
         if (!navigation.page_committed && error instanceof Error && error.name === 'TimeoutError')
