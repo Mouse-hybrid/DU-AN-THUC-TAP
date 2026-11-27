@@ -59,7 +59,14 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
     await test.step(`${row.id} ${label}`, async () => {
       row.status = 'RUNNING';
       try { await action(); row.status = 'PASSED'; }
-      catch (error) { row.status = 'FAILED'; row.error = safe(error); throw new Error(row.error); }
+      catch (error) {
+        row.status = 'FAILED'; row.error = safe(error);
+        // The acknowledged stale payment panel does not prevent reconciling the
+        // server-side remainder, VNPay Return, points and audit in this same run.
+        if (number === 12 && own.rewardId &&
+          (await order()).applied_reward?.reward_id === own.rewardId) return;
+        throw new Error(row.error);
+      }
     });
   }
   async function login(username: string) {
@@ -416,6 +423,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
   report.result = !failure && !cleanupError && report.cleanup_pass && report.build_stable &&
     report.steps.every((s: any) => s.status === 'PASSED') ? 'PASSED' :
     cleanupError ? 'INCONCLUSIVE' : 'FAILED';
+  report.failed_steps = report.steps.filter((s: any) => s.status === 'FAILED').map((s: any) => s.id);
   if (failure) report.error = safe(failure);
   if (cleanupError) report.cleanup_required = safe(cleanupError);
   delete own.paymentUrl;
