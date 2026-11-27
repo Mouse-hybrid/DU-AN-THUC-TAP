@@ -40,7 +40,7 @@ jobs:
             --volume "$GITHUB_WORKSPACE/qa-sit-${{ github.run_id }}:/work" \
             --workdir /work/qa/automation/Testing_POS \
             mcr.microsoft.com/playwright:v1.63.0-noble \
-            bash -c 'timeout 180 npm ci && node scripts/sit_cleanup_46000064157.mjs && npx --no-install playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0 --reporter=dot'
+            bash -c 'timeout 180 npm ci && npx --no-install playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0 --reporter=dot'
       - name: Upload sanitized SIT evidence
         if: always()
         uses: actions/upload-artifact@v4

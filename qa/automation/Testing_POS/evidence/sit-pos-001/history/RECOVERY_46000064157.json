@@ -1,0 +1,19 @@
+{
+  "test_ref": "SIT-OWNED-RECOVERY",
+  "source_run": 46000064157,
+  "checked_at": "2026-11-27T13:37:48.912Z",
+  "fixture": {
+    "id": "939dc4b7-1d71-40b9-b611-ac81c4331529",
+    "status": "PAID",
+    "session": "5e31cb9f-53d9-4a21-9eca-b352b840a35c",
+    "customer": "3a90422f-f572-4326-af16-d28ebd26e0db",
+    "reward": "36bc7bd7-3ca2-4533-8b8f-8f9a98407dca",
+    "marker": "SIT kitchen 470c7a49"
+  },
+  "order_closed": true,
+  "tables_available": true,
+  "original_signed_payment_preserved": true,
+  "cleanup_pass": true,
+  "staging_commit": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "secrets_recorded": false
+}
