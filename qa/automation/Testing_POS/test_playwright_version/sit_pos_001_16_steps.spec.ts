@@ -441,9 +441,13 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         await page.getByRole('textbox', { name: /số thẻ/i }).fill('9704198526191432198');
         await page.getByRole('textbox', { name: /tên chủ thẻ/i }).fill('NGUYEN VAN A');
         await page.getByRole('textbox', { name: /ngày phát hành/i }).fill('07/15');
-        await page.getByRole('button', { name: /tiếp tục|thanh toán|xác thực/i }).click();
+        report.sandbox_action_labels = await page.locator('button:visible, a:visible, input[type="submit"]:visible')
+          .evaluateAll(nodes => nodes.map(node => ({tag: node.tagName,
+            label: node.textContent?.trim().slice(0, 80), id: node.getAttribute('id')})))
+          .then(rows => JSON.parse(safe(JSON.stringify(rows))));
+        await page.getByText(/^(Tiếp tục|Thanh toán|Xác thực|Xác nhận)$/i).click();
         await page.getByRole('textbox', { name: /OTP|mã xác thực/i }).fill('123456');
-        await page.getByRole('button', { name: /xác nhận|thanh toán/i }).click();
+        await page.getByText(/^(Xác nhận|Thanh toán)$/i).click();
         await page.waitForURL(url => url.origin === base &&
           url.pathname === '/api/v1/payments/vnpay/return', { timeout: 120_000 });
         navigation.signed_return_seen = true;
