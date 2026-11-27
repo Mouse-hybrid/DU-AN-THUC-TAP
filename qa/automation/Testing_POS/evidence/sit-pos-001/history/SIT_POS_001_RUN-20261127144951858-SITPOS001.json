@@ -1,0 +1,306 @@
+{
+  "test_ref": "SIT-POS-001",
+  "checked_at": "2026-11-27T14:49:51.857Z",
+  "run_id": "RUN-20261127144951858-SITPOS001",
+  "result": "PASSED",
+  "steps": [
+    {
+      "id": "SIT-POS-001-01",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-02",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-03",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-04",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-05",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-06",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-07",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-08",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-09",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-10",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-11",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-12",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-13",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-14",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-15",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-16",
+      "status": "PASSED"
+    }
+  ],
+  "cleanup_pass": true,
+  "secrets_recorded": false,
+  "token_recorded": false,
+  "phone_recorded": false,
+  "signed_url_recorded": false,
+  "card_recorded": false,
+  "staging_commit": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "outlet_id": "bf3373d1-afba-406a-8b5c-edbe5b076a67",
+  "discount": {
+    "before_ui_vnd": {
+      "total": 200000,
+      "remaining": 200000
+    },
+    "before_due_vnd": 200000,
+    "order_due_vnd": 180000,
+    "payment_api_vnd": {
+      "total": 180000,
+      "remaining": 180000
+    },
+    "ui_stale": false,
+    "after_apply_ui_vnd": {
+      "total": 180000,
+      "remaining": 180000
+    }
+  },
+  "payment": {
+    "cash_vnd": 90000,
+    "vnpay_vnd": 90000,
+    "vnpay_initial_status": "PENDING"
+  },
+  "vnpay_navigation": {
+    "request_started": true,
+    "document_http": [
+      302,
+      200,
+      302,
+      200,
+      200
+    ],
+    "page_committed": true,
+    "signed_return_seen": true
+  },
+  "sandbox_runtime": {
+    "page_errors": [],
+    "failed_resources": [],
+    "posts": [
+      {
+        "path": "/paymentv2/Transaction/PaymentMethod.html",
+        "status": 302
+      },
+      {
+        "path": "/paymentv2/Ncb/Transaction/Index.html",
+        "status": 200
+      },
+      {
+        "path": "/paymentv2/Ncb/Transaction/AjaxConfirm.html",
+        "status": 200
+      }
+    ],
+    "dialogs": []
+  },
+  "sandbox_bank_codes": [
+    "VNPAYQR",
+    "VIETCOMBANK",
+    "VIETINBANK",
+    "BIDV",
+    "AGRIBANK",
+    "SACOMBANK",
+    "TECHCOMBANK",
+    "MBBANK",
+    "ACB",
+    "VPBANK",
+    "SHB",
+    "DONGABANK",
+    "HSBC",
+    "EXIMBANK",
+    "TPBANK",
+    "NCB",
+    "MSBANK",
+    "HDBANK",
+    "NAMABANK",
+    "OCB",
+    "SCB",
+    "IVB",
+    "ABBANK",
+    "VIETCAPITALBANK",
+    "VIETBANK",
+    "SEABANK",
+    "VIB",
+    "BACABANK",
+    "VIETABANK",
+    "SAIGONBANK",
+    "PVCOMBANK",
+    "WOORIBANK",
+    "KIENLONGBANK",
+    "NAPAS",
+    "LIENVIETBANK",
+    "BAOVIETBANK",
+    "PGBANK",
+    "GPBANK",
+    "VRB",
+    "VIDBANK",
+    "SHINHANBANK",
+    "VIETCREDIT",
+    "MAFC",
+    "VISA",
+    "MASTERCARD",
+    "JCB",
+    "UPI",
+    "AMEX",
+    "VNMART"
+  ],
+  "sandbox_field_states": [
+    {
+      "name": "card_number_mask",
+      "id": "card_number_mask",
+      "type": "text",
+      "filled": true,
+      "length": 19,
+      "valid": true
+    },
+    {
+      "name": "cardNumber",
+      "id": "cardNumber",
+      "type": "hidden",
+      "filled": true,
+      "length": 19,
+      "valid": true
+    },
+    {
+      "name": "cardHolder",
+      "id": "cardHolder",
+      "type": "text",
+      "filled": true,
+      "length": 12,
+      "valid": true
+    },
+    {
+      "name": "cardDate",
+      "id": "cardDate",
+      "type": "text",
+      "filled": true,
+      "length": 5,
+      "valid": true
+    }
+  ],
+  "sandbox_action_labels": [
+    {
+      "tag": "A",
+      "label": "Quay lại",
+      "id": "backButton"
+    },
+    {
+      "tag": "A",
+      "label": "Vi",
+      "id": null
+    },
+    {
+      "tag": "A",
+      "label": "Thẻ nội địa",
+      "id": null
+    },
+    {
+      "tag": "A",
+      "label": "Chọn hoặc nhập mã",
+      "id": "btnShowPromoModal"
+    },
+    {
+      "tag": "A",
+      "label": "Điều kiện sử dụng dịch vụ",
+      "id": null
+    },
+    {
+      "tag": "A",
+      "label": "Hủy thanh toán",
+      "id": null
+    },
+    {
+      "tag": "A",
+      "label": "Tiếp tục",
+      "id": "btnContinue"
+    },
+    {
+      "tag": "A",
+      "label": "hotrovnpay@vnpay.vn",
+      "id": null
+    },
+    {
+      "tag": "A",
+      "label": "",
+      "id": null
+    },
+    {
+      "tag": "A",
+      "label": "",
+      "id": null
+    }
+  ],
+  "sandbox_continue": {
+    "tag": "A",
+    "onclick": null,
+    "disabled": null,
+    "class": "ubg-primary ubox-size-button-default ubg-hover ubg-active ubtn btnContinue"
+  },
+  "fixture": {
+    "order_id": "c8fb31c0-5a60-4bed-9e66-f21e7051d3a7",
+    "session_id": "4178bfd6-f38f-414e-8bbd-bc44ffc8ddd9",
+    "customer_id": "b84f800a-c55e-4e69-9c28-bbb572e354a9",
+    "reward_id": "7b0d1d28-d8b1-4b71-9cc1-a063a75b60ae",
+    "marker": "39e0f944"
+  },
+  "closed_qr_http": 410,
+  "cleanup_state": {
+    "table_states": [
+      {
+        "code": "Q3-1",
+        "status": "AVAILABLE"
+      },
+      {
+        "code": "Q3-3",
+        "status": "AVAILABLE"
+      },
+      {
+        "code": "Q3-2",
+        "status": "AVAILABLE"
+      }
+    ],
+    "order_status": "CLOSED"
+  },
+  "build_after": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "build_stable": true,
+  "blocked_steps": [],
+  "not_executed_steps": [],
+  "failed_steps": []
+}

@@ -1,0 +1,20 @@
+{
+  "test_ref": "SIT-POSTDEPLOY-GATE",
+  "checked_at": "2026-11-27T14:43:05.387Z",
+  "result": "FAILED",
+  "expected_staging_sha": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "qa_source_sha": "613728752a8a497db9ea07a4c77ebb484ed32d50",
+  "observed_staging_sha": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "observed_build_after": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "sit_run_id": "RUN-CONTROLLED-cleanup-failed",
+  "report_file": "SIT_POS_001_CONTROLLED.json",
+  "passed_steps": 16,
+  "cleanup_pass": false,
+  "build_stable": true,
+  "actions_run_id": "46018397853",
+  "actions_run_attempt": "1",
+  "caller_workflow_ref": "Mouse-hybrid/DU-AN-THUC-TAP/.github/workflows/sit-gate-negative-probes.yml@refs/heads/qa/sit-gate-negative-probes",
+  "errors": [
+    "SIT cleanup must pass"
+  ]
+}
