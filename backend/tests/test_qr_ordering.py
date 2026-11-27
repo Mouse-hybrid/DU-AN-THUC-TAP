@@ -249,8 +249,21 @@ def test_token_invalid_revoked_rotated_expired_closed(client, seed, qr, db_sessi
     row.qr_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
     session.commit()
     session.close()
-    assert client.get(f"/api/v1/public/qr/{rotated['token']}").status_code == 410
-    assert _submit(client, rotated["token"], seed).status_code == 410
+    # Kiểm tra toàn bộ public reads + submit khi mã đã hết hạn, không đợi 4 giờ.
+    table_path = f"/api/v1/tables/{seed['table_id']}"
+    before = client.get(table_path, headers=qr["waiter"])
+    assert before.status_code == 200
+    token_path = f"/api/v1/public/qr/{rotated['token']}"
+    for suffix in ("", "/menu", "/order"):
+        denied = client.get(token_path + suffix)
+        assert denied.status_code == 410
+        assert rotated["token"] not in denied.text
+    denied_submit = _submit(client, rotated["token"], seed)
+    assert denied_submit.status_code == 410
+    assert rotated["token"] not in denied_submit.text
+    after = client.get(table_path, headers=qr["waiter"])
+    assert after.status_code == 200
+    assert after.json()["orders"] == before.json()["orders"]
     missing = client.get(f"/api/v1/tables/{seed['table_id']}/qr-session", headers=qr["waiter"])
     assert missing.status_code == 404
 
