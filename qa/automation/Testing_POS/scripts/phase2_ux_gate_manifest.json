@@ -370,7 +370,7 @@
       "suite": "ux_ui",
       "source_filename": "POS_QAQC_UX_UI_Testcases(4).xlsx",
       "source_sha256": "8e1626d14f71616d6148e16a1beb423ee208d38e54185c0736ca6fd64344a300",
-      "source_adjustment": null,
+      "source_adjustment": "2026-11-27: S4-UX-009 UI retest Passed, RUN-20261127100906511-S4TRANSFERUI on 65e5088. Baseline workbook fingerprint retained, supplemental JSON fingerprint recorded.",
       "cases": [
         {
           "id": "S4-UX-001",
@@ -414,8 +414,13 @@
         },
         {
           "id": "S4-UX-009",
-          "status": "Pending",
-          "evidence": "Playwright test-results\\s4_table_transfer_ui_isola-8c342-transfers-an-occupied-table-chromium\\test-failed-1.png; video.webm; console JSON của run."
+          "status": "Passed",
+          "evidence": "RUN-20261127100906511-S4TRANSFERUI | evidence/qa27/TRANSFER_RUN-20261127100906511-S4TRANSFERUI.json",
+          "evidence_file": "evidence/qa27/TRANSFER_RUN-20261127100906511-S4TRANSFERUI.json",
+          "evidence_sha256": "81a8c47df91049269e1663b03d9f07166eb80f38e2076acb50248b5a31e373ac",
+          "evidence_test_ref": "PF-S4-TABLE-TRANSFER-UI",
+          "evidence_build": "65e5088c47c45dcdad0a10361113c22cede47c01",
+          "evidence_run_id": "RUN-20261127100906511-S4TRANSFERUI"
         },
         {
           "id": "S4-UX-010",
