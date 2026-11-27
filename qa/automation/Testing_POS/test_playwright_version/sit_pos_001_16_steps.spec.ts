@@ -319,8 +319,12 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       await staffPage!.reload({ waitUntil: 'domcontentloaded' });
       const attachMember = staffPage!.getByRole('button', {
         name: 'Gắn hội viên khách đã nhập trên QR', exact: true });
-      await expect(attachMember).toBeVisible();
-      await attachMember.click();
+      // Existing members are linked by the public QR endpoint immediately;
+      // the cashier button is present only for a pending member.
+      if ((await order()).customer_id !== own.customerId) {
+        await expect(attachMember).toBeVisible();
+        await attachMember.click();
+      }
       checked((await order()).customer_id === own.customerId, 'Cashier linked QR member');
       const row = staffPage!.getByTestId('reward-row').filter({ hasText: reward.name });
       await expect(row).toBeVisible();
