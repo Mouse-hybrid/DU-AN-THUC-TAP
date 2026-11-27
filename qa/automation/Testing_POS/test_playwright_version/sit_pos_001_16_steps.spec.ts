@@ -466,8 +466,8 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
           disabled: node.getAttribute('disabled'), class: node.getAttribute('class') }));
         await page.locator('#btnContinue').click();
         await page.getByText('Đồng ý & Tiếp tục', { exact: true }).click();
-        await page.getByRole('textbox', { name: /OTP|mã xác thực/i }).fill('123456');
-        await page.getByText(/^(Xác nhận|Thanh toán)$/i).click();
+        await page.getByPlaceholder('Nhập mã OTP', { exact: true }).fill('123456');
+        await page.getByRole('button', { name: 'Thanh toán', exact: true }).click();
         await page.waitForURL(url => url.origin === base &&
           url.pathname === '/api/v1/payments/vnpay/return', { timeout: 120_000 });
         navigation.signed_return_seen = true;
