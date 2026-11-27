@@ -49,6 +49,6 @@ Files
 - [x] Call the pinned reusable SIT after successful gates with the deployed SHA and pinned QA checkout.
 - [x] Add an always-running final outcome job that requires both gates and SIT to succeed.
 - [x] Run controlled failed-step and cleanup-false CI probes without PIN or staging access and retain their failed conclusions and artifacts.
-- [ ] Validate caller YAML and checks, merge the main integration PR and observe Backend CI/deploy and post-deploy gates plus SIT. (PR merged, observation pending.)
-- [ ] Download and validate the new-build SIT artifact and record actual SHAs and workflow links in the integration handoff for 30/11.
+- [x] Validate caller YAML and checks, merge the main integration PR and observe Backend CI/deploy and post-deploy gates plus SIT. (PR merged; Backend CI/deploy and all required post-deploy jobs observed Success.)
+- [x] Download and validate the new-build SIT artifact and record actual SHAs and workflow links in the integration handoff for 30/11.
 

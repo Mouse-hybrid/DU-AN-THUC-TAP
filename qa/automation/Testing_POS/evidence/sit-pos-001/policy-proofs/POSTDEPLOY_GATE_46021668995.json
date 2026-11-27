@@ -1,0 +1,18 @@
+{
+  "test_ref": "SIT-POSTDEPLOY-GATE",
+  "checked_at": "2026-11-27T15:06:20.787Z",
+  "result": "PASSED",
+  "expected_staging_sha": "18105a871ee5ce7ec03741621a4cc6c53d13938b",
+  "qa_source_sha": "58845f0f0820ee08fcea0097ac2fc361c1a75c3f",
+  "observed_staging_sha": "18105a871ee5ce7ec03741621a4cc6c53d13938b",
+  "observed_build_after": "18105a871ee5ce7ec03741621a4cc6c53d13938b",
+  "sit_run_id": "RUN-20261127150553845-SITPOS001",
+  "report_file": "SIT_POS_001_RUN-20261127150553845-SITPOS001.json",
+  "passed_steps": 16,
+  "cleanup_pass": true,
+  "build_stable": true,
+  "actions_run_id": "46021668995",
+  "actions_run_attempt": "1",
+  "caller_workflow_ref": "Mouse-hybrid/DU-AN-THUC-TAP/.github/workflows/three-gates-postdeploy.yml@refs/heads/main",
+  "errors": []
+}
