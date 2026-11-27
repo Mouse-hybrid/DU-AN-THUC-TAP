@@ -1,5 +1,4 @@
 name: SIT POS 16 steps (staging, no CD)
-
 on:
   workflow_dispatch:
     inputs:
@@ -12,65 +11,54 @@ on:
     paths:
       - .github/workflows/sit-pos-16.yml
       - qa/automation/Testing_POS/test_playwright_version/sit_pos_001_16_steps.spec.ts
-
 permissions:
   contents: read
-
-concurrency:
-  group: sit-pos-16-staging
-  cancel-in-progress: false
-
 jobs:
   sit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    defaults:
-      run:
-        working-directory: qa/automation/Testing_POS
+    runs-on: [self-hosted, staging]
+    timeout-minutes: 25
+    concurrency:
+      group: staging
+      cancel-in-progress: false
     env:
       BASE_URL: http://160.191.47.17
       POS_EXPECTED_COMMIT: ${{ inputs.expected_commit || 'd6ee04a173c74530653c5df394dd439c92369eaf' }}
-      CYPRESS_INSTALL_BINARY: '0'
-      CI: 'true'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
-      - name: Validate private PIN and full commit pin
-        shell: bash
+          path: qa-sit-${{ github.run_id }}
+          persist-credentials: false
+      - name: Verify required PIN and sandbox connectivity
+        working-directory: /tmp
         env:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
-        run: |
-          test -n "$S2_STAGING_PIN" || { echo 'S2_STAGING_PIN secret is unavailable'; exit 1; }
-          [[ "$POS_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo 'Full staging SHA required'; exit 1; }
-          echo 'Required secret and SHA format present; values hidden.'
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Check public VNPay sandbox reachability from this runner
         shell: bash
         run: |
-          rc=0
-          curl -s -o /dev/null --connect-timeout 8 --max-time 15 \
-            --write-out 'Public VNPay HTTPS: http=%{http_code} dns_s=%{time_namelookup} tcp_s=%{time_connect} tls_s=%{time_appconnect} first_byte_s=%{time_starttransfer}\n' \
-            'https://sandbox.vnpayment.vn/apis/vnpay-demo/' | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
-          echo "Public VNPay curl exit code: $rc" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Record checked out QA revision
-        run: git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
-      - name: Execute one owned 16-step SIT flow
+          test -n "$S2_STAGING_PIN"
+          [[ "$POS_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          curl -fsS -o /dev/null --connect-timeout 8 --max-time 15 'https://sandbox.vnpayment.vn/apis/vnpay-demo/'
+      - name: Execute one owned 16-step flow in isolated Chromium container
         env:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
-        run: npx --no-install playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0 --reporter=dot
+        shell: bash
+        run: |
+          docker run --rm --shm-size=1g \
+            --user "$(id -u):$(id -g)" \
+            --env BASE_URL --env POS_EXPECTED_COMMIT --env S2_STAGING_PIN \
+            --env CI=true --env CYPRESS_INSTALL_BINARY=0 \
+            --env npm_config_cache=/tmp/qa-sit-npm-cache \
+            --volume "$GITHUB_WORKSPACE/qa-sit-${{ github.run_id }}:/work" \
+            --workdir /work/qa/automation/Testing_POS \
+            mcr.microsoft.com/playwright:v1.63.0-noble \
+            bash -c 'npm ci && npx --no-install playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0 --reporter=dot'
       - name: Upload sanitized SIT evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sit-pos-001-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
-            qa/automation/Testing_POS/evidence/sit-pos-001/SIT_POS_001_*.json
-            qa/automation/Testing_POS/evidence/sit-pos-001/*_qr_receipt.png
-            qa/automation/Testing_POS/evidence/sit-pos-001/*_payment_totals.png
+            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/SIT_POS_001_*.json
+            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/*_qr_receipt.png
+            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/*_payment_totals.png
           if-no-files-found: error
           retention-days: 14
