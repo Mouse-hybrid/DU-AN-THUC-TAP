@@ -17,7 +17,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = 'http://160.191.47.17';
-          const auth = await fetch(base + '/api/v1/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:'qa3_cashier', password:process.env.S2_STAGING_PIN}), signal:AbortSignal.timeout(20000)});
+          const auth = await fetch(base + '/api/v1/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:'qa3_admin', password:process.env.S2_STAGING_PIN}), signal:AbortSignal.timeout(20000)});
           if(auth.status!==200) throw Error('Login HTTP '+auth.status);
           const token=(await auth.json()).access_token;
           async function get(path) {
@@ -36,6 +36,14 @@ jobs:
               row.orders.push({id:d.id,status:d.status,session_id:d.table_session_id,customer_id:d.customer_id,reward_id:d.applied_reward?.reward_id||null,sit_note:d.items?.map(i=>i.note).find(n=>/^SIT kitchen [a-f0-9]{8}$/.test(n||''))||null,amount_due:d.amount_due,payments:payments.payments.map(p=>({id:p.id,method:p.method,status:p.status,amount:p.amount}))});
             }
             report.tables.push(row);
+          }
+          const audits=await get('/api/v1/audit-logs?action=ORDER_PAID&limit=100');
+          const candidates=audits.filter(r=>r.action==='ORDER_PAID' && r.created_at>='2026-11-27T12:36:57Z' && r.created_at<='2026-11-27T12:37:24Z');
+          report.paid_candidates=[];
+          for(const row of candidates){
+            const d=await get('/api/v1/orders/'+row.entity_id);
+            const marker=d.items?.map(i=>i.note).find(n=>/^SIT kitchen [a-f0-9]{8}$/.test(n||''));
+            report.paid_candidates.push({id:d.id,status:d.status,session:d.table_session_id,customer:d.customer_id,reward:d.applied_reward?.reward_id,marker});
           }
           console.log('SIT_READONLY_PROGRESS '+JSON.stringify(report));
           NODE
