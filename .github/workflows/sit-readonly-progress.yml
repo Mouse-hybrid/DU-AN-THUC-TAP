@@ -37,8 +37,7 @@ jobs:
             }
             report.tables.push(row);
           }
-          const audits=await get('/api/v1/audit-logs?action=ORDER_PAID&limit=100');
-          report.audit_meta = audits.slice(0,20).map(r=>({action:r.action,created_at:r.created_at,entity_id:r.entity_id,entity_type:r.entity_type}));
+          const audits=await get('/api/v1/audit-logs?action=ORDER_PAID&created_from=2026-11-27T12%3A36%3A57Z&created_to=2026-11-27T12%3A37%3A24Z&limit=100');
           const candidates=audits.filter(r=>r.action==='ORDER_PAID' && r.created_at>='2026-11-27T12:36:57Z' && r.created_at<='2026-11-27T12:37:24Z');
           report.paid_candidates=[];
           for(const row of candidates){
