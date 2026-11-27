@@ -438,9 +438,13 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         report.sandbox_bank_codes = bankCodes;
         expect(bankCodes.filter(code => code === 'NCB'), 'Exactly one NCB form method').toHaveLength(1);
         await page.locator('button[name="paymethod"][value="NCB"]').click();
-        await page.getByRole('textbox', { name: /số thẻ/i }).fill('9704198526191432198');
+        await page.locator('#card_number_mask').pressSequentially('9704198526191432198');
         await page.getByRole('textbox', { name: /tên chủ thẻ/i }).fill('NGUYEN VAN A');
-        await page.getByRole('textbox', { name: /ngày phát hành/i }).fill('07/15');
+        await page.locator('#cardDate').pressSequentially('0715');
+        report.sandbox_field_states = await page.locator('input')
+          .evaluateAll(nodes => nodes.filter(node => /card/i.test(node.name || node.id))
+            .map(node => ({name: node.name, id: node.id, type: node.type,
+              filled: node.value.length > 0, length: node.value.length, valid: node.validity.valid})));
         report.sandbox_action_labels = await page.locator('button:visible, a:visible, input[type="submit"]:visible')
           .evaluateAll(nodes => nodes.map(node => ({tag: node.tagName,
             label: node.textContent?.trim().slice(0, 80), id: node.getAttribute('id')})))
@@ -454,6 +458,9 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         checked(/Thanh toán thành công/i.test(await page.locator('body').innerText()),
           'Signed VNPay Return succeeded');
       } catch (error) {
+        report.sandbox_validation = await page.locator('[role="alert"], .field-validation-error, .invalid-feedback, .text-danger, .error')
+          .allTextContents().then(rows => rows.filter(text => text.trim()).map(text => safe(text.trim()).slice(0, 200)))
+          .catch(() => []);
         report.sandbox_controls = await page.locator('input:not([type="hidden"]):visible, button:visible, select:visible, img:visible')
           .evaluateAll(nodes => nodes.slice(0, 30).map(node => ({
             tag: node.tagName, type: node.getAttribute('type'),
