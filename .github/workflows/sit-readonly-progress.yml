@@ -1,0 +1,40 @@
+name: SIT readonly progress
+on:
+  push:
+    branches: [qa/sit-16-ci]
+    paths: [.github/workflows/sit-readonly-progress.yml]
+permissions:
+  contents: read
+jobs:
+  progress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Read sanitized QA3 progress
+        env:
+          S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const base = 'http://160.191.47.17';
+          const auth = await fetch(base + '/api/v1/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:'qa3_cashier', password:process.env.S2_STAGING_PIN}), signal:AbortSignal.timeout(20000)});
+          if(auth.status!==200) throw Error('Login HTTP '+auth.status);
+          const token=(await auth.json()).access_token;
+          async function get(path) {
+            const r=await fetch(base+path,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
+            if(r.status!==200) throw Error('Read HTTP '+r.status);
+            return r.json();
+          }
+          const tables=await get('/api/v1/tables');
+          const report={checked_at:new Date().toISOString(),business_mutations:0,version:await get('/version'),tables:[]};
+          for(const t of tables.filter(t=>['Q3-1','Q3-2','Q3-3'].includes(t.code))){
+            const detail=await get('/api/v1/tables/'+t.id);
+            const row={code:t.code,status:detail.status,session_id:detail.current_session?.id||null,orders:[]};
+            for(const order of (detail.orders||[]).filter(o=>o.status!=='CLOSED')){
+              const d=await get('/api/v1/orders/'+order.id);
+              const payments=await get('/api/v1/orders/'+order.id+'/payments');
+              row.orders.push({id:d.id,status:d.status,session_id:d.table_session_id,customer_id:d.customer_id,reward_id:d.applied_reward?.reward_id||null,sit_note:d.items?.map(i=>i.note).find(n=>/^SIT kitchen [a-f0-9]{8}$/.test(n||''))||null,amount_due:d.amount_due,payments:payments.payments.map(p=>({id:p.id,method:p.method,status:p.status,amount:p.amount}))});
+            }
+            report.tables.push(row);
+          }
+          console.log('SIT_READONLY_PROGRESS '+JSON.stringify(report));
+          NODE
