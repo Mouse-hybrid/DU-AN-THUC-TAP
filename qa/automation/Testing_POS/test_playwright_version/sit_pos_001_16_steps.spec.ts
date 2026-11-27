@@ -63,10 +63,8 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       row.status = 'RUNNING';
       try { await action(); row.status = 'PASSED'; }
       catch (error) {
-        row.status = 'FAILED'; row.error = safe(error);
-        // The acknowledged stale payment panel does not prevent reconciling the
-        // server-side remainder, VNPay Return, points and audit in this same run.
-        if (number === 12 && report.discount?.ui_stale === true) return;
+        row.error = safe(error);
+        row.status = row.error.includes('BLOCKED_ENV:') ? 'BLOCKED' : 'FAILED';
         throw new Error(row.error);
       }
     });
@@ -446,7 +444,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         const paymentBeforeCleanup = (await ledger()).payments?.find((p: any) => p.id === own.paymentId);
         report.payment.vnpay_before_cleanup = paymentBeforeCleanup?.status ?? null;
         if (!navigation.page_committed && error instanceof Error && error.name === 'TimeoutError')
-          throw new Error('VNPay sandbox navigation timed out before page commit (60000ms).');
+          throw new Error('BLOCKED_ENV: VNPay sandbox navigation timed out before page commit (60000ms).');
         throw error;
       } finally { await payment.close(); }
       const bill = await order(), payments = await ledger();
@@ -480,7 +478,9 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
   report.build_stable = !!before && before === report.build_after;
   report.result = !failure && !cleanupError && report.cleanup_pass && report.build_stable &&
     report.steps.every((s: any) => s.status === 'PASSED') ? 'PASSED' :
-    cleanupError ? 'INCONCLUSIVE' : 'FAILED';
+    cleanupError || report.steps.some((s: any) => s.status === 'BLOCKED') ? 'INCONCLUSIVE' : 'FAILED';
+  report.blocked_steps = report.steps.filter((s: any) => s.status === 'BLOCKED').map((s: any) => s.id);
+  report.not_executed_steps = report.steps.filter((s: any) => s.status === 'NOT_EXECUTED').map((s: any) => s.id);
   report.failed_steps = report.steps.filter((s: any) => s.status === 'FAILED').map((s: any) => s.id);
   if (failure) report.error = safe(failure);
   if (cleanupError) report.cleanup_required = safe(cleanupError);

@@ -29,7 +29,8 @@ jobs:
         working-directory: qa/automation/Testing_POS
     env:
       BASE_URL: http://160.191.47.17
-      POS_EXPECTED_COMMIT: ${{ inputs.expected_commit || '45eaabff7fe3d1a6cdf2c34608aa5eb57857e0ee' }}
+      POS_EXPECTED_COMMIT: ${{ inputs.expected_commit || 'd6ee04a173c74530653c5df394dd439c92369eaf' }}
+      CYPRESS_INSTALL_BINARY: '0'
       CI: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +57,8 @@ jobs:
             --write-out 'Public VNPay HTTPS: http=%{http_code} dns_s=%{time_namelookup} tcp_s=%{time_connect} tls_s=%{time_appconnect} first_byte_s=%{time_starttransfer}\n' \
             'https://sandbox.vnpayment.vn/apis/vnpay-demo/' | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
           echo "Public VNPay curl exit code: $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Record checked out QA revision
+        run: git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
       - name: Execute one owned 16-step SIT flow
         env:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
