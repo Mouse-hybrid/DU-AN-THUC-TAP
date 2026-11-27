@@ -11,6 +11,8 @@ permissions:
 
 jobs:
   verify-staging:
+    outputs:
+      qa_sha: ${{ steps.revisions.outputs.qa_sha }}
     if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -28,8 +30,10 @@ jobs:
           path: qa-gates
           persist-credentials: false
       - name: Record backend and QA gate revisions
+        id: revisions
         run: |
           qa_sha=$(git -C qa-gates rev-parse --verify HEAD)
+          printf 'qa_sha=%s\n' "$qa_sha" >> "$GITHUB_OUTPUT"
           {
             printf '### QA CD revisions\n\n'
             printf '| Source | Commit |\n| --- | --- |\n'
@@ -105,7 +109,7 @@ jobs:
           if (r.status !== 200 || (await r.json()).commit !== process.env.POS_EXPECTED_COMMIT)
             throw Error('Staging changed during post-deploy verification');
           NODE
-          echo 'Phase 2 and UX/UI thresholds refer to historical evidence; authenticated cases were not rerun by CD.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Phase 2 and UX/UI thresholds refer to historical evidence. Fresh authenticated SIT is reported in the dependent SIT job.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Phase 1 current-build smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,3 +118,41 @@ jobs:
           path: qa-gates/qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
           if-no-files-found: warn
           retention-days: 14
+
+  sit:
+    name: SIT 16 steps after three gates
+    needs: verify-staging
+    if: needs.verify-staging.result == 'success'
+    uses: Mouse-hybrid/DU-AN-THUC-TAP/.github/workflows/sit-pos-16.yml@e6114907f92d2f4b45cb81a6aeffc56c6abd57ce
+    with:
+      expected_commit: ${{ github.event.workflow_run.head_sha }}
+      qa_ref: ${{ needs.verify-staging.outputs.qa_sha }}
+    secrets:
+      S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+
+  qa-outcome:
+    name: Require gates and SIT success
+    needs: [verify-staging, sit]
+    if: always() && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      GATES_RESULT: ${{ needs.verify-staging.result }}
+      SIT_RESULT: ${{ needs.sit.result }}
+      APPLICATION_SHA: ${{ github.event.workflow_run.head_sha }}
+      QA_SOURCE_SHA: ${{ needs.verify-staging.outputs.qa_sha }}
+    steps:
+      - name: Report a failed or skipped required stage as failure
+        run: |
+          set -euo pipefail
+          {
+            printf '### Post-deploy QA outcome\n\n'
+            printf '| Stage | Result |\n| --- | --- |\n'
+            printf '| Three evidence gates and current-build smoke | %s |\n' "$GATES_RESULT"
+            printf '| Fresh SIT 16 steps, cleanup and SHA | %s |\n' "$SIT_RESULT"
+            printf '\nApplication SHA: `%s`\n\nQA source SHA: `%s`\n' "$APPLICATION_SHA" "$QA_SOURCE_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$GATES_RESULT" != success ] || [ "$SIT_RESULT" != success ]; then
+            echo 'Required QA stage failed or was skipped.' >&2
+            exit 1
+          fi
