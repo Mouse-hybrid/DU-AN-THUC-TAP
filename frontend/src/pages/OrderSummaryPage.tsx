@@ -258,6 +258,7 @@ export function OrderSummaryPage() {
                     <PaymentPanel
                       orderId={order.id}
                       orderStatus={order.status}
+                      orderTotal={order.total}
                       canRecord={can("PROCESS_PAYMENT")}
                       canRefund={can("PAYMENT_REFUND")}
                       locked={mutation !== null}

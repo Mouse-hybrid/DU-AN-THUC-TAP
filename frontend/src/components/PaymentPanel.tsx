@@ -25,6 +25,8 @@ type Dialog = { kind: "cancel" | "refund"; payment: PaymentRecord } | null;
 interface PaymentPanelProps {
   orderId: string;
   orderStatus: string;
+  /** Số phải trả của đơn. Đổi (áp/gỡ ưu đãi, đổi điểm) thì tải lại tóm tắt thanh toán. */
+  orderTotal: string;
   /** Thu tiền (PROCESS_PAYMENT). */
   canRecord: boolean;
   /** Hủy lần thu / hoàn tiền (PAYMENT_REFUND). */
@@ -59,7 +61,7 @@ function parseMoney(text: string): number | null {
   return Number.isFinite(value) && /^\d+$/.test(normalized) ? value : Number.NaN;
 }
 
-export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locked, notify, onChanged }: PaymentPanelProps) {
+export function PaymentPanel({ orderId, orderStatus, orderTotal, canRecord, canRefund, locked, notify, onChanged }: PaymentPanelProps) {
   const [data, setData] = useState<OrderPayments | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
@@ -92,7 +94,7 @@ export function PaymentPanel({ orderId, orderStatus, canRecord, canRefund, locke
 
   useEffect(() => {
     void load();
-  }, [load, orderStatus]);
+  }, [load, orderStatus, orderTotal]);
 
   const waitingLink = data?.payments.find((payment) => payment.method === "VNPAY" && WAITING.has(payment.status)) ?? null;
   const waitingId = waitingLink?.id ?? null;
