@@ -1,4 +1,5 @@
 name: SIT readonly progress
+# Diagnose paid-run cleanup 46000064157
 on:
   push:
     branches: [qa/sit-16-ci]
