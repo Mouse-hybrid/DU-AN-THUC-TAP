@@ -418,6 +418,18 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       const navigation = { request_started: false, document_http: [] as number[],
         page_committed: false, signed_return_seen: false };
       report.vnpay_navigation = navigation;
+      report.sandbox_runtime = { page_errors: [], failed_resources: [], posts: [], dialogs: [] };
+      page.on('pageerror', error => report.sandbox_runtime.page_errors.push(safe(error)));
+      page.on('requestfailed', req => report.sandbox_runtime.failed_resources.push({
+        path: new URL(req.url()).pathname, error: req.failure()?.errorText }));
+      page.on('response', res => {
+        if (res.request().method() === 'POST') report.sandbox_runtime.posts.push({
+          path: new URL(res.url()).pathname, status: res.status() });
+      });
+      page.on('dialog', async dialog => {
+        report.sandbox_runtime.dialogs.push({ type: dialog.type(), message: safe(dialog.message()) });
+        await dialog.accept();
+      });
       page.on('request', req => {
         if (req.isNavigationRequest() && req.frame() === page.mainFrame() &&
           new URL(req.url()).origin === 'https://sandbox.vnpayment.vn') navigation.request_started = true;
@@ -449,7 +461,10 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
           .evaluateAll(nodes => nodes.map(node => ({tag: node.tagName,
             label: node.textContent?.trim().slice(0, 80), id: node.getAttribute('id')})))
           .then(rows => JSON.parse(safe(JSON.stringify(rows))));
-        await page.getByText(/^(Tiếp tục|Thanh toán|Xác thực|Xác nhận)$/i).click();
+        report.sandbox_continue = await page.locator('#btnContinue').evaluate(node => ({
+          tag: node.tagName, onclick: node.getAttribute('onclick'),
+          disabled: node.getAttribute('disabled'), class: node.getAttribute('class') }));
+        await page.locator('#btnContinue').click();
         await page.getByRole('textbox', { name: /OTP|mã xác thực/i }).fill('123456');
         await page.getByText(/^(Xác nhận|Thanh toán)$/i).click();
         await page.waitForURL(url => url.origin === base &&
@@ -458,6 +473,8 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         checked(/Thanh toán thành công/i.test(await page.locator('body').innerText()),
           'Signed VNPay Return succeeded');
       } catch (error) {
+        report.sandbox_page_text = await page.locator('body').innerText()
+          .then(text => safe(text).replace(/\d{6,}/g, '<NUMBER>').slice(0, 5000)).catch(() => '');
         report.sandbox_validation = await page.locator('[role="alert"], .field-validation-error, .invalid-feedback, .text-danger, .error')
           .allTextContents().then(rows => rows.filter(text => text.trim()).map(text => safe(text.trim()).slice(0, 200)))
           .catch(() => []);
