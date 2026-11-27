@@ -465,6 +465,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
           tag: node.tagName, onclick: node.getAttribute('onclick'),
           disabled: node.getAttribute('disabled'), class: node.getAttribute('class') }));
         await page.locator('#btnContinue').click();
+        await page.getByText('Đồng ý & Tiếp tục', { exact: true }).click();
         await page.getByRole('textbox', { name: /OTP|mã xác thực/i }).fill('123456');
         await page.getByText(/^(Xác nhận|Thanh toán)$/i).click();
         await page.waitForURL(url => url.origin === base &&
