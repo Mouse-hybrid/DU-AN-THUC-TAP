@@ -1,10 +1,5 @@
 name: QA targeted staging retest 27 Nov
 on:
-  push:
-    branches: [qa/retest-staging-20261127]
-    paths:
-      - .github/workflows/qa-retest-staging.yml
-      - qa/automation/Testing_POS/test_playwright_version/reg_20261127_payment_qr.spec.ts
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,6 +32,7 @@ jobs:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
         run: |
           test -n "$S2_STAGING_PIN"
+          echo "QA_RETEST_STARTED_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
           node --input-type=module <<'NODE'
           const r = await fetch(process.env.BASE_URL + '/version', { signal: AbortSignal.timeout(20000) });
           const v = await r.json();
@@ -60,7 +56,7 @@ jobs:
           ];
           const results = files.map(p => JSON.parse(readFileSync(p, 'utf8')));
           for (const id of ['REG-20261127-PAYMENT-QR', 'S4-UX-011']) {
-            const result = results.find(r => r.test_ref === id && r.staging_commit === process.env.POS_EXPECTED_COMMIT && r.result === 'PASSED' && r.cleanup_pass && r.build_stable);
+            const result = results.find(r => r.test_ref === id && r.staging_commit === process.env.POS_EXPECTED_COMMIT && Date.parse(r.checked_at) >= Number(process.env.QA_RETEST_STARTED_MS) && r.result === 'PASSED' && r.cleanup_pass && r.build_stable);
             if (!result) throw Error(id + ' requires fresh Passed evidence and cleanup');
             appendFileSync(process.env.GITHUB_STEP_SUMMARY, id + ' Passed on ' + result.staging_commit + '\n');
           }
