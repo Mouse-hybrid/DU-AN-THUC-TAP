@@ -1,16 +1,30 @@
-name: SIT POS 16 steps (staging, no CD)
+name: SIT POS 16 steps
 on:
+  workflow_call:
+    inputs:
+      expected_commit:
+        description: Full deployed application SHA
+        required: true
+        type: string
+      qa_ref:
+        description: Full QA source SHA recorded by the preceding gates
+        required: true
+        type: string
+    secrets:
+      S2_STAGING_PIN:
+        required: true
   workflow_dispatch:
-  push:
-    branches: [qa/sit-16-ci]
-    paths:
-      - .github/workflows/sit-pos-16.yml
-      - qa/automation/Testing_POS/test_playwright_version/sit_pos_001_16_steps.spec.ts
+    inputs:
+      expected_commit:
+        description: Full deployed application SHA
+        required: true
+        type: string
+      qa_ref:
+        description: Full QA source SHA
+        required: true
+        type: string
 permissions:
   contents: read
-concurrency:
-  group: sit-pos-16-staging
-  cancel-in-progress: false
 jobs:
   sit:
     runs-on: [self-hosted, staging]
@@ -20,36 +34,81 @@ jobs:
       cancel-in-progress: false
     env:
       BASE_URL: http://160.191.47.17
-      POS_EXPECTED_COMMIT: d6ee04a173c74530653c5df394dd439c92369eaf
+      POS_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+      QA_SOURCE_SHA: ${{ inputs.qa_ref }}
+      QA_CHECKOUT: qa-sit-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Validate immutable input revisions
+        run: |
+          set -euo pipefail
+          [[ "$POS_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$QA_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+      - name: Check out pinned QA source
+        uses: actions/checkout@v4
         with:
-          path: qa-sit-${{ github.run_id }}
+          ref: ${{ inputs.qa_ref }}
+          path: ${{ env.QA_CHECKOUT }}
           persist-credentials: false
+      - name: Verify checkout and record revisions
+        run: |
+          set -euo pipefail
+          actual=$(git -C "$QA_CHECKOUT" rev-parse --verify HEAD)
+          [[ "$actual" = "$QA_SOURCE_SHA" ]]
+          {
+            printf '### SIT revisions\n\n'
+            printf 'Application SHA: `%s`\n\n' "$POS_EXPECTED_COMMIT"
+            printf 'QA source SHA: `%s`\n' "$actual"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Require the pinned browser image within three minutes
         run: timeout 180 docker pull mcr.microsoft.com/playwright:v1.63.0-noble
       - name: Execute bounded 16-step SIT flow
         env:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
         run: |
-          docker run --rm --shm-size=1g --name qa-sit-${{ github.run_id }} \
+          set -euo pipefail
+          test -n "$S2_STAGING_PIN" || { echo 'S2_STAGING_PIN is missing' >&2; exit 1; }
+          container="qa-sit-${{ github.run_id }}-${{ github.run_attempt }}"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          docker run --rm --shm-size=1g --name "$container" \
             --user "$(id -u):$(id -g)" \
             --env BASE_URL --env POS_EXPECTED_COMMIT --env S2_STAGING_PIN \
             --env CI=true --env CYPRESS_INSTALL_BINARY=0 \
             --env npm_config_cache=/tmp/qa-sit-npm-cache \
-            --volume "$GITHUB_WORKSPACE/qa-sit-${{ github.run_id }}:/work" \
+            --volume "$GITHUB_WORKSPACE/$QA_CHECKOUT:/work" \
             --workdir /work/qa/automation/Testing_POS \
             mcr.microsoft.com/playwright:v1.63.0-noble \
             bash -c 'timeout 180 npm ci && npx --no-install playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0 --reporter=dot'
+      - name: Validate SIT result including cleanup and SHA
+        if: always()
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --env QA_SOURCE_SHA --env GITHUB_RUN_ID --env GITHUB_RUN_ATTEMPT --env GITHUB_WORKFLOW_REF \
+            --volume "$GITHUB_WORKSPACE/$QA_CHECKOUT:/work" \
+            --workdir /work/qa/automation/Testing_POS \
+            mcr.microsoft.com/playwright:v1.63.0-noble \
+            node scripts/check_sit_gate.mjs evidence/sit-pos-001 "$POS_EXPECTED_COMMIT"
+      - name: Publish SIT gate summary
+        if: always()
+        run: |
+          summary="$QA_CHECKOUT/qa/automation/Testing_POS/evidence/sit-pos-001/SIT_GATE_SUMMARY.md"
+          if [ -f "$summary" ]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'SIT could not produce its gate report. Application SHA: `%s`. QA SHA: `%s`.\n' "$POS_EXPECTED_COMMIT" "$QA_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload sanitized SIT evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sit-pos-001-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
-            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/SIT_POS_001_*.json
-            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/RECOVERY_*.json
-            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/*_qr_receipt.png
-            qa-sit-${{ github.run_id }}/qa/automation/Testing_POS/evidence/sit-pos-001/*_payment_totals.png
+            ${{ env.QA_CHECKOUT }}/qa/automation/Testing_POS/evidence/sit-pos-001/SIT_POS_001_*.json
+            ${{ env.QA_CHECKOUT }}/qa/automation/Testing_POS/evidence/sit-pos-001/SIT_GATE.json
+            ${{ env.QA_CHECKOUT }}/qa/automation/Testing_POS/evidence/sit-pos-001/SIT_GATE_SUMMARY.md
+            ${{ env.QA_CHECKOUT }}/qa/automation/Testing_POS/evidence/sit-pos-001/*_qr_receipt.png
+            ${{ env.QA_CHECKOUT }}/qa/automation/Testing_POS/evidence/sit-pos-001/*_payment_totals.png
           if-no-files-found: error
           retention-days: 14

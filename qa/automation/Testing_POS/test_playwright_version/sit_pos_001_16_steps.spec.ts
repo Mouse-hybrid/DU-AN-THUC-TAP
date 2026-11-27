@@ -286,6 +286,8 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       await staffContext.close();
       const anonymous = await browser.newContext({ viewport: { width: 375, height: 812 } });
       staffContext = anonymous; staffPage = await anonymous.newPage();
+      staffPage.setDefaultTimeout(15_000);
+      staffPage.setDefaultNavigationTimeout(30_000);
       await staffPage.goto(base + `/qr/${own.token}`, { waitUntil: 'domcontentloaded' });
       await expect(staffPage.getByTestId('qr-table')).toHaveText(`Bàn ${own.tables.target.code}`);
       const item = own.menu.find((m: any) => m.name === 'Gỏi cuốn') || own.menu[1];

@@ -1,0 +1,30 @@
+name: SIT evidence gate policy
+on:
+  push:
+    branches: [ONLY_TESTING, qa/sit-16-ci]
+    paths:
+      - .github/workflows/sit-pos-16.yml
+      - .github/workflows/sit-policy-checks.yml
+      - qa/automation/Testing_POS/scripts/check_sit_gate*
+  pull_request:
+    branches: [ONLY_TESTING]
+    paths:
+      - .github/workflows/sit-pos-16.yml
+      - .github/workflows/sit-policy-checks.yml
+      - qa/automation/Testing_POS/scripts/check_sit_gate*
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify positive and negative evidence outcomes without staging access
+        working-directory: qa/automation/Testing_POS
+        run: node --test scripts/check_sit_gate.test.mjs
