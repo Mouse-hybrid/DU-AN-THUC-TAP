@@ -432,7 +432,12 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         await page.goto(own.paymentUrl, { waitUntil: 'commit', timeout: 60_000 });
         navigation.page_committed = true;
         await page.getByText('Thẻ nội địa và tài khoản ngân hàng').click();
-        await page.getByText(/NCB|Ngân hàng Quốc Dân/i).first().click();
+        const bankSearch = page.getByPlaceholder('Tìm kiếm...', { exact: true });
+        await bankSearch.fill('NCB');
+        const bankChoice = page.locator('button[name="paymethod"]:visible')
+          .filter({ hasText: /^\s*$/ });
+        await expect(bankChoice).toHaveCount(1);
+        await bankChoice.click();
         await page.getByRole('textbox', { name: /số thẻ/i }).fill('9704198526191432198');
         await page.getByRole('textbox', { name: /tên chủ thẻ/i }).fill('NGUYEN VAN A');
         await page.getByRole('textbox', { name: /ngày phát hành/i }).fill('07/15');
@@ -445,9 +450,10 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         checked(/Thanh toán thành công/i.test(await page.locator('body').innerText()),
           'Signed VNPay Return succeeded');
       } catch (error) {
-        report.sandbox_controls = await page.locator('input:not([type="hidden"]), button, select')
+        report.sandbox_controls = await page.locator('input:not([type="hidden"]):visible, button:visible, select:visible, img:visible')
           .evaluateAll(nodes => nodes.slice(0, 30).map(node => ({
             tag: node.tagName, type: node.getAttribute('type'),
+            alt: node.getAttribute('alt'), title: node.getAttribute('title'),
             name: node.getAttribute('name'), label: node.getAttribute('aria-label'),
             placeholder: node.getAttribute('placeholder'),
             text: node.tagName === 'BUTTON' ? node.textContent?.trim().slice(0, 60) : null,

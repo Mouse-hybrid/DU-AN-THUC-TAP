@@ -6,43 +6,13 @@ on:
     paths:
       - .github/workflows/sit-pos-16.yml
       - qa/automation/Testing_POS/test_playwright_version/sit_pos_001_16_steps.spec.ts
-      - qa/automation/Testing_POS/scripts/sit_cleanup_45994278118.mjs
 permissions:
   contents: read
 concurrency:
   group: sit-pos-16-staging
   cancel-in-progress: false
 jobs:
-  stop-previous-owned-run:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    permissions:
-      actions: write
-    steps:
-      - name: Stop only the identified stalled SIT run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          node --input-type=module <<'NODE'
-          const url='https://api.github.com/repos/Mouse-hybrid/DU-AN-THUC-TAP/actions/runs/45994278118';
-          const headers={Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json'};
-          async function read(){const r=await fetch(url,{headers,signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Run read HTTP '+r.status);return r.json();}
-          let run=await read();
-          if(run.head_sha!=='2c3cc380e3fc0c7e6b981254baa89bdbd6da9eb0'||run.head_branch!=='qa/sit-16-ci')
-            throw Error('Previous SIT ownership changed');
-          if(run.conclusion==='success')throw Error('Previous SIT succeeded, review its report');
-          if(run.status!=='completed'){
-            const r=await fetch(url+'/cancel',{method:'POST',headers,signal:AbortSignal.timeout(20000)});
-            if(![202,409].includes(r.status))throw Error('Run cancel HTTP '+r.status);
-          }
-          for(let i=0;i<12&&run.status!=='completed';i++){
-            await new Promise(resolve=>setTimeout(resolve,5000));run=await read();
-          }
-          if(run.status!=='completed')throw Error('Previous SIT has not stopped');
-          console.log('Previous owned SIT stopped with '+run.conclusion);
-          NODE
   sit:
-    needs: stop-previous-owned-run
     runs-on: [self-hosted, staging]
     timeout-minutes: 20
     concurrency:
@@ -52,30 +22,12 @@ jobs:
       BASE_URL: http://160.191.47.17
       POS_EXPECTED_COMMIT: d6ee04a173c74530653c5df394dd439c92369eaf
     steps:
-      - name: Stop any surviving container from the previous owned run
-        shell: bash
-        run: |
-          for id in $(docker ps --quiet --filter ancestor=mcr.microsoft.com/playwright:v1.63.0-noble); do
-            source=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/work"}}{{.Source}}{{end}}{{end}}' "$id")
-            case "$source" in
-              */qa-sit-45994278118) docker stop --time 10 "$id" ;;
-            esac
-          done
       - uses: actions/checkout@v4
         with:
           path: qa-sit-${{ github.run_id }}
           persist-credentials: false
       - name: Require the pinned browser image within three minutes
         run: timeout 180 docker pull mcr.microsoft.com/playwright:v1.63.0-noble
-      - name: Recover the identified owned fixture
-        env:
-          S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
-        run: |
-          test -n "$S2_STAGING_PIN"
-          docker run --rm --user "$(id -u):$(id -g)" --env S2_STAGING_PIN \
-            --volume "$GITHUB_WORKSPACE/qa-sit-${{ github.run_id }}:/work" \
-            --workdir /work/qa/automation/Testing_POS \
-            mcr.microsoft.com/playwright:v1.63.0-noble node scripts/sit_cleanup_45994278118.mjs
       - name: Execute bounded 16-step SIT flow
         env:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
