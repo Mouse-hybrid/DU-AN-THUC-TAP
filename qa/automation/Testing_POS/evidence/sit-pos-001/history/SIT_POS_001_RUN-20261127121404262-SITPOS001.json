@@ -1,0 +1,366 @@
+{
+  "test_ref": "SIT-POS-001",
+  "checked_at": "2026-11-27T12:14:04.262Z",
+  "run_id": "RUN-20261127121404262-SITPOS001",
+  "result": "FAILED",
+  "steps": [
+    {
+      "id": "SIT-POS-001-01",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-02",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-03",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-04",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-05",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-06",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-07",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-08",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-09",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-10",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-11",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-12",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-13",
+      "status": "PASSED"
+    },
+    {
+      "id": "SIT-POS-001-14",
+      "status": "FAILED",
+      "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/NCB|Ngân hàng Quốc Dân/i).first()\u001b[22m\n"
+    },
+    {
+      "id": "SIT-POS-001-15",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "SIT-POS-001-16",
+      "status": "NOT_EXECUTED"
+    }
+  ],
+  "cleanup_pass": true,
+  "secrets_recorded": false,
+  "token_recorded": false,
+  "phone_recorded": false,
+  "signed_url_recorded": false,
+  "card_recorded": false,
+  "staging_commit": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "outlet_id": "bf3373d1-afba-406a-8b5c-edbe5b076a67",
+  "discount": {
+    "before_ui_vnd": {
+      "total": 200000,
+      "remaining": 200000
+    },
+    "before_due_vnd": 200000,
+    "order_due_vnd": 180000,
+    "payment_api_vnd": {
+      "total": 180000,
+      "remaining": 180000
+    },
+    "ui_stale": false,
+    "after_apply_ui_vnd": {
+      "total": 180000,
+      "remaining": 180000
+    }
+  },
+  "payment": {
+    "cash_vnd": 90000,
+    "vnpay_vnd": 90000,
+    "vnpay_initial_status": "PENDING",
+    "vnpay_before_cleanup": "PENDING"
+  },
+  "vnpay_navigation": {
+    "request_started": true,
+    "document_http": [
+      302,
+      200
+    ],
+    "page_committed": true,
+    "signed_return_seen": false
+  },
+  "sandbox_controls": [
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": "App Ngân hàng và Ví điện tử (VNPAYQR)"
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "name": null,
+      "label": null,
+      "placeholder": "Tìm kiếm...",
+      "text": null
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    },
+    {
+      "tag": "BUTTON",
+      "type": "submit",
+      "name": "paymethod",
+      "label": null,
+      "placeholder": null,
+      "text": ""
+    }
+  ],
+  "build_after": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "build_stable": true,
+  "blocked_steps": [],
+  "not_executed_steps": [
+    "SIT-POS-001-15",
+    "SIT-POS-001-16"
+  ],
+  "failed_steps": [
+    "SIT-POS-001-14"
+  ],
+  "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/NCB|Ngân hàng Quốc Dân/i).first()\u001b[22m\n"
+}

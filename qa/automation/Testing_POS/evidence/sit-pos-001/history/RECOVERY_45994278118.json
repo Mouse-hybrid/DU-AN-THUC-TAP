@@ -1,0 +1,18 @@
+{
+  "test_ref": "SIT-OWNED-RECOVERY",
+  "source_run": 45994278118,
+  "checked_at": "2026-11-27T12:13:52.428Z",
+  "fixture": {
+    "order": "a993733a-2f71-48fc-8b4c-2e565c9b9f1f",
+    "session": "7a7d156e-a243-4196-985b-6d68e30a8de1",
+    "customer": "f1ba2720-9b4e-4ecb-8e8f-25eaa8bf1f48",
+    "reward": "0929f326-b72a-4446-8748-280b9d0a28e1",
+    "payment": "83331de2-45b9-40ac-94d9-d46201f36b82",
+    "marker": "8f4f01e9"
+  },
+  "order_closed": true,
+  "tables_available": true,
+  "cleanup_pass": true,
+  "staging_commit": "d6ee04a173c74530653c5df394dd439c92369eaf",
+  "secrets_recorded": false
+}
