@@ -30,7 +30,6 @@ jobs:
     env:
       BASE_URL: http://160.191.47.17
       POS_EXPECTED_COMMIT: ${{ inputs.expected_commit || '45eaabff7fe3d1a6cdf2c34608aa5eb57857e0ee' }}
-      S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
       CI: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -41,21 +40,34 @@ jobs:
           cache-dependency-path: qa/automation/Testing_POS/package-lock.json
       - name: Validate private PIN and full commit pin
         shell: bash
+        env:
+          S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
         run: |
           test -n "$S2_STAGING_PIN" || { echo 'S2_STAGING_PIN secret is unavailable'; exit 1; }
           [[ "$POS_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo 'Full staging SHA required'; exit 1; }
           echo 'Required secret and SHA format present; values hidden.'
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Check public VNPay sandbox reachability from this runner
+        shell: bash
+        run: |
+          rc=0
+          curl -s -o /dev/null --connect-timeout 8 --max-time 15 \
+            --write-out 'Public VNPay HTTPS: http=%{http_code} dns_s=%{time_namelookup} tcp_s=%{time_connect} tls_s=%{time_appconnect} first_byte_s=%{time_starttransfer}\n' \
+            'https://sandbox.vnpayment.vn/apis/vnpay-demo/' | tee -a "$GITHUB_STEP_SUMMARY" || rc=$?
+          echo "Public VNPay curl exit code: $rc" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Execute one owned 16-step SIT flow
-        run: npx playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0
+        env:
+          S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+        run: npx --no-install playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0 --reporter=dot
       - name: Upload sanitized SIT evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sit-pos-001-${{ github.run_id }}
+          name: sit-pos-001-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
-            qa/automation/Testing_POS/evidence/SIT_POS_001_*.json
-            qa/automation/Testing_POS/playwright-report/
-          if-no-files-found: warn
+            qa/automation/Testing_POS/evidence/sit-pos-001/SIT_POS_001_*.json
+            qa/automation/Testing_POS/evidence/sit-pos-001/*_qr_receipt.png
+            qa/automation/Testing_POS/evidence/sit-pos-001/*_payment_totals.png
+          if-no-files-found: error
           retention-days: 14

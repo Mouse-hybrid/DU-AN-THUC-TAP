@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 // The QR token, signed payment URL, test card and OTP must never enter automatic artifacts.
 test.use({ video: 'off', trace: 'off', screenshot: 'off' });
 
-test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, request }, testInfo) => {
+test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, request }) => {
   test.setTimeout(30 * 60_000);
   const base = (process.env.BASE_URL || '').replace(/\/+$/, '');
   const pin = process.env.S2_STAGING_PIN;
@@ -20,6 +20,9 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
     phone_recorded: false, signed_url_recorded: false, card_recorded: false,
   };
   const tokens: Record<string, string> = {};
+  const evidenceDir = join(process.cwd(), 'evidence', 'sit-pos-001');
+  mkdirSync(evidenceDir, { recursive: true });
+  const imagePath = (name: string) => join(evidenceDir, `${report.run_id}_${name}.png`);
   const own: any = { tables: {}, sessions: {}, orders: {}, itemIds: [],
     token: null, qrIssued: false, paymentId: null, rewardId: null,
     customerId: null, phone: null, marker: randomUUID().slice(0, 8) };
@@ -63,8 +66,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         row.status = 'FAILED'; row.error = safe(error);
         // The acknowledged stale payment panel does not prevent reconciling the
         // server-side remainder, VNPay Return, points and audit in this same run.
-        if (number === 12 && own.rewardId &&
-          (await order()).applied_reward?.reward_id === own.rewardId) return;
+        if (number === 12 && report.discount?.ui_stale === true) return;
         throw new Error(row.error);
       }
     });
@@ -295,9 +297,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       own.qrItemId = current.items.find((i: any) => i.source === 'QR' &&
         i.menu_item_id === item.id)?.id;
       checked(own.qrItemId && current.table_session_id === own.sessions.main, 'QR shares master bill');
-      await testInfo.attach('SIT_POS_001_QR_receipt', {
-        body: await staffPage.getByTestId('qr-placed').screenshot(), contentType: 'image/png',
-      });
+      await staffPage.getByTestId('qr-placed').screenshot({ path: imagePath('qr_receipt') });
     });
     await step(10, 'Member, QR ticket and request bill', async () => {
       await serve(own.qrItemId);
@@ -333,6 +333,20 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         await attachMember.click();
       }
       checked((await order()).customer_id === own.customerId, 'Cashier linked QR member');
+      const initialBill = await order();
+      const page = staffPage!;
+      const panelAmounts = async () => {
+        const value = async (id: string) => {
+          const label = (await page.getByTestId(id).innerText({ timeout: 5_000 })).trim();
+          const digits = label.replace(/[.\s₫đ]/g, '');
+          if (!/^\d+$/.test(digits)) throw new Error('Expected whole VND in payment panel');
+          return Number(digits);
+        };
+        return { total: await value('pay-total'), remaining: await value('pay-remaining') };
+      };
+      const initialUi = await panelAmounts();
+      const expectedBefore = Number(initialBill.amount_due);
+      expect(initialUi).toEqual({ total: expectedBefore, remaining: expectedBefore });
       const row = staffPage!.getByTestId('reward-row').filter({ hasText: reward.name });
       await expect(row).toBeVisible();
       const appliedResponse = staffPage!.waitForResponse(r => r.request().method() === 'POST' &&
@@ -341,20 +355,38 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       expect((await appliedResponse).status()).toBe(201);
       const current = await order();
       checked(current.applied_reward?.reward_id === own.rewardId, 'One owned reward applied');
+      const liveLedger = await ledger();
+      const discountedDue = Number(current.amount_due);
+      const expectedAmounts = { total: discountedDue, remaining: discountedDue };
+      const apiAmounts = { total: Number(liveLedger.summary.total),
+        remaining: Number(liveLedger.summary.remaining) };
+      report.discount = { before_ui_vnd: initialUi, before_due_vnd: expectedBefore,
+        order_due_vnd: discountedDue, payment_api_vnd: apiAmounts, ui_stale: false };
+      expect(discountedDue).toBeCloseTo(expectedBefore * 0.9, 2);
+      expect(apiAmounts, 'Payment ledger agrees with discounted order').toEqual(expectedAmounts);
       const formatted = Number(current.amount_due).toLocaleString('vi-VN');
       await expect(staffPage!.locator('aside[aria-label="Tổng tiền"]')).toContainText(formatted,
         { timeout: 5_000 });
       // No reload: a stale payment total is an SIT failure, as BE acknowledged.
       const paymentTotal = staffPage!.getByTestId('pay-total');
       await expect(paymentTotal).toBeVisible();
-      await testInfo.attach('SIT_POS_001_discount_payment_panel', {
-        body: await staffPage!.screenshot({ fullPage: true, animations: 'disabled' }),
-        contentType: 'image/png',
-      });
-      await expect(paymentTotal, 'Payment panel must refresh its total without page reload')
-        .toContainText(formatted, { timeout: 5_000 });
-      await expect(staffPage!.getByTestId('pay-remaining')).toContainText(formatted,
-        { timeout: 5_000 });
+      try {
+        await expect.poll(panelAmounts, { timeout: 5_000,
+          message: 'Payment panel must match discounted ledger without reloading' }).toEqual(expectedAmounts);
+      } catch (error) {
+        report.discount.after_apply_ui_vnd = await panelAmounts();
+        report.discount.ui_stale = report.discount.after_apply_ui_vnd.total !== discountedDue ||
+          report.discount.after_apply_ui_vnd.remaining !== discountedDue;
+        await page.locator('.nova-payment-totals').screenshot({ path: imagePath('payment_totals') });
+        if (report.discount.ui_stale) {
+          // Verify BE's workaround only after the no-reload assertion has failed.
+          await page.reload({ waitUntil: 'domcontentloaded' });
+          report.discount.after_reload_ui_vnd = await panelAmounts();
+        }
+        throw error;
+      }
+      report.discount.after_apply_ui_vnd = await panelAmounts();
+      await page.locator('.nova-payment-totals').screenshot({ path: imagePath('payment_totals') });
     });
     await step(13, 'Partial CASH and pending VNPay', async () => {
       const due = Number((await order()).amount_due);
@@ -369,17 +401,34 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       own.paymentId = link.payment?.id;
       own.paymentUrl = link.payment?.payment_url;
       checked(own.paymentId && link.payment?.status === 'PENDING' &&
-        new URL(own.paymentUrl).hostname === 'sandbox.vnpayment.vn', 'Pending signed sandbox link');
+        new URL(own.paymentUrl).origin === 'https://sandbox.vnpayment.vn', 'Pending signed sandbox link');
+      expect(Number(first.payment?.amount)).toBe(cash);
+      expect(first.payment?.status).toBe('SUCCEEDED');
+      expect(Number(link.payment?.amount)).toBe(due - cash);
+      report.payment = { cash_vnd: cash, vnpay_vnd: Number(link.payment.amount),
+        vnpay_initial_status: link.payment.status };
       checked((await order()).status === 'BILLING', 'Bill remains unpaid while VNPay pending');
     });
     await step(14, 'Signed sandbox Return settles remainder', async () => {
       // VNPay publishes this NCB card/OTP strictly for sandbox use.
       const payment = await browser.newContext({ acceptDownloads: false });
       const page = await payment.newPage();
+      const navigation = { request_started: false, document_http: [] as number[],
+        page_committed: false, signed_return_seen: false };
+      report.vnpay_navigation = navigation;
+      page.on('request', req => {
+        if (req.isNavigationRequest() && req.frame() === page.mainFrame() &&
+          new URL(req.url()).origin === 'https://sandbox.vnpayment.vn') navigation.request_started = true;
+      });
+      page.on('response', res => {
+        if (res.request().isNavigationRequest() && res.request().frame() === page.mainFrame() &&
+          new URL(res.url()).origin === 'https://sandbox.vnpayment.vn') navigation.document_http.push(res.status());
+      });
       try {
         // The sandbox can keep subresources open; wait for the response commit,
         // then let each visible control establish UI readiness.
         await page.goto(own.paymentUrl, { waitUntil: 'commit', timeout: 60_000 });
+        navigation.page_committed = true;
         await page.getByText('Thẻ nội địa và tài khoản ngân hàng').click();
         await page.getByText(/NCB|Ngân hàng Quốc Dân/i).first().click();
         await page.getByRole('textbox', { name: /số thẻ/i }).fill('9704198526191432198');
@@ -390,8 +439,15 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
         await page.getByRole('button', { name: /xác nhận|thanh toán/i }).click();
         await page.waitForURL(url => url.origin === base &&
           url.pathname === '/api/v1/payments/vnpay/return', { timeout: 120_000 });
+        navigation.signed_return_seen = true;
         checked(/Thanh toán thành công/i.test(await page.locator('body').innerText()),
           'Signed VNPay Return succeeded');
+      } catch (error) {
+        const paymentBeforeCleanup = (await ledger()).payments?.find((p: any) => p.id === own.paymentId);
+        report.payment.vnpay_before_cleanup = paymentBeforeCleanup?.status ?? null;
+        if (!navigation.page_committed && error instanceof Error && error.name === 'TimeoutError')
+          throw new Error('VNPay sandbox navigation timed out before page commit (60000ms).');
+        throw error;
       } finally { await payment.close(); }
       const bill = await order(), payments = await ledger();
       checked(bill.status === 'PAID' && payments.payments.filter((p: any) =>
@@ -430,11 +486,9 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
   if (cleanupError) report.cleanup_required = safe(cleanupError);
   delete own.paymentUrl;
   const evidence = JSON.stringify(report, null, 2) + '\n';
-  mkdirSync(join(process.cwd(), 'evidence'), { recursive: true });
   const filename = `SIT_POS_001_${report.run_id}.json`;
-  writeFileSync(join(process.cwd(), 'evidence', filename), evidence);
-  await testInfo.attach('SIT_POS_001_evidence', { body: evidence, contentType: 'application/json' });
-  console.log(`[SIT-POS-001] Evidence: evidence/${filename}; result=${report.result}; ` +
+  writeFileSync(join(evidenceDir, filename), evidence);
+  console.log(`[SIT-POS-001] Evidence: evidence/sit-pos-001/${filename}; result=${report.result}; ` +
     `passed_steps=${report.steps.filter((s: any) => s.status === 'PASSED').length}/16`);
   if (cleanupError) throw new Error(safe(cleanupError));
   if (failure) throw new Error(safe(failure));
