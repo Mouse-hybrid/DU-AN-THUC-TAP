@@ -21,18 +21,21 @@ jobs:
       BASE_URL: http://160.191.47.17
       POS_EXPECTED_COMMIT: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Check out deployed source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          path: deployed
-          persist-credentials: false
       - name: Check out QA gates
         uses: actions/checkout@v4
         with:
           ref: ONLY_TESTING
           path: qa-gates
           persist-credentials: false
+      - name: Record backend and QA gate revisions
+        run: |
+          qa_sha=$(git -C qa-gates rev-parse --verify HEAD)
+          {
+            printf '### QA CD revisions\n\n'
+            printf '| Source | Commit |\n| --- | --- |\n'
+            printf '| Backend CI target (`main`) | `%s` |\n' "$POS_EXPECTED_COMMIT"
+            printf '| QA scripts and baselines (`ONLY_TESTING`) | `%s` |\n' "$qa_sha"
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
