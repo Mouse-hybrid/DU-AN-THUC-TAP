@@ -1,0 +1,37 @@
+{
+  "run_id": "RUN-20261127100429230-S4UX011",
+  "test_ref": "S4-UX-011",
+  "checked_at": "2026-11-27T10:04:29.230Z",
+  "scope": "QA3 desktop merge dialog with two owned occupied tables: no selection submit guard, Cancel and Escape close without merge write; session, order, ticket and audit unchanged; owned cleanup. No merge submission.",
+  "project": "chromium",
+  "secrets_recorded": false,
+  "ui_writes": [],
+  "checks": {
+    "no_selection_submit_disabled": true,
+    "cancel_closes_dialog": true,
+    "escape_closes_dialog": true,
+    "no_ui_business_write": true,
+    "two_sessions_orders_tickets_unchanged": true,
+    "merge_audit_unchanged": true
+  },
+  "cleanup_pass": true,
+  "staging_commit": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "tables": [
+    {
+      "code": "Q3-1",
+      "session_id": "72999484-4b61-480a-8064-0c4bf4866a7c",
+      "order_id": "e07f5d39-41c9-4ede-bac1-703d3fa932b6"
+    },
+    {
+      "code": "Q3-2",
+      "session_id": "cc5d0eec-dc27-4a58-8402-8fef81579c79",
+      "order_id": "7ddfb2eb-237b-4699-a5c8-f150409c677b"
+    }
+  ],
+  "cancel_closed": true,
+  "escape_closed": true,
+  "build_after": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "build_stable": true,
+  "business_execution": "EXECUTED_UI_NO_WRITE",
+  "result": "PASSED"
+}
