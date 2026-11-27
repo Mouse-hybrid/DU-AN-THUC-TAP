@@ -1,9 +1,5 @@
 name: QA pending UI retest 27 Nov
 on:
-  push:
-    branches: [qa/retest-staging-20261127]
-    paths:
-      - .github/workflows/qa-pending-ui.yml
   workflow_dispatch:
 permissions:
   contents: read
@@ -50,6 +46,21 @@ jobs:
           S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
         run: |
           npx --no-install playwright test s4_table_transfer_ui_isolated.spec.ts s4_ux_040_keyboard_dialogs_isolated.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line
+      - name: Require two business evidence results on pinned build
+        run: |
+          node --input-type=module <<'NODE'
+          import { readdirSync, readFileSync, appendFileSync } from 'node:fs';
+          const files = [
+            ...readdirSync('evidence/qa27').filter(x => x.endsWith('.json')).map(x => 'evidence/qa27/' + x),
+            ...readdirSync('evidence').filter(x => /^S4_UX_040_RUN.*\.json$/.test(x)).map(x => 'evidence/' + x),
+          ];
+          const results = files.map(p => JSON.parse(readFileSync(p, 'utf8')));
+          for (const id of ['PF-S4-TABLE-TRANSFER-UI', 'S4-UX-040']) {
+            const result = results.find(r => r.test_ref === id && r.staging_commit === process.env.POS_EXPECTED_COMMIT && Date.parse(r.checked_at) >= Number(process.env.QA_RETEST_STARTED_MS) && r.result === 'PASSED' && r.cleanup_pass && r.build_stable);
+            if (!result) throw Error(id + ' requires fresh Passed evidence and cleanup');
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, id + ' Passed on ' + result.staging_commit + '\n');
+          }
+          NODE
       - name: Upload sanitized business evidence
         if: always()
         uses: actions/upload-artifact@v4
