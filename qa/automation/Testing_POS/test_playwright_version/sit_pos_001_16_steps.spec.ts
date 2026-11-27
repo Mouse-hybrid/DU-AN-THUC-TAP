@@ -377,7 +377,9 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       const payment = await browser.newContext({ acceptDownloads: false });
       const page = await payment.newPage();
       try {
-        await page.goto(own.paymentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        // The sandbox can keep subresources open; wait for the response commit,
+        // then let each visible control establish UI readiness.
+        await page.goto(own.paymentUrl, { waitUntil: 'commit', timeout: 60_000 });
         await page.getByText('Thẻ nội địa và tài khoản ngân hàng').click();
         await page.getByText(/NCB|Ngân hàng Quốc Dân/i).first().click();
         await page.getByRole('textbox', { name: /số thẻ/i }).fill('9704198526191432198');
