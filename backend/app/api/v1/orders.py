@@ -39,6 +39,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit_log
+from app.core.config import LOYALTY_EARN_ON_PRE_TAX
 from app.core.deps import (
     CurrentStaff,
     get_current_staff,
@@ -67,6 +68,7 @@ from app.core.payments import (
 )
 from app.core.permissions import Permission
 from app.core.pii import can_see_full_phone, mask_phone
+from app.core.pricing import lock_pricing_rates, rates_audit_payload
 from app.core.rbac import role_has
 from app.core.realtime import manager
 from app.db.base import get_session
@@ -98,6 +100,7 @@ from app.schemas.orders import (
     OrderOut,
     OrderSummaryOut,
     PendingMemberOut,
+    PricingRatesOut,
     SendToKitchenResponse,
     SplitOrderOut,
     SplitOrderRequest,
@@ -273,7 +276,10 @@ def build_order_detail(session: Session, order: Order) -> OrderDetailOut:
         items=items,
         subtotal=pricing.subtotal,
         discount_total=pricing.discount,
+        service_charge=pricing.service_charge,
+        tax_total=pricing.tax_total,
         total=pricing.total,
+        pricing_rates=PricingRatesOut.from_rates(pricing.rates),
         applied_reward=_applied_reward_out(pricing),
         amount_paid=totals.paid,
         amount_due=totals.remaining(pricing.total) if order.status in _UNPAID_ORDER_STATUSES else 0,
@@ -816,6 +822,8 @@ def request_billing(
     order.status = "BILLING"
     table = order.table_session.table
     table.status = "BILLING"
+    # Chốt thuế suất và phí phục vụ: từ đây mới thu tiền được, đổi cấu hình không làm lệch đơn.
+    rates = lock_pricing_rates(order, table.outlet)
     session.flush()
     session.refresh(order)
 
@@ -826,7 +834,7 @@ def request_billing(
         action="ORDER_BILLING_REQUESTED",
         entity_type="order",
         entity_id=order.id,
-        payload={"table_id": str(table.id)},
+        payload={"table_id": str(table.id), **rates_audit_payload(rates)},
     )
 
     result = OrderOut.model_validate(order)
@@ -1221,8 +1229,16 @@ def finalize_paid_order(
     # Cùng transaction: đơn đã PAID thì điểm đã trừ và đã tích, request đã khóa đơn nên chỉ
     # làm 1 lần. Ưu đãi không còn hợp lệ thì 409 và rollback cả việc chuyển PAID ở trên.
     pricing = commit_order_reward(session, order, current.outlet_id, current.id)
+    # Chốt phí phục vụ và VAT: đổi cấu hình sau này không làm đổi hóa đơn đã thu.
+    order.service_charge = pricing.service_charge
+    order.tax_total = pricing.tax_total
+    order.paid_at = datetime.now(timezone.utc)
     earned = earn_points_for_order(
-        session, order, current.outlet_id, current.id, pricing.total
+        session,
+        order,
+        current.outlet_id,
+        current.id,
+        pricing.base if LOYALTY_EARN_ON_PRE_TAX else pricing.total,
     )
 
     session.flush()
@@ -1233,7 +1249,10 @@ def finalize_paid_order(
         "session_closed": not unpaid,
         "subtotal": pricing.subtotal,
         "discount": pricing.discount,
+        "service_charge": pricing.service_charge,
+        "tax_total": pricing.tax_total,
         "total": pricing.total,
+        **rates_audit_payload(pricing.rates),
         **(extra_audit or {}),
     }
     if pricing.points:

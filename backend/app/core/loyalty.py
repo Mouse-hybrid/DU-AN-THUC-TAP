@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import uuid
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_FLOOR, Decimal
 
@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.pricing import Charges, PricingRates, compute_charges, rates_for_order
 from app.db.models import Customer, LoyaltyRule, Order, OrderReward, PointsLedger, Reward
 
 REASONS = {
@@ -200,29 +201,67 @@ def active_order_reward(session: Session, order_id: uuid.UUID) -> OrderReward | 
 
 @dataclass(frozen=True)
 class OrderPricing:
+    """`base` = tạm tính − giảm giá. `total` = số phải trả, đã gồm phí phục vụ và VAT
+    (specs/003-vat-hoa-don). Giá đã gồm VAT thì `tax_total` là phần VAT nằm trong giá, không
+    cộng thêm vào `total`."""
+
     subtotal: Decimal
     discount: Decimal = Decimal("0")
     points: int = 0
     active: OrderReward | None = None
     invalid_reason: str | None = None  # ưu đãi đã áp nhưng không còn dùng được
+    rates: PricingRates = field(default_factory=PricingRates)
+    stored: Charges | None = None  # số đã chốt khi đơn PAID
+
+    @property
+    def base(self) -> Decimal:
+        return self.subtotal - self.discount
+
+    @property
+    def charges(self) -> Charges:
+        return self.stored or compute_charges(self.base, self.rates)
+
+    @property
+    def service_charge(self) -> Decimal:
+        return self.charges.service_charge
+
+    @property
+    def tax_total(self) -> Decimal:
+        return self.charges.tax_total
 
     @property
     def total(self) -> Decimal:
-        return self.subtotal - self.discount
+        return self.charges.total
+
+
+def _stored_charges(order: Order, rates: PricingRates, base: Decimal) -> Charges | None:
+    if order.service_charge is None or order.tax_total is None:
+        return None
+    service_charge = Decimal(order.service_charge)
+    tax_total = Decimal(order.tax_total)
+    total = base + service_charge + (Decimal("0") if rates.prices_include_vat else tax_total)
+    return Charges(service_charge, tax_total, total)
 
 
 def price_order(session: Session, order: Order) -> OrderPricing:
-    """Tính khi cần thay vì lưu sẵn: mọi API đổi món đều tự được tính lại đúng (RW-017)."""
+    """Tính khi cần thay vì lưu sẵn: mọi API đổi món đều tự được tính lại đúng (RW-017).
+    Riêng phí phục vụ và VAT của đơn đã PAID thì đọc số đã chốt."""
     subtotal = order_payable_amount(order)
+    rates = rates_for_order(order)
     active = active_order_reward(session, order.id)
     if active is None:
-        return OrderPricing(subtotal)
+        return OrderPricing(
+            subtotal, rates=rates, stored=_stored_charges(order, rates, subtotal)
+        )
     if active.status in ("COMMITTED", "REVERSED"):
+        discount = Decimal(active.discount_amount)
         return OrderPricing(
             subtotal,
-            discount=Decimal(active.discount_amount),
+            discount=discount,
             points=active.points_used,
             active=active,
+            rates=rates,
+            stored=_stored_charges(order, rates, subtotal - discount),
         )
     outlet_id = order.table_session.table.outlet_id
     evaluation = evaluate_reward(
@@ -238,9 +277,15 @@ def price_order(session: Session, order: Order) -> OrderPricing:
         override=bool(active.override_reason),
     )
     if not evaluation.eligible:
-        return OrderPricing(subtotal, active=active, invalid_reason=evaluation.reason_code)
+        return OrderPricing(
+            subtotal, active=active, invalid_reason=evaluation.reason_code, rates=rates
+        )
     return OrderPricing(
-        subtotal, discount=evaluation.discount, points=evaluation.points, active=active
+        subtotal,
+        discount=evaluation.discount,
+        points=evaluation.points,
+        active=active,
+        rates=rates,
     )
 
 

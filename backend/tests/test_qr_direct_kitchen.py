@@ -87,12 +87,13 @@ def test_supervisor_switches_to_confirm_mode(client, seed, qr, db_session_factor
         assert client.get("/api/v1/outlet/settings", headers=headers).status_code == 403
         assert _set_mode(client, headers, "CONFIRM").status_code == 403
 
-    assert client.get("/api/v1/outlet/settings", headers=supervisor).json() == {
-        "qr_send_mode": "DIRECT"
-    }
+    # Từ specs/003 response có thêm thuế/phí; ở đây chỉ kiểm chế độ gửi món.
+    assert client.get("/api/v1/outlet/settings", headers=supervisor).json()["qr_send_mode"] == (
+        "DIRECT"
+    )
     assert _set_mode(client, supervisor, "LATER").status_code == 422
     changed = _set_mode(client, supervisor, "CONFIRM")
-    assert changed.status_code == 200 and changed.json() == {"qr_send_mode": "CONFIRM"}
+    assert changed.status_code == 200 and changed.json()["qr_send_mode"] == "CONFIRM"
     # Gửi lại cùng giá trị: không ghi thêm audit.
     assert _set_mode(client, supervisor, "CONFIRM").status_code == 200
 

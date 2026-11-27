@@ -8081,10 +8081,31 @@
             "title": "Discount Total",
             "default": "0"
           },
+          "service_charge": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Service Charge",
+            "default": "0"
+          },
+          "tax_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total",
+            "default": "0"
+          },
           "total": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Total"
+          },
+          "pricing_rates": {
+            "$ref": "#/components/schemas/PricingRatesOut",
+            "default": {
+              "vat_rate": "0",
+              "prices_include_vat": false,
+              "service_charge_rate": "0",
+              "locked": false
+            }
           },
           "applied_reward": {
             "anyOf": [
@@ -8127,7 +8148,7 @@
           "total"
         ],
         "title": "OrderDetailOut",
-        "description": "Chi tiết 1 order cho màn POS ordering / order summary / table detail.\n`subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả."
+        "description": "Chi tiết 1 order cho màn POS ordering / order summary / table detail.\n`subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả, đã gồm\nphí phục vụ và VAT. Giá đã gồm VAT (`pricing_rates.prices_include_vat`) thì `tax_total` là\nphần VAT nằm trong giá, không cộng thêm vào `total`."
       },
       "OrderItemCreate": {
         "properties": {
@@ -8543,6 +8564,23 @@
               "CONFIRM"
             ],
             "title": "Qr Send Mode"
+          },
+          "vat_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vat Rate",
+            "default": "0"
+          },
+          "prices_include_vat": {
+            "type": "boolean",
+            "title": "Prices Include Vat",
+            "default": false
+          },
+          "service_charge_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Service Charge Rate",
+            "default": "0"
           }
         },
         "type": "object",
@@ -8550,24 +8588,74 @@
           "qr_send_mode"
         ],
         "title": "OutletSettingsOut",
-        "description": "`qr_send_mode`: DIRECT = món khách gọi qua QR vào bếp ngay; CONFIRM = chờ phục vụ xác\nnhận rồi mới gửi bếp."
+        "description": "`qr_send_mode`: DIRECT = món khách gọi qua QR vào bếp ngay; CONFIRM = chờ phục vụ xác\nnhận rồi mới gửi bếp. `vat_rate`, `service_charge_rate`: % (0 = tắt). `prices_include_vat`:\ngiá thực đơn đã gồm VAT. Đổi thuế/phí chỉ áp cho đơn chưa yêu cầu thanh toán."
       },
       "OutletSettingsUpdate": {
         "properties": {
           "qr_send_mode": {
-            "type": "string",
-            "enum": [
-              "DIRECT",
-              "CONFIRM"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "DIRECT",
+                  "CONFIRM"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Qr Send Mode"
+          },
+          "vat_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Rate"
+          },
+          "prices_include_vat": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prices Include Vat"
+          },
+          "service_charge_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Charge Rate"
           }
         },
         "type": "object",
-        "required": [
-          "qr_send_mode"
-        ],
-        "title": "OutletSettingsUpdate"
+        "title": "OutletSettingsUpdate",
+        "description": "Gửi trường nào đổi trường đó. Trần 20% và 30% chỉ để chặn gõ nhầm, không phải con số\nnghiệp vụ (specs/003-vat-hoa-don data-model)."
       },
       "PaymentMetricsOut": {
         "properties": {
@@ -9135,6 +9223,35 @@
         ],
         "title": "PointsEntryOut"
       },
+      "PricingRatesOut": {
+        "properties": {
+          "vat_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vat Rate",
+            "default": "0"
+          },
+          "prices_include_vat": {
+            "type": "boolean",
+            "title": "Prices Include Vat",
+            "default": false
+          },
+          "service_charge_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Service Charge Rate",
+            "default": "0"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PricingRatesOut",
+        "description": "Tỉ lệ dùng để tính đơn. `locked` = đã chốt khi đơn chuyển BILLING, đổi cấu hình cửa hàng\nkhông làm đổi nữa."
+      },
       "QrCategoryOut": {
         "properties": {
           "id": {
@@ -9437,6 +9554,18 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Discount Total",
+            "default": "0"
+          },
+          "service_charge": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Service Charge",
+            "default": "0"
+          },
+          "tax_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total",
             "default": "0"
           },
           "total": {

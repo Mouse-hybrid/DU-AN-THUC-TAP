@@ -84,6 +84,8 @@ class QrOrderOut(BaseModel):
     items: list[QrOrderItemOut]
     subtotal: Decimal
     discount_total: Decimal = Decimal("0")  # ưu đãi do thu ngân áp
+    service_charge: Decimal = Decimal("0")
+    tax_total: Decimal = Decimal("0")  # giá đã gồm VAT thì đây là phần VAT nằm trong giá
     total: Decimal
 
 

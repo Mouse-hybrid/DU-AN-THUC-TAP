@@ -51,6 +51,7 @@ from app.core.modifiers import resolve_modifiers
 from app.core.payments import has_collected_payment
 from app.core.permissions import Permission
 from app.core.pii import mask_phone
+from app.core.pricing import lock_pricing_rates, rates_audit_payload
 from app.core.realtime import manager
 from app.db.base import get_session
 from app.db.models import (
@@ -251,17 +252,23 @@ def _order_view(session: Session, table_session: TableSession) -> QrOrderOut:
         for item, name in rows
     ]
     subtotal = sum((i.line_total for i in items if i.status != "VOIDED"), Decimal("0"))
-    discount = Decimal("0")
+    discount = service_charge = tax_total = total = Decimal("0")
     for order in session.scalars(select(Order).where(Order.table_session_id == table_session.id)):
         # Món vừa thêm chưa nằm trong order.items đã nạp sẵn.
         session.expire(order, ["items"])
-        discount += price_order(session, order).discount
+        pricing = price_order(session, order)
+        discount += pricing.discount
+        service_charge += pricing.service_charge
+        tax_total += pricing.tax_total
+        total += pricing.total
     return QrOrderOut(
         table_code=table_session.table.code,
         items=items,
         subtotal=subtotal,
         discount_total=discount,
-        total=subtotal - discount,
+        service_charge=service_charge,
+        tax_total=tax_total,
+        total=total,
     )
 
 
@@ -549,8 +556,10 @@ def qr_request_bill(
                 status.HTTP_409_CONFLICT,
                 detail="Bàn chưa có món nào được phục vụ, chưa thể yêu cầu thanh toán",
             )
+        locked_rates = {}
         for order in changed:
             order.status = "BILLING"
+            locked_rates[order.id] = lock_pricing_rates(order, table.outlet)
         table.status = "BILLING"
         session.flush()
         for order in changed:
@@ -561,7 +570,11 @@ def qr_request_bill(
                 action="ORDER_BILLING_REQUESTED",
                 entity_type="order",
                 entity_id=order.id,
-                payload={"table_id": str(table.id), "source": "QR"},
+                payload={
+                    "table_id": str(table.id),
+                    "source": "QR",
+                    **rates_audit_payload(locked_rates[order.id]),
+                },
             )
 
     result = _order_view(session, table_session)

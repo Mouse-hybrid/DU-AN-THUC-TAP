@@ -2316,7 +2316,9 @@ export interface components {
         /**
          * OrderDetailOut
          * @description Chi tiết 1 order cho màn POS ordering / order summary / table detail.
-         *     `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả.
+         *     `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả, đã gồm
+         *     phí phục vụ và VAT. Giá đã gồm VAT (`pricing_rates.prices_include_vat`) thì `tax_total` là
+         *     phần VAT nằm trong giá, không cộng thêm vào `total`.
          */
         OrderDetailOut: {
             /**
@@ -2359,8 +2361,27 @@ export interface components {
              * @default 0
              */
             discount_total: string;
+            /**
+             * Service Charge
+             * @default 0
+             */
+            service_charge: string;
+            /**
+             * Tax Total
+             * @default 0
+             */
+            tax_total: string;
             /** Total */
             total: string;
+            /**
+             * @default {
+             *       "vat_rate": "0",
+             *       "prices_include_vat": false,
+             *       "service_charge_rate": "0",
+             *       "locked": false
+             *     }
+             */
+            pricing_rates: components["schemas"]["PricingRatesOut"];
             applied_reward?: components["schemas"]["AppliedRewardOut"] | null;
             /**
              * Amount Paid
@@ -2574,7 +2595,8 @@ export interface components {
         /**
          * OutletSettingsOut
          * @description `qr_send_mode`: DIRECT = món khách gọi qua QR vào bếp ngay; CONFIRM = chờ phục vụ xác
-         *     nhận rồi mới gửi bếp.
+         *     nhận rồi mới gửi bếp. `vat_rate`, `service_charge_rate`: % (0 = tắt). `prices_include_vat`:
+         *     giá thực đơn đã gồm VAT. Đổi thuế/phí chỉ áp cho đơn chưa yêu cầu thanh toán.
          */
         OutletSettingsOut: {
             /**
@@ -2582,14 +2604,36 @@ export interface components {
              * @enum {string}
              */
             qr_send_mode: "DIRECT" | "CONFIRM";
-        };
-        /** OutletSettingsUpdate */
-        OutletSettingsUpdate: {
             /**
-             * Qr Send Mode
-             * @enum {string}
+             * Vat Rate
+             * @default 0
              */
-            qr_send_mode: "DIRECT" | "CONFIRM";
+            vat_rate: string;
+            /**
+             * Prices Include Vat
+             * @default false
+             */
+            prices_include_vat: boolean;
+            /**
+             * Service Charge Rate
+             * @default 0
+             */
+            service_charge_rate: string;
+        };
+        /**
+         * OutletSettingsUpdate
+         * @description Gửi trường nào đổi trường đó. Trần 20% và 30% chỉ để chặn gõ nhầm, không phải con số
+         *     nghiệp vụ (specs/003-vat-hoa-don data-model).
+         */
+        OutletSettingsUpdate: {
+            /** Qr Send Mode */
+            qr_send_mode?: ("DIRECT" | "CONFIRM") | null;
+            /** Vat Rate */
+            vat_rate?: number | string | null;
+            /** Prices Include Vat */
+            prices_include_vat?: boolean | null;
+            /** Service Charge Rate */
+            service_charge_rate?: number | string | null;
         };
         /**
          * PaymentMetricsOut
@@ -2791,6 +2835,33 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * PricingRatesOut
+         * @description Tỉ lệ dùng để tính đơn. `locked` = đã chốt khi đơn chuyển BILLING, đổi cấu hình cửa hàng
+         *     không làm đổi nữa.
+         */
+        PricingRatesOut: {
+            /**
+             * Vat Rate
+             * @default 0
+             */
+            vat_rate: string;
+            /**
+             * Prices Include Vat
+             * @default false
+             */
+            prices_include_vat: boolean;
+            /**
+             * Service Charge Rate
+             * @default 0
+             */
+            service_charge_rate: string;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
+        };
         /** QrCategoryOut */
         QrCategoryOut: {
             /**
@@ -2932,6 +3003,16 @@ export interface components {
              * @default 0
              */
             discount_total: string;
+            /**
+             * Service Charge
+             * @default 0
+             */
+            service_charge: string;
+            /**
+             * Tax Total
+             * @default 0
+             */
+            tax_total: string;
             /** Total */
             total: string;
         };

@@ -124,3 +124,7 @@ if APP_ENV != "development" and JWT_SECRET_KEY == "dev-only-insecure-secret-chan
         "JWT_SECRET_KEY chưa được set cho môi trường "
         f"'{APP_ENV}' — không được dùng secret mặc định ngoài development."
     )
+
+# specs/003-vat-hoa-don research R-4: tích điểm theo số trước VAT và phí phục vụ (chờ PO chốt).
+# Mặc định false = tích theo số khách thực trả, như trước khi có VAT.
+LOYALTY_EARN_ON_PRE_TAX = os.getenv("LOYALTY_EARN_ON_PRE_TAX", "false").lower() == "true"

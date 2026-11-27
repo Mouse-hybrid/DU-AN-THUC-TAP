@@ -67,7 +67,7 @@ Từ 09/11 mọi response có header `X-Request-ID` (FE gửi kèm header này t
 | # | Method | Endpoint | Quyền | Màn hình dùng | Trạng thái |
 |---|---|---|---|---|---|
 | 16 | POST | `/api/v1/orders` | S C W | 09 Gọi món | ✅ 🧪 |
-| 17 | GET | `/api/v1/orders/{id}` | mọi role | 09, 19 Tóm tắt order, 05 | ✅ 🧪 |
+| 17 | GET | `/api/v1/orders/{id}` | mọi role | 09, 19 Tóm tắt order, 05. Từ 27/11 thêm `service_charge`, `tax_total`, `pricing_rates` (specs/003); `total` đã gồm phí phục vụ và VAT | ✅ 🧪 |
 | 18 | GET | `/api/v1/orders?status=&table_id=&created_from=&created_to=&limit=&offset=` | mọi role | — (xem mục B) | ✅ 🧪 |
 | 19 | POST | `/api/v1/orders/{id}/items` | S C W (gọi thêm sau gửi bếp được; bàn BILLING → 409) | 09 | ✅ 🧪 |
 | 20 | PATCH | `/api/v1/orders/{id}/items/{item_id}` | S C W, món CREATED | 09, 19 | ✅ 🧪 |
@@ -89,7 +89,7 @@ Từ 09/11 mọi response có header `X-Request-ID` (FE gửi kèm header này t
 
 | # | Method | Endpoint | Quyền | Màn hình dùng | Trạng thái |
 |---|---|---|---|---|---|
-| 29 | POST | `/api/v1/orders/{id}/request-billing` (order + bàn → BILLING) | S C W | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
+| 29 | POST | `/api/v1/orders/{id}/request-billing` (order + bàn → BILLING) | S C W | **không có trong 15 màn** — xem mục B. Từ 27/11 chốt thuế suất và phí phục vụ lên đơn | ✅ 🧪 |
 | 30 | POST | `/api/v1/orders/{id}/pay` (từ 09/11: lối tắt trả nốt bằng tiền mặt, xem A17) | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 31 | POST | `/api/v1/orders/{id}/close` | S C | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
 | 32 | POST | `/api/v1/orders/{id}/items/{item_id}/void` | S | **không có trong 15 màn** — xem mục B | ✅ 🧪 |
@@ -161,7 +161,7 @@ Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. 
 | 54 | GET | `/api/v1/public/qr/{token}/menu` | token | 41, 42 Thực đơn; có cả món hết hàng (`is_available: false`) | ✅ |
 | 55 | POST | `/api/v1/public/qr/{token}/orders` (cần `Idempotency-Key`) | token | 44, 47 Gửi món: tối đa 20 dòng, mỗi dòng 1–20 phần, ghi chú 200 ký tự | ✅ |
 | 95 | POST | `/api/v1/public/qr/{token}/request-bill` (cần `Idempotency-Key`, không body) | token | Khách bấm "Yêu cầu thanh toán": mọi đơn `SENT`/`SERVED` của phiên và bàn chuyển `BILLING`, khách không gọi thêm được. Bàn đã `BILLING` thì trả lại hóa đơn hiện tại (200). Còn món chờ nhân viên xác nhận, hoặc chưa có món nào gửi bếp: 409. Trả cùng dạng `GET .../order`. Audit `ORDER_BILLING_REQUESTED` (nguồn QR, không có nhân viên); event `ORDER_UPDATED` (`reason: "BILLING_REQUESTED"`) và `TABLE_STATUS_CHANGED` | ✅ từ 17/11 |
-| 56 | GET | `/api/v1/public/qr/{token}/order` | token | 48, 53 Món của cả phiên bàn | ✅ |
+| 56 | GET | `/api/v1/public/qr/{token}/order` | token | 48, 53 Món của cả phiên bàn. Từ 27/11 thêm `service_charge`, `tax_total` | ✅ |
 
 **Chế độ gửi món** (từ 17/11, cài đặt theo cửa hàng `qr_send_mode`, xem API 96–97):
 - **`DIRECT` (mặc định, theo luồng QR của HLR):** món khách gửi vào bếp ngay như nhân viên bấm "Gửi bếp": món `SENT`, có phiếu bếp theo trạm, đơn `SENT`. Audit `ORDER_SENT_TO_KITCHEN` (nguồn QR, không có nhân viên). Event `ORDER_UPDATED` với `reason: "QR_ITEMS_SENT_TO_KITCHEN"` và `KITCHEN_QUEUE_UPDATED` trên kênh `kitchen`. Món nhân viên đang soạn (`CREATED`) không bị kéo theo. Hủy món sai thì dùng API hủy món đã gửi bếp.
@@ -170,8 +170,8 @@ Khách không đăng nhập; token trong URL là quyền truy cập duy nhất. 
 
 | # | Method | Endpoint | Quyền | Dùng cho | Trạng thái |
 |---|---|---|---|---|---|
-| 96 | GET | `/api/v1/outlet/settings` | S (`OUTLET_SETTINGS`) | Cài đặt cửa hàng: `{"qr_send_mode": "DIRECT" \| "CONFIRM"}` | ✅ từ 17/11 |
-| 97 | PATCH | `/api/v1/outlet/settings` | S (`OUTLET_SETTINGS`) | Đổi chế độ gửi món QR, body `{"qr_send_mode"}`; giá trị khác 422. Có đổi thì ghi audit `OUTLET_SETTINGS_UPDATED` (trước/sau). Chỉ áp cho lần gửi sau | ✅ từ 17/11 |
+| 96 | GET | `/api/v1/outlet/settings` | S (`OUTLET_SETTINGS`) | Cài đặt cửa hàng: `qr_send_mode` (`DIRECT` \| `CONFIRM`); từ 27/11 thêm `vat_rate`, `prices_include_vat`, `service_charge_rate` (mặc định 0, tắt) | ✅ từ 17/11 |
+| 97 | PATCH | `/api/v1/outlet/settings` | S (`OUTLET_SETTINGS`) | Gửi trường nào đổi trường đó: `qr_send_mode`, `vat_rate` (0–20), `prices_include_vat`, `service_charge_rate` (0–30); sai 422. Có đổi thì ghi audit `OUTLET_SETTINGS_UPDATED` (trước/sau). Thuế/phí chỉ áp cho đơn yêu cầu thanh toán sau | ✅ từ 17/11 |
 
 | Mã | Khi nào |
 |---|---|

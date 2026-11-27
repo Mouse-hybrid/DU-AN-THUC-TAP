@@ -36,7 +36,7 @@ Thu ngân thu đúng số này; trả nhiều lần, VNPay, hoàn tiền đều 
 2. **Given** cấu hình "giá đã gồm VAT", VAT 8%, không phí phục vụ, đơn 108.000đ, **When** xem đơn, **Then** `total` vẫn 108.000đ, `tax_total` là 8.000đ (phần VAT nằm trong giá).
 3. **Given** cấu hình đang tắt (VAT 0%, phí phục vụ 0%), **When** xem đơn, **Then** `total` bằng `subtotal − discount_total` như hiện nay, hai trường mới bằng 0.
 4. **Given** đơn đã PAID, **When** Supervisor đổi thuế suất, **Then** số của đơn đã PAID không đổi.
-5. **Given** đơn đang chờ thanh toán, đã thu một phần, **When** Supervisor đổi thuế suất làm số phải trả thay đổi, **Then** hệ thống chặn đổi cấu hình (409) cho tới khi không còn đơn đang thu dở. [NEEDS CLARIFICATION: chặn đổi cấu hình, hay cho đổi và chỉ áp cho đơn mở sau?]
+5. **Given** đơn đang chờ thanh toán (`BILLING`), đã thu một phần, **When** Supervisor đổi thuế suất, **Then** đơn đó giữ tỉ lệ đã chốt lúc yêu cầu thanh toán; chỉ đơn yêu cầu thanh toán sau đó dùng tỉ lệ mới. (Đã quyết ở research R-3 ngày 27/11: không cần chặn đổi cấu hình.)
 
 ---
 
@@ -114,7 +114,7 @@ Khách trên trang QR nhập thông tin xuất hóa đơn (màn QR 13). Thông t
 - **FR-002**: Mỗi đơn MUST tính theo thứ tự: tạm tính → trừ giảm giá → phí phục vụ trên phần sau giảm → VAT trên (phần sau giảm + phí phục vụ). Giá đã gồm VAT thì không cộng VAT vào phải trả, chỉ tách phần VAT nằm trong giá để in.
 - **FR-003**: `GET /orders/{id}`, `GET /tables/{id}`, `GET /orders/{id}/payments` MUST trả thêm `service_charge`, `tax_total`, các tỉ lệ đã dùng; `total` là số phải trả cuối cùng.
 - **FR-004**: Mọi luồng thu tiền (trả nhiều lần, VNPay, hoàn tiền, kiểm "đã thu đủ", đóng đơn) MUST dùng `total` mới. Không có chỗ nào tự cộng lại `subtotal − discount`.
-- **FR-005**: Khi đơn chuyển PAID, hệ thống MUST lưu cố định các số và tỉ lệ đã dùng trên đơn. Đổi cấu hình sau đó không làm đổi đơn đã PAID.
+- **FR-005**: Khi đơn chuyển BILLING, hệ thống MUST chốt tỉ lệ thuế/phí lên đơn; khi chuyển PAID, MUST lưu cố định số phí và thuế. Đổi cấu hình sau đó không làm đổi đơn đã PAID.
 - **FR-006**: Tách bill theo món MUST tính phí và VAT riêng cho từng bill (BR-SB-004, BR-SB-005).
 - **FR-007**: `GET /orders/{id}/invoice` MUST trả dữ liệu in hóa đơn (Story 3), không lộ số điện thoại đầy đủ của khách.
 - **FR-008**: `PUT /orders/{id}/vat-request` (Idempotency-Key, quyền `PROCESS_PAYMENT`) MUST lưu thông tin xuất hóa đơn: mã số thuế (10 hoặc 13 số, dạng `0123456789-001`), tên đơn vị, địa chỉ, email nhận. MUST kiểm định dạng (422).
