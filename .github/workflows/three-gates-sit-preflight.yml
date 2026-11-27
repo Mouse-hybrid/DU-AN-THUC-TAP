@@ -1,0 +1,157 @@
+name: QA gates and SIT integration preflight
+
+on:
+  push:
+    branches: [qa/sit-cd-preflight]
+    paths: [.github/workflows/three-gates-sit-preflight.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-staging:
+    outputs:
+      qa_sha: ${{ steps.revisions.outputs.qa_sha }}
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: qa-cd-postdeploy-staging
+      cancel-in-progress: false
+    env:
+      BASE_URL: http://160.191.47.17
+      POS_EXPECTED_COMMIT: d6ee04a173c74530653c5df394dd439c92369eaf
+    steps:
+      - name: Check out QA gates
+        uses: actions/checkout@v4
+        with:
+          ref: ONLY_TESTING
+          path: qa-gates
+          persist-credentials: false
+      - name: Record backend and QA gate revisions
+        id: revisions
+        run: |
+          qa_sha=$(git -C qa-gates rev-parse --verify HEAD)
+          printf 'qa_sha=%s\n' "$qa_sha" >> "$GITHUB_OUTPUT"
+          {
+            printf '### QA CD revisions\n\n'
+            printf '| Source | Commit |\n| --- | --- |\n'
+            printf '| Backend CI target (`main`) | `%s` |\n' "$POS_EXPECTED_COMMIT"
+            printf '| QA scripts and baselines (`ONLY_TESTING`) | `%s` |\n' "$qa_sha"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deployed SHA and unauthenticated guards
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const base = process.env.BASE_URL;
+          const read = async path => fetch(base + path, { signal: AbortSignal.timeout(20000) });
+          const version = await read('/version');
+          if (version.status !== 200) throw Error(`version HTTP ${version.status}`);
+          const build = await version.json();
+          if (build.environment !== 'staging' || build.commit !== process.env.POS_EXPECTED_COMMIT)
+            throw Error('Staging has not deployed this Backend CI SHA');
+          for (const path of ['/health', '/ready', '/openapi.json']) {
+            const response = await read(path);
+            if (response.status !== 200) throw Error(`${path} HTTP ${response.status}`);
+          }
+          const protectedResponse = await read('/api/v1/tables');
+          if (protectedResponse.status !== 401) throw Error('Anonymous table guard changed');
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `Post-deploy staging SHA verified: \`${build.commit}\`; health, ready, contract and guard OK.\n`);
+          NODE
+      - name: Check Phase 2 and UX/UI historical evidence thresholds
+        working-directory: qa-gates/qa/automation/Testing_POS/scripts
+        run: node check_phase2_ux_gate.mjs
+      - name: Smoke Phase 2 QR guard and UX routes on deployed build
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const base = process.env.BASE_URL;
+          const read = path => fetch(base + path, { signal: AbortSignal.timeout(20000) });
+          const qr = await read('/api/v1/public/qr/invalid-cd-token');
+          if (qr.status !== 401) throw Error(`Invalid QR token HTTP ${qr.status}`);
+          for (const path of ['/login', '/qr/invalid-cd-token']) {
+            const response = await read(path);
+            if (response.status !== 200 || !response.headers.get('content-type')?.includes('text/html'))
+              throw Error(`${path}: UX route did not serve HTML`);
+          }
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            'Current-build Phase 2 QR guard and UX route smoke Passed (read-only).\n');
+          NODE
+      - name: Run Phase 1 current-build smoke
+        id: smoke
+        working-directory: qa-gates/qa/automation/Testing_POS
+        run: node scripts/s4_p0p1_safe_readonly.mjs
+      - name: Check Phase 1 historical baseline plus current-build smoke
+        working-directory: qa-gates/qa/automation/Testing_POS
+        env:
+          SMOKE_PATH: ${{ steps.smoke.outputs.evidence_path }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const manifest = JSON.parse(readFileSync('phase1-gate.json', 'utf8'));
+          const prefix = 'qa/automation/Testing_POS/';
+          if (!process.env.SMOKE_PATH?.startsWith(prefix)) throw Error('Missing Phase 1 smoke artifact');
+          const path = process.env.SMOKE_PATH.slice(prefix.length);
+          manifest.target_build = process.env.POS_EXPECTED_COMMIT;
+          manifest.verified_cases = manifest.fresh_smoke_required.map(tc_id => ({ tc_id, evidence: path }));
+          writeFileSync('phase1-gate-cd.json', JSON.stringify(manifest));
+          NODE
+          node scripts/check_phase1_gate.mjs phase1-gate-cd.json
+      - name: Check SHA again after all gates
+        run: |
+          node --input-type=module <<'NODE'
+          const r = await fetch(`${process.env.BASE_URL}/version`, { signal: AbortSignal.timeout(20000) });
+          if (r.status !== 200 || (await r.json()).commit !== process.env.POS_EXPECTED_COMMIT)
+            throw Error('Staging changed during post-deploy verification');
+          NODE
+          echo 'Phase 2 and UX/UI thresholds refer to historical evidence. Fresh authenticated SIT is reported in the dependent SIT job.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Phase 1 current-build smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-gates-postdeploy-${{ github.run_id }}
+          path: qa-gates/qa/automation/Testing_POS/evidence/REGRESSION/P0P1_SAFE_*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  sit:
+    name: SIT 16 steps after three gates
+    needs: verify-staging
+    if: needs.verify-staging.result == 'success'
+    uses: Mouse-hybrid/DU-AN-THUC-TAP/.github/workflows/sit-pos-16.yml@e6114907f92d2f4b45cb81a6aeffc56c6abd57ce
+    with:
+      expected_commit: d6ee04a173c74530653c5df394dd439c92369eaf
+      qa_ref: ${{ needs.verify-staging.outputs.qa_sha }}
+    secrets:
+      S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+
+  qa-outcome:
+    name: Require gates and SIT success
+    needs: [verify-staging, sit]
+    if: always() && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      GATES_RESULT: ${{ needs.verify-staging.result }}
+      SIT_RESULT: ${{ needs.sit.result }}
+      APPLICATION_SHA: d6ee04a173c74530653c5df394dd439c92369eaf
+      QA_SOURCE_SHA: ${{ needs.verify-staging.outputs.qa_sha }}
+    steps:
+      - name: Report a failed or skipped required stage as failure
+        run: |
+          set -euo pipefail
+          {
+            printf '### Post-deploy QA outcome\n\n'
+            printf '| Stage | Result |\n| --- | --- |\n'
+            printf '| Three evidence gates and current-build smoke | %s |\n' "$GATES_RESULT"
+            printf '| Fresh SIT 16 steps, cleanup and SHA | %s |\n' "$SIT_RESULT"
+            printf '\nApplication SHA: `%s`\n\nQA source SHA: `%s`\n' "$APPLICATION_SHA" "$QA_SOURCE_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$GATES_RESULT" != success ] || [ "$SIT_RESULT" != success ]; then
+            echo 'Required QA stage failed or was skipped.' >&2
+            exit 1
+          fi
