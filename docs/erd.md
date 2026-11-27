@@ -54,6 +54,10 @@ erDiagram
         str name
         str address
         bool is_active
+        str qr_send_mode
+        text vat_rate
+        bool prices_include_vat
+        text service_charge_rate
         datetime created_at
         datetime updated_at
     }
@@ -136,6 +140,12 @@ erDiagram
         int current_version
         uuid created_by_staff_id FK
         uuid customer_id FK
+        text vat_rate_applied
+        bool prices_include_vat_applied
+        text service_charge_rate_applied
+        text service_charge
+        text tax_total
+        datetime paid_at
         datetime created_at
         datetime updated_at
     }

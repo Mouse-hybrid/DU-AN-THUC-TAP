@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
@@ -41,6 +42,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -126,6 +128,13 @@ def _check(values: tuple[str, ...], col: str, name: str) -> CheckConstraint:
 
 class Outlet(Base):
     __tablename__ = "outlet"
+    __table_args__ = (
+        CheckConstraint("vat_rate >= 0 AND vat_rate <= 20", name="ck_outlet_vat_rate"),
+        CheckConstraint(
+            "service_charge_rate >= 0 AND service_charge_rate <= 30",
+            name="ck_outlet_service_charge_rate",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=new_uuid)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -135,6 +144,17 @@ class Outlet(Base):
     # nhận rồi mới gửi bếp (phiếu B6 cũ). Supervisor đổi bằng PATCH /outlet/settings.
     qr_send_mode: Mapped[str] = mapped_column(
         String(20), nullable=False, default="DIRECT", server_default="DIRECT"
+    )
+    # Thuế và phí phục vụ (specs/003-vat-hoa-don). Mặc định tắt (0%); Supervisor đổi bằng
+    # PATCH /outlet/settings. Đơn chốt tỉ lệ lúc chuyển BILLING, xem app/core/pricing.py.
+    vat_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), nullable=False, default=0, server_default="0"
+    )
+    prices_include_vat: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    service_charge_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), nullable=False, default=0, server_default="0"
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -390,6 +410,16 @@ class Order(Base):
     customer_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID, ForeignKey("customer.id"), nullable=True
     )  # khách tích điểm, không bắt buộc
+    # Tỉ lệ chốt khi chuyển BILLING; null ở đơn trước migration 0016 (coi là 0).
+    vat_rate_applied: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    prices_include_vat_applied: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    service_charge_rate_applied: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    # Số chốt khi chuyển PAID: đổi cấu hình sau đó không làm đổi hóa đơn đã thu.
+    service_charge: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    tax_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

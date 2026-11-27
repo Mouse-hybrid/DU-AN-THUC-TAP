@@ -8,6 +8,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.core.pricing import PricingRates
+
 
 class CreateOrderRequest(BaseModel):
     table_session_id: uuid.UUID
@@ -100,9 +102,30 @@ class AppliedRewardOut(BaseModel):
     invalid_reason: str | None = None
 
 
+class PricingRatesOut(BaseModel):
+    """Tỉ lệ dùng để tính đơn. `locked` = đã chốt khi đơn chuyển BILLING, đổi cấu hình cửa hàng
+    không làm đổi nữa."""
+
+    vat_rate: Decimal = Decimal("0")
+    prices_include_vat: bool = False
+    service_charge_rate: Decimal = Decimal("0")
+    locked: bool = False
+
+    @classmethod
+    def from_rates(cls, rates: PricingRates) -> "PricingRatesOut":
+        return cls(
+            vat_rate=rates.vat_rate,
+            prices_include_vat=rates.prices_include_vat,
+            service_charge_rate=rates.service_charge_rate,
+            locked=rates.locked,
+        )
+
+
 class OrderDetailOut(BaseModel):
     """Chi tiết 1 order cho màn POS ordering / order summary / table detail.
-    `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả."""
+    `subtotal` = tổng các món chưa bị VOIDED (chưa có thuế). `total` = số tiền phải trả, đã gồm
+    phí phục vụ và VAT. Giá đã gồm VAT (`pricing_rates.prices_include_vat`) thì `tax_total` là
+    phần VAT nằm trong giá, không cộng thêm vào `total`."""
 
     id: uuid.UUID
     table_session_id: uuid.UUID
@@ -115,7 +138,10 @@ class OrderDetailOut(BaseModel):
     items: list[OrderItemDetailOut] = []
     subtotal: Decimal
     discount_total: Decimal = Decimal("0")
+    service_charge: Decimal = Decimal("0")
+    tax_total: Decimal = Decimal("0")
     total: Decimal
+    pricing_rates: PricingRatesOut = PricingRatesOut()
     applied_reward: AppliedRewardOut | None = None
     # Đã thu qua các lần thanh toán (không tính lần đã hủy) và số còn phải thu.
     amount_paid: Decimal = Decimal("0")

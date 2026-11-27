@@ -3,34 +3,34 @@
 - **Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/vat-hoa-don.md](contracts/vat-hoa-don.md)
 - **Ký hiệu**: `[P]` = làm song song được; `[US1]`… = thuộc user story nào.
 - **Ước lượng**: khoảng 4 ngày làm (US1+US2 ~1,5 ngày, US3 ~0,5, US4 ~1,5, polish ~0,5). US5 ngoài ước lượng.
-- **Tiến độ (27/11)**: chưa bắt đầu code.
+- **Tiến độ (27/11)**: PR 1 (Phase 1–3) đã code xong, trừ T003 (chạy migration trên Postgres: CI chạy `alembic upgrade head` trên Postgres; bản sao dữ liệu staging làm trước khi merge). Migration tách đôi: `0016_vat_service_charge` (PR 1), bảng `e_invoice` sang `0017` ở PR 2. Biến `EINVOICE_*` cũng để PR 2.
 
 ## Phase 1: Foundational
 
-- [ ] T001 Migration `backend/migrations/versions/0016_vat_einvoice.py`:
+- [x] T001 Migration `backend/migrations/versions/0016_vat_einvoice.py`:
   - `outlet`: `vat_rate`, `prices_include_vat`, `service_charge_rate`, mặc định 0/false, có CHECK khoảng giá trị;
   - `order`: `vat_rate_applied`, `prices_include_vat_applied`, `service_charge_rate_applied`, `service_charge`, `tax_total`, `paid_at`, đều cho phép null;
   - bảng `e_invoice` với CHECK trạng thái, unique `order_id`, index `(status, next_attempt_at)`;
   - có `downgrade()`.
-- [ ] T002 Cập nhật `Outlet`, `Order`, thêm `EInvoice` và `EINVOICE_STATUS` trong `backend/app/db/models.py`; thêm `EINVOICE_PROVIDER`, `EINVOICE_STUB_FAIL`, `EINVOICE_MAX_ATTEMPTS`, `EINVOICE_TIMEOUT_SECONDS`, `LOYALTY_EARN_ON_PRE_TAX` vào `backend/app/core/config.py`.
+- [x] T002 Cập nhật `Outlet`, `Order`, thêm `EInvoice` và `EINVOICE_STATUS` trong `backend/app/db/models.py`; thêm `EINVOICE_PROVIDER`, `EINVOICE_STUB_FAIL`, `EINVOICE_MAX_ATTEMPTS`, `EINVOICE_TIMEOUT_SECONDS`, `LOYALTY_EARN_ON_PRE_TAX` vào `backend/app/core/config.py`.
 - [ ] T003 Chạy migration lên/xuống trên bản sao dữ liệu staging (`alembic upgrade head`, `downgrade -1`, `upgrade head`), ghi kết quả vào PR.
 
 ## Phase 2: User Story 1 — VAT và phí phục vụ (P1) 🎯
 
-- [ ] T004 [US1] `backend/app/core/pricing.py`: `PricingRates`, `Charges`, `compute_charges`, `rates_for_order` theo research R-1, R-2, R-3.
-- [ ] T005 [P] [US1] `backend/tests/test_vat_pricing.py` phần hàm thuần:
+- [x] T004 [US1] `backend/app/core/pricing.py`: `PricingRates`, `Charges`, `compute_charges`, `rates_for_order` theo research R-1, R-2, R-3.
+- [x] T005 [P] [US1] `backend/tests/test_vat_pricing.py` phần hàm thuần:
   - 3 ví dụ trong spec (306.180; giá gồm VAT 108.000 → 8.000; tắt → bằng `subtotal − discount`);
   - 16 tổ hợp giá gồm/chưa gồm VAT × có/không phí × có/không giảm giá × 2 mức giá lẻ (làm tròn nửa lên);
   - `base = 0` và đơn giảm hết.
-- [ ] T006 [US1] `OrderPricing` thêm `service_charge`, `tax_total`, `rates`; `price_order` gọi `compute_charges`; đơn PAID có số đã lưu thì trả số đã lưu (`backend/app/core/loyalty.py`).
-- [ ] T007 [US1] `request_billing` chốt 3 tỉ lệ lên đơn, thêm vào audit; `finalize_paid_order` lưu `service_charge`, `tax_total`, `paid_at`, thêm vào audit `ORDER_PAID` (`backend/app/api/v1/orders.py`).
-- [ ] T008 [US1] `earn_points_for_order` nhận số theo cờ `LOYALTY_EARN_ON_PRE_TAX` (`backend/app/core/loyalty.py`, chỗ gọi trong `finalize_paid_order`).
-- [ ] T009 [US1] Response:
+- [x] T006 [US1] `OrderPricing` thêm `service_charge`, `tax_total`, `rates`; `price_order` gọi `compute_charges`; đơn PAID có số đã lưu thì trả số đã lưu (`backend/app/core/loyalty.py`).
+- [x] T007 [US1] `request_billing` chốt 3 tỉ lệ lên đơn, thêm vào audit; `finalize_paid_order` lưu `service_charge`, `tax_total`, `paid_at`, thêm vào audit `ORDER_PAID` (`backend/app/api/v1/orders.py`).
+- [x] T008 [US1] `earn_points_for_order` nhận số theo cờ `LOYALTY_EARN_ON_PRE_TAX` (`backend/app/core/loyalty.py`, chỗ gọi trong `finalize_paid_order`).
+- [x] T009 [US1] Response:
   - `OrderDetailOut` thêm `service_charge`, `tax_total`, `pricing_rates` (`backend/app/schemas/orders.py`, `_order_detail` trong `orders.py`);
   - QR order summary dùng `price_order` thay vì `subtotal − discount`, thêm hai trường (`backend/app/api/v1/qr.py`, `backend/app/schemas/qr.py`);
   - kiểm `PaymentSummaryOut.total` và danh sách đơn đã ra số mới.
-- [ ] T010 [US1] `GET/PATCH /outlet/settings` thêm 3 trường, kiểm khoảng giá trị, audit before/after (`backend/app/api/v1/outlet.py`, `backend/app/schemas/outlet.py`).
-- [ ] T011 [P] [US1] Test API trong `backend/tests/test_vat_pricing.py`:
+- [x] T010 [US1] `GET/PATCH /outlet/settings` thêm 3 trường, kiểm khoảng giá trị, audit before/after (`backend/app/api/v1/outlet.py`, `backend/app/schemas/outlet.py`).
+- [x] T011 [P] [US1] Test API trong `backend/tests/test_vat_pricing.py`:
   - bật cấu hình, đơn có ưu đãi, chi tiết đơn khớp bảng US1;
   - trả nhiều lần (tiền mặt + thẻ) đủ `total` mới thì PAID, thiếu 1đ thì chưa;
   - VNPay tạo link với số tiền mới (mock như test VNPay hiện có);
@@ -41,15 +41,15 @@
   - tích điểm theo `total`, và theo `base` khi bật cờ;
   - `PATCH /outlet/settings`: quyền, 422, gửi lại cùng Idempotency-Key, audit;
   - outlet khác không thấy và không đổi được.
-- [ ] T012 [US1] Chạy toàn bộ test hiện có với cấu hình mặc định, không sửa số kỳ vọng nào (SC-001).
+- [x] T012 [US1] Chạy toàn bộ test hiện có với cấu hình mặc định, không sửa số kỳ vọng nào (SC-001).
 
 ## Phase 3: User Story 2 — Tách bill (P1)
 
-- [ ] T013 [US2] Test trong `backend/tests/test_vat_pricing.py`:
+- [x] T013 [US2] Test trong `backend/tests/test_vat_pricing.py`:
   - ví dụ US2: bill A 113.400, bill B 226.800, tổng bằng đơn không tách;
   - 4 tổ hợp tách có/không phí × giá gồm/chưa gồm VAT, tổng lệch tối đa 1đ mỗi dòng (cùng T005 đủ 20 tổ hợp của SC-002);
   - trả nhiều lần trên cùng đơn không tính lại thuế mỗi lần.
-- [ ] T014 [US2] Nếu T013 lộ chỗ tách bill chưa đúng (ví dụ đơn mới chưa đọc tỉ lệ đúng) thì sửa `split_order`. Dự kiến không cần sửa, vì tách chỉ được trước `BILLING`.
+- [x] T014 [US2] Nếu T013 lộ chỗ tách bill chưa đúng (ví dụ đơn mới chưa đọc tỉ lệ đúng) thì sửa `split_order`. Dự kiến không cần sửa, vì tách chỉ được trước `BILLING`.
 
 ## Phase 4: User Story 3 — Hóa đơn (P2)
 
