@@ -1,0 +1,61 @@
+name: SIT POS 16 steps (staging, no CD)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Full deployed staging commit SHA
+        required: true
+        type: string
+  push:
+    branches: [qa/sit-16-ci]
+    paths:
+      - .github/workflows/sit-pos-16.yml
+      - qa/automation/Testing_POS/test_playwright_version/sit_pos_001_16_steps.spec.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sit-pos-16-staging
+  cancel-in-progress: false
+
+jobs:
+  sit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    env:
+      BASE_URL: http://160.191.47.17
+      POS_EXPECTED_COMMIT: ${{ inputs.expected_commit || '45eaabff7fe3d1a6cdf2c34608aa5eb57857e0ee' }}
+      S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+      - name: Validate private PIN and full commit pin
+        shell: bash
+        run: |
+          test -n "$S2_STAGING_PIN" || { echo 'S2_STAGING_PIN secret is unavailable'; exit 1; }
+          [[ "$POS_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo 'Full staging SHA required'; exit 1; }
+          echo 'Required secret and SHA format present; values hidden.'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Execute one owned 16-step SIT flow
+        run: npx playwright test test_playwright_version/sit_pos_001_16_steps.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Upload sanitized SIT evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sit-pos-001-${{ github.run_id }}
+          path: |
+            qa/automation/Testing_POS/evidence/SIT_POS_001_*.json
+            qa/automation/Testing_POS/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
