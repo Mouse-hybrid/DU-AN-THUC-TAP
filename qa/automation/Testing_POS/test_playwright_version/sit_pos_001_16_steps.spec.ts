@@ -234,7 +234,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       const path = `/api/v1/tables/${own.tables.source.id}/transfer`;
       const denied = await raw('POST', path, 'waiter', { target_table_id: own.tables.target.id });
       expect(denied.status, 'Over-capacity transfer without reason').toBe(409);
-      const transferred = await api('POST', path, 200, 'waiter',
+      const transferred = await api('POST', path, 200, 'admin',
         { target_table_id: own.tables.target.id,
           capacity_override_reason: `SIT QA extra chairs ${own.marker}` });
       checked(transferred.table_session_id === own.sessions.main &&
@@ -317,6 +317,11 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
           value: '10.00', min_order_amount: '0' });
       own.rewardId = reward.id;
       await staffPage!.reload({ waitUntil: 'domcontentloaded' });
+      const attachMember = staffPage!.getByRole('button', {
+        name: 'Gắn hội viên khách đã nhập trên QR', exact: true });
+      await expect(attachMember).toBeVisible();
+      await attachMember.click();
+      checked((await order()).customer_id === own.customerId, 'Cashier linked QR member');
       const row = staffPage!.getByTestId('reward-row').filter({ hasText: reward.name });
       await expect(row).toBeVisible();
       const appliedResponse = staffPage!.waitForResponse(r => r.request().method() === 'POST' &&
@@ -329,15 +334,16 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
       await expect(staffPage!.locator('aside[aria-label="Tổng tiền"]')).toContainText(formatted,
         { timeout: 5_000 });
       // No reload: a stale payment total is an SIT failure, as BE acknowledged.
-      const paymentPanel = staffPage!.getByRole('button', { name: 'Ghi nhận thanh toán' });
-      await expect(paymentPanel).toBeVisible();
+      const paymentTotal = staffPage!.getByTestId('pay-total');
+      await expect(paymentTotal).toBeVisible();
       await testInfo.attach('SIT_POS_001_discount_payment_panel', {
         body: await staffPage!.screenshot({ fullPage: true, animations: 'disabled' }),
         contentType: 'image/png',
       });
-      const panel = paymentPanel.locator('xpath=..');
-      await expect(panel, 'Payment panel must refresh its total without page reload').toContainText(
-        formatted, { timeout: 5_000 });
+      await expect(paymentTotal, 'Payment panel must refresh its total without page reload')
+        .toContainText(formatted, { timeout: 5_000 });
+      await expect(staffPage!.getByTestId('pay-remaining')).toContainText(formatted,
+        { timeout: 5_000 });
     });
     await step(13, 'Partial CASH and pending VNPay', async () => {
       const due = Number((await order()).amount_due);
