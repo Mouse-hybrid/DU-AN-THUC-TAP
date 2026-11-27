@@ -99,9 +99,15 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
   }
   async function cleanup() {
     if (!own.sessions.main) { report.cleanup_pass = true; return; }
-    if (own.qrIssued) {
+    if (own.qrIssued && (await table('target')).current_session?.id === own.sessions.main) {
       const revoked = await raw('DELETE', `/api/v1/tables/${own.tables.target.id}/qr-session`, 'waiter');
       checked([204, 404].includes(revoked.status), 'Owned QR revoke');
+      own.qrIssued = false;
+    }
+    if (own.qrIssued) {
+      const closedQr = await raw('GET', `/api/v1/public/qr/${own.token}`);
+      checked([401, 410].includes(closedQr.status), 'Paid/closed QR token must be unusable');
+      report.closed_qr_http = closedQr.status;
       own.qrIssued = false;
     }
     for (const [name, session, key] of [
@@ -159,6 +165,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
     if (own.customerId) await api('PATCH', `/api/v1/customers/${own.customerId}`, 200,
       'admin', { is_active: false });
     const tables = await Promise.all(['source', 'target', 'secondary'].filter(key => own.tables[key]).map(table));
+    report.cleanup_state = { table_states: tables.map(t => ({code: t.code, status: t.status})), order_status: (await order()).status };
     report.cleanup_pass = tables.every(t => t.status === 'AVAILABLE' && !t.current_session) &&
       (await order()).status === 'CLOSED';
     checked(report.cleanup_pass, 'Owned sessions and tables must be released');
@@ -521,6 +528,7 @@ test('SIT-POS-001 | one owned POS flow through all 16 steps', async ({ browser, 
     });
   } catch (error) { failure = error; }
   await staffContext?.close().catch(() => {});
+  report.fixture = { order_id: own.orders.main, session_id: own.sessions.main, customer_id: own.customerId, reward_id: own.rewardId, marker: own.marker };
   try { if (tokens.waiter && own.menu) await cleanup(); }
   catch (error) { cleanupError = error; }
   try { report.build_after = await version(); } catch { report.build_after = null; }
