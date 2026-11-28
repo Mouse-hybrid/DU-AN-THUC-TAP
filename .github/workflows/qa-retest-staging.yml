@@ -1,0 +1,73 @@
+name: QA targeted staging retest 27 Nov
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sit-pos-16-staging
+  cancel-in-progress: false
+jobs:
+  targeted:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa/automation/Testing_POS
+    env:
+      BASE_URL: http://160.191.47.17
+      POS_EXPECTED_COMMIT: 65e5088c47c45dcdad0a10361113c22cede47c01
+      CYPRESS_INSTALL_BINARY: '0'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: qa/automation/Testing_POS/package-lock.json
+      - name: Verify private PIN and staging revision
+        env:
+          S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+        run: |
+          test -n "$S2_STAGING_PIN"
+          echo "QA_RETEST_STARTED_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          node --input-type=module <<'NODE'
+          const r = await fetch(process.env.BASE_URL + '/version', { signal: AbortSignal.timeout(20000) });
+          const v = await r.json();
+          if (r.status !== 200 || v.environment !== 'staging' || v.commit !== process.env.POS_EXPECTED_COMMIT)
+            throw Error('Staging build differs from retest pin');
+          NODE
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Retest payment, QR clipboard and merge Cancel and Escape
+        env:
+          S2_STAGING_PIN: ${{ secrets.S2_STAGING_PIN }}
+        run: |
+          npx --no-install playwright test reg_20261127_payment_qr.spec.ts s4_ux_011_merge_dialog_cancel_isolated.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line
+      - name: Require two business evidence results on pinned build
+        run: |
+          node --input-type=module <<'NODE'
+          import { readdirSync, readFileSync, appendFileSync } from 'node:fs';
+          const files = [
+            ...readdirSync('evidence/qa27').filter(x => x.endsWith('.json')).map(x => 'evidence/qa27/' + x),
+            ...readdirSync('evidence').filter(x => /^S4_UX_011_RUN.*\.json$/.test(x)).map(x => 'evidence/' + x),
+          ];
+          const results = files.map(p => JSON.parse(readFileSync(p, 'utf8')));
+          for (const id of ['REG-20261127-PAYMENT-QR', 'S4-UX-011']) {
+            const result = results.find(r => r.test_ref === id && r.staging_commit === process.env.POS_EXPECTED_COMMIT && Date.parse(r.checked_at) >= Number(process.env.QA_RETEST_STARTED_MS) && r.result === 'PASSED' && r.cleanup_pass && r.build_stable);
+            if (!result) throw Error(id + ' requires fresh Passed evidence and cleanup');
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, id + ' Passed on ' + result.staging_commit + '\n');
+          }
+          NODE
+      - name: Upload sanitized business evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-targeted-retest-${{ github.run_id }}
+          path: |
+            qa/automation/Testing_POS/evidence/qa27/*.json
+            qa/automation/Testing_POS/evidence/S4_UX_011_RUN*.json
+          if-no-files-found: error
+          retention-days: 14

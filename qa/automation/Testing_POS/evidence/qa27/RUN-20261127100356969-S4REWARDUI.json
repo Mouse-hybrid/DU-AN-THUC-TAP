@@ -1,0 +1,67 @@
+{
+  "run_id": "RUN-20261127100356969-S4REWARDUI",
+  "test_ref": "REG-20261127-PAYMENT-QR",
+  "checked_at": "2026-11-27T10:03:56.969Z",
+  "scope": "QA3 owned 315000 VND bill: payment panel updates to 283500 after 10 percent reward and back without navigation; real QR copy/paste and VNPay recheck message; owned cleanup",
+  "business_case": "ADR 0004 and regression of PR 115; IPN outside staging scope",
+  "project": "chromium",
+  "secrets_recorded": false,
+  "phone_recorded": false,
+  "checks": {
+    "one_ui_apply": true,
+    "one_ui_remove": true,
+    "no_other_ui_business_write": true,
+    "apply_discount": true,
+    "remove_restores_bill": true,
+    "points_unchanged": true,
+    "audit_once": true
+  },
+  "cleanup_pass": true,
+  "ui_writes": [
+    "POST /api/v1/orders/91dae4d8-7ef2-4ca1-ac5c-8c52d76ee0a1/rewards",
+    "DELETE /api/v1/orders/91dae4d8-7ef2-4ca1-ac5c-8c52d76ee0a1/rewards/8e0f31a2-4ccf-45ac-998a-c957922ef150",
+    "POST /api/v1/payments/fd581318-42ab-49c1-be3e-290f6c799238/check"
+  ],
+  "staging_commit": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "build_before": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "pricing": {
+    "vat_rate": "0",
+    "service_charge_rate": "0"
+  },
+  "qr_copy": {
+    "result": "PASSED",
+    "pasted_link_matches": true
+  },
+  "apply_http": 201,
+  "remove_http": 200,
+  "payment_panel": {
+    "before_vnd": 315000,
+    "applied_vnd": 283500,
+    "restored_vnd": 315000,
+    "navigations": 0
+  },
+  "vnpay_recheck": {
+    "result": "PASSED",
+    "http": 502,
+    "visible_message": "Chưa hỏi được VNPay lúc này. Nếu khách đã trả xong, màn này vẫn tự cập nhật trong vài giây; chưa cần thu lại."
+  },
+  "order_id": "91dae4d8-7ef2-4ca1-ac5c-8c52d76ee0a1",
+  "before_total": "315000.00",
+  "applied_total": "283500.00",
+  "restored_total": "315000.00",
+  "cleanup_state": {
+    "order_closed": true,
+    "table_available": true,
+    "open_session": false,
+    "items_served": true,
+    "ticket_done": true,
+    "no_active_ticket": true
+  },
+  "reward_inactive": true,
+  "customer_inactive": true,
+  "cleanup_points_unchanged": true,
+  "build_after": "65e5088c47c45dcdad0a10361113c22cede47c01",
+  "build_stable": true,
+  "business_execution": "EXECUTED",
+  "result": "PASSED"
+}

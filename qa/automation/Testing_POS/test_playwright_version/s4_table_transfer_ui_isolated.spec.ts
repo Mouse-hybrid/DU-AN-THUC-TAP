@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 test('PF-S4-TABLE-TRANSFER-UI | QA3 desktop transfers an occupied table',
@@ -207,6 +208,8 @@ test('PF-S4-TABLE-TRANSFER-UI | QA3 desktop transfers an occupied table',
       write === `POST /api/v1/tables/${source.id}/transfer`) ? 'EXECUTED' : 'NOT_EXECUTED';
     report.result = !bodyError && !cleanupError && report.cleanup_pass && report.build_stable ?
       'PASSED' : cleanupError ? 'INCONCLUSIVE' : 'FAILED';
+    mkdirSync('evidence/qa27', { recursive: true });
+    writeFileSync('evidence/qa27/TRANSFER_' + runId + '.json', JSON.stringify(report, null, 2));
     await testInfo.attach('S4_TABLE_TRANSFER_UI_evidence', {
       body: JSON.stringify(report, null, 2), contentType: 'application/json',
     });
